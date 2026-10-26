@@ -314,7 +314,7 @@ const GROUPS = ["Brust","Rücken","Schultern","Beine","Po","Arme","Bauch","Ganzk
 const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Beine"],["Beinbeuger","Beine"],["Bizepscurls","Arme"]];
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.5";
+const APP_VERSION = "1.6";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -589,12 +589,15 @@ function exerciseList(list,act,sel){
   const byGroup=new Map();
   for(const e of filtered){ const g=e.group||"Sonstiges"; if(!byGroup.has(g)) byGroup.set(g,[]); byGroup.get(g).push(e); }
   const order=[...GROUPS,...[...byGroup.keys()].filter(g=>!GROUPS.includes(g))];
-  return order.filter(g=>byGroup.has(g)).map(g=>`<div class="group"><h3>${esc(g)}</h3><div class="list">${byGroup.get(g).map(e=>{
+  const groups=order.filter(g=>byGroup.has(g)).map(g=>[g,byGroup.get(g)]);
+  if(!q&&list.length>5&&act!=="openEx") groups.unshift(["Zuletzt verwendet oder angelegt",[...list].sort((a,b)=>recency(b)-recency(a)).slice(0,5)]);
+  return groups.map(([g,items])=>`<div class="group"><h3>${esc(g)}</h3><div class="list">${items.map(e=>{
     const l=logsFor(e.id)[0];
     const sub=l?`${relDay(l.date)} · ${(l.sets||[]).map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert";
     const set=(e.settings||[]).filter(s=>s.k&&s.v).map(s=>`${s.k} ${s.v}`).join(" · ");
     return `<button class="item" data-act="${act}" data-ex="${esc(e.id)}"${act==="planToggle"?` aria-pressed="${!!(sel&&sel.has(e.id))}"`:""}><div class="grow"><div class="name">${esc(e.name)}</div><div class="sub num">${esc(sub)}</div>${set?`<div class="sub">${esc(set)}</div>`:""}</div>${act==="planToggle"?(sel&&sel.has(e.id)?ICON.check.replace("<svg","<svg class=\"chk-on\""):ICON.plusItem):act==="pickEx"?ICON.plusItem:ICON.chev}</button>`;}).join("")}</div></div>`).join("");
 }
+function recency(e){ const l=lastUsed(e.id); return Math.max(l?toDate(l).getTime()+86399999:0,e.createdAt||0); }
 function searchBox(){ return `<label class="search">${ICON.search}<input class="input" id="q" data-field="query" type="search" placeholder="Übung suchen" value="${esc(S.query)}" autocomplete="off"></label>`; }
 
 function viewExercises(){
@@ -605,7 +608,7 @@ function viewExercises(){
 function viewPick(){
   const exs=exercises();
   const t=top(), d=t&&t.date&&t.date!==todayStr()?t.date:null;
-  return `${d?`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(d)))}</p>`:""}${exs.length>6?searchBox():""}<button class="btn" data-act="newExLog">${ICON.plus}Neue Übung anlegen</button><div id="exlist" class="stack">${exs.length?exerciseList(exs,"pickEx"):`<div class="chips">${PRESETS.map(([n],i)=>`<button class="chip" data-act="preset" data-i="${i}">${esc(n)}</button>`).join("")}</div>`}</div>`;
+  return `${d?`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(d)))}</p>`:""}${exs.length>4?searchBox():""}<button class="btn" data-act="newExLog">${ICON.plus}Neue Übung anlegen</button><div id="exlist" class="stack">${exs.length?exerciseList(exs,"pickEx"):`<div class="chips">${PRESETS.map(([n],i)=>`<button class="chip" data-act="preset" data-i="${i}">${esc(n)}</button>`).join("")}</div>`}</div>`;
 }
 
 function settingsDl(e){
@@ -776,10 +779,26 @@ function saveBlob(blob,name){
   setTimeout(()=>URL.revokeObjectURL(url),10000);
 }
 
+function nameSuggestions(typed){
+  const q=(typed||"").trim().toLowerCase();
+  const exs=exercises();
+  const hits=q.length<2?[]:exs.filter(e=>e.name.toLowerCase().includes(q)).slice(0,6);
+  const presets=q.length<2?[]:PRESETS.filter(([n])=>n.toLowerCase().includes(q)&&!exs.some(e=>e.name.toLowerCase()===n.toLowerCase())).slice(0,4);
+  if(!hits.length&&!presets.length) return "";
+  return `<div class="field"><span>${hits.length?"Schon vorhanden – antippen zum Verwenden":"Vorschläge"}</span><div class="chips">${hits.map(e=>`<button class="chip" data-act="useExisting" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join("")}${presets.map(([n,g])=>`<button class="chip" data-act="usePreset" data-i="${PRESETS.findIndex(p=>p[0]===n)}">+ ${esc(n)}</button>`).join("")}</div></div>`;
+}
+function finishWithExercise(id,created){
+  const t=top();
+  if(t.thenLog) replace({type:"log",exId:id,date:t.date||todayStr()});
+  else if(t.thenPlan){ addToPlan(t.thenPlan,id); pop(); toast(created?"Übung angelegt und eingeplant":"Übung eingeplant"); }
+  else if(created){ pop(); toast("Übung gespeichert"); }
+  else replace({type:"exercise",exId:id});
+}
 function viewEditEx(){
   const d=S.exDraft;
   const used=new Set(d.settings.map(s=>s.k));
-  let h=`<label class="field"><span>Name</span><input class="input" id="exname" data-field="exname" value="${esc(d.name)}" placeholder="z. B. Beinpresse 45°" autocomplete="off"></label>
+  let h=`<label class="field"><span>Name</span><input class="input" id="exname" data-field="exname" value="${esc(d.name)}" placeholder="z. B. Latzug am Turm" autocomplete="off"></label>
+  ${d.id?"":`<div id="nameSugg">${nameSuggestions(d.name)}</div>`}
   <div class="field"><span>Muskelgruppe</span><div class="chips">${GROUPS.map(g=>`<button class="chip" data-act="group" data-g="${esc(g)}" aria-pressed="${d.group===g}">${esc(g)}</button>`).join("")}</div></div>
   <div class="field"><span>Einstellungen am Gerät</span>
     <div class="stack" id="setlist">${d.settings.map((s,i)=>`<div class="set-edit">
@@ -827,7 +846,7 @@ function viewPlanPick(date){
   const exs=exercises(), sel=new Set(planIds(date));
   const sugg=PRESETS.filter(([n])=>!exs.some(e=>e.name===n));
   return `<p class="eyebrow">Für ${esc(fmtLong.format(toDate(date)))}</p>
-  ${exs.length>6?searchBox():""}
+  ${exs.length>4?searchBox():""}
   <button class="btn" data-act="newExPlan" data-date="${date}">${ICON.plus}Neue Übung anlegen</button>
   ${exs.length?`<div id="exlist" class="stack">${exerciseList(exs,"planToggle",sel)}</div>`:""}
   ${sugg.length?`<div class="field"><span>Vorschläge</span><div class="chips">${sugg.map(([n])=>`<button class="chip" data-act="presetPlan" data-date="${date}" data-i="${PRESETS.findIndex(p=>p[0]===n)}">+ ${esc(n)}</button>`).join("")}</div></div>`:""}
@@ -998,17 +1017,18 @@ document.addEventListener("click",ev=>{
     case "group": S.exDraft.group=b.dataset.g; render(); break;
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
+    case "useExisting": finishWithExercise(b.dataset.ex,false); break;
+    case "usePreset": { const [n,g]=PRESETS[+b.dataset.i]; finishWithExercise(createExercise(n,g,[],""),true); break; }
     case "saveEx": {
       const d=S.exDraft, name=d.name.trim();
       if(!name){ toast("Gib der Übung einen Namen"); $("#exname").focus(); return; }
       const settings=d.settings.map(s=>({k:s.k.trim(),v:s.v.trim()})).filter(s=>s.k||s.v);
       let id=d.id;
-      if(id){ const cur=S.docs.get(id); put(id,{...cur,name,group:d.group||"Sonstiges",settings,notes:d.notes.trim(),updatedAt:Date.now()}); }
-      else id=createExercise(name,d.group,settings,d.notes.trim());
-      const t=top();
-      if(t.thenLog) replace({type:"log",exId:id,date:t.date||todayStr()});
-      else if(t.thenPlan){ addToPlan(t.thenPlan,id); pop(); toast("Übung angelegt und eingeplant"); }
-      else { pop(); toast("Übung gespeichert"); }
+      if(id){ const cur=S.docs.get(id); put(id,{...cur,name,group:d.group||"Sonstiges",settings,notes:d.notes.trim(),updatedAt:Date.now()}); pop(); toast("Übung gespeichert"); break; }
+      const dup=exercises().find(e=>e.name.trim().toLowerCase()===name.toLowerCase());
+      if(dup){ toast(`„${dup.name}“ gibt es schon – wird verwendet`); finishWithExercise(dup.id,false); break; }
+      id=createExercise(name,d.group,settings,d.notes.trim());
+      finishWithExercise(id,true);
       break;
     }
     case "delEx": {
@@ -1104,7 +1124,7 @@ document.addEventListener("input",ev=>{
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="tfname"){ if(S.typeForm) S.typeForm.name=el.value; }
   else if(f==="ctname"){ const n=el.value.trim(); if(n){ saveCfg({types:customTypes().map(t=>t.k===el.dataset.k?{...t,n,a:abbr(n)}:t)}); } }
-  else if(f==="exname") S.exDraft.name=el.value;
+  else if(f==="exname"){ S.exDraft.name=el.value; const box=$("#nameSugg"); if(box) box.innerHTML=nameSuggestions(el.value); }
   else if(f==="exnotes") S.exDraft.notes=el.value;
   else if(f==="sk") S.exDraft.settings[+el.dataset.i].k=el.value;
   else if(f==="sv") S.exDraft.settings[+el.dataset.i].v=el.value;
