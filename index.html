@@ -177,7 +177,16 @@ textarea.input{min-height:76px;resize:vertical}
 .cal-grid .wd{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:4px}
 .cal-day{aspect-ratio:1;max-width:100%;border:0;border-radius:10px;background:none;font-family:var(--f-display);font-size:1.15rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);display:flex;align-items:center;justify-content:center;position:relative}
 .cal-day.out{visibility:hidden}
-.cal-day.future{color:var(--muted);opacity:.45}
+.cal-day.future{color:var(--muted)}
+.cal-day.plan{outline:2px dashed var(--muted);outline-offset:-2px;color:var(--ink)}
+.cal-day.ty.plan{background:color-mix(in srgb,var(--tc) 28%,var(--surface));color:var(--ink);outline-color:var(--tc)}
+.legend i.plan{background:none;outline:1.5px dashed var(--muted);outline-offset:-1.5px}
+details.plan-edit{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:12px 14px}
+details.plan-edit summary{font-weight:600;cursor:pointer}
+details.plan-edit[open] summary{margin-bottom:12px}
+.plan-next{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border:1px dashed var(--line);border-radius:var(--radius);background:var(--surface)}
+.plan-next .chev{width:18px;height:18px;color:var(--muted);flex:none}
+.plan-next .eyebrow{margin-bottom:2px}
 .cal-day.l1{background:var(--cal1)}
 .cal-day.l2{background:var(--cal2);color:var(--cal-ink3)}
 .cal-day.l3{background:var(--cal3);color:var(--cal-ink3)}
@@ -287,7 +296,7 @@ const GROUPS = ["Brust","Rücken","Schultern","Beine","Po","Arme","Bauch","Ganzk
 const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Beine"],["Beinbeuger","Beine"],["Bizepscurls","Arme"]];
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.4";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 const typeOf = k => DAY_TYPES.find(t=>t.k===k)||null;
 const RANGES = [["4w","4 Wochen","Letzte 4 Wochen"],["3m","3 Monate","Letzte 3 Monate"],["6m","6 Monate","Letzte 6 Monate"],["12m","12 Monate","Letzte 12 Monate"],["all","Alles","Gesamter Zeitraum"]];
@@ -336,8 +345,9 @@ function toDate(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,
 function dayDiff(s){return Math.round((toDate(todayStr())-toDate(s))/86400000)}
 function relDay(s){
   const d=dayDiff(s);
-  if(d===0) return "Heute"; if(d===1) return "Gestern";
+  if(d===0) return "Heute"; if(d===1) return "Gestern"; if(d===-1) return "Morgen";
   if(d>1 && d<7) return fmtWeekday.format(toDate(s));
+  if(d<-1 && d>-7) return `In ${-d} Tagen`;
   return toDate(s).getFullYear()===new Date().getFullYear() ? fmtShort.format(toDate(s)) : fmtShortY.format(toDate(s));
 }
 function rid(p){return p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -514,6 +524,8 @@ function viewToday(){
   let h=`<div class="date-head"><p class="eyebrow">Heute</p><h2>${esc(fmtLong.format(new Date()))}</h2></div>`;
   if(!exs.length) return h+emptyStart();
   h+=typePicker(date);
+  const doneIds0=new Set(today.map(l=>l.exId));
+  h+=plannedList(date,doneIds0);
   if(today.length){
     const vol=today.reduce((a,l)=>a+volume(l.sets||[]),0);
     const setCount=today.reduce((a,l)=>a+(l.sets||[]).length,0);
@@ -525,6 +537,10 @@ function viewToday(){
       </button>`;}).join("")}</div>`;
   }
   h+=`<button class="btn primary big" data-act="pick">${ICON.plus}Übung eintragen</button>`;
+  const np=nextPlanned();
+  if(np){ const t=typeOf(np.type), n=(np.plan||[]).filter(id=>ex(id)).length;
+    h+=`<button class="plan-next" data-act="day" data-date="${np.date}"><div class="grow" style="flex:1;min-width:0"><p class="eyebrow">Als Nächstes geplant</p><div class="name" style="font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(relDay(np.date))}, ${esc(fmtShort.format(toDate(np.date)))} ${t?`<span class="tbadge ty-${t.k}">${esc(t.n)}</span>`:""}</div>${n?`<div class="meta">${n} ${n===1?"Übung":"Übungen"} eingeplant</div>`:""}</div>${ICON.chev}</button>`; }
+  else h+=`<button class="btn ghost" data-act="tab" data-tab="history" style="align-self:flex-start">Training im Kalender planen</button>`;
   const doneIds=new Set(today.map(l=>l.exId));
   const recent=exs.filter(e=>!doneIds.has(e.id)).map(e=>({e,d:lastUsed(e.id)})).filter(x=>x.d).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,5);
   if(recent.length){
@@ -752,8 +768,32 @@ function dayLevel(ls){ const n=ls.reduce((a,l)=>a+(l.sets||[]).length,0); return
 const fmtMonth=new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"});
 const ICON_L='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
 const ICON_R='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
-function dayType(date){ const d=S.docs.get("dy_"+date); return d&&d.kind==="day"?typeOf(d.type):null; }
-function setDayType(date,k){ const cur=dayType(date); if(cur&&cur.k===k) put("dy_"+date,null); else put("dy_"+date,{kind:"day",date,type:k,updatedAt:Date.now()}); }
+function dayDoc(date){ const d=S.docs.get("dy_"+date); return d&&d.kind==="day"?d:null; }
+function dayType(date){ const d=dayDoc(date); return d?typeOf(d.type):null; }
+function saveDay(date,patch){
+  const next={...(dayDoc(date)||{}),...patch,kind:"day",date,updatedAt:Date.now()};
+  if(!next.type) delete next.type; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note;
+  put("dy_"+date,(next.type||next.plan||next.note)?next:null);
+}
+function setDayType(date,k){ const cur=dayType(date); saveDay(date,{type:cur&&cur.k===k?null:k}); }
+function planIds(date){ const d=dayDoc(date); return (d&&d.plan||[]).filter(id=>ex(id)); }
+function addDays(date,n){ const d=toDate(date); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function planEditor(date){
+  const exs=exercises(), sel=new Set(planIds(date)), doc=dayDoc(date);
+  return `<div class="field"><span>Geplante Übungen</span>${exs.length?`<div class="chips">${exs.map(e=>`<button class="chip" data-act="planEx" data-date="${date}" data-ex="${esc(e.id)}" aria-pressed="${sel.has(e.id)}">${esc(e.name)}</button>`).join("")}</div>`:`<p class="hint">Leg zuerst unter „Übungen“ deine Übungen an, dann kannst du sie hier einplanen.</p>`}</div>
+  <label class="field"><span>Notiz zum Plan</span><textarea class="input" id="plannote-${date}" data-field="plannote" data-date="${date}" placeholder="z. B. schwerer Tag, 5er-Wiederholungen">${esc(doc&&doc.note||"")}</textarea></label>`;
+}
+function plannedList(date,loggedIds){
+  const rest=planIds(date).filter(id=>!loggedIds.has(id));
+  if(!rest.length) return "";
+  return `<div class="group"><h3>Geplant${loggedIds.size?", noch offen":""}</h3><div class="list">${rest.map(id=>{const e=ex(id), l=lastBefore(id,date);
+    return `<button class="item" data-act="openLog" data-ex="${esc(id)}" data-date="${date}"><div class="grow"><div class="name">${esc(e.name)}</div><div class="sub num">${l?`Zuletzt ${relDay(l.date)}: ${(l.sets||[]).map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert"}</div></div>${ICON.plusItem}</button>`;}).join("")}</div></div>`;
+}
+function nextPlanned(){
+  const today=todayStr(); let best=null;
+  for(const [id,d] of S.docs) if(d&&d.kind==="day"&&d.date>today&&(!best||d.date<best.date)) best=d;
+  return best;
+}
 function calMode(){ const c=S.docs.get("cfg"); return c&&c.calMode==="sets"?"sets":"type"; }
 function typeBadge(date){ const t=dayType(date); return t?`<span class="tbadge ty-${t.k}">${esc(t.n)}</span>`:""; }
 function typePicker(date){
@@ -765,27 +805,27 @@ function calendarCard(byDate){
   if(!S.cal){ const n=new Date(); S.cal={y:n.getFullYear(),m:n.getMonth()}; }
   const {y,m}=S.cal, today=todayStr(), now=new Date();
   const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate(), lead=(first.getDay()+6)%7;
-  const isCurrent=y===now.getFullYear()&&m===now.getMonth();
+  const atMax=(y*12+m)>=(now.getFullYear()*12+now.getMonth()+12);
   let cells="";
   for(let i=0;i<lead;i++) cells+=`<span class="cal-day out" aria-hidden="true"></span>`;
-  let trained=0; const mode=calMode(), used=new Map(); let noType=0;
+  let trained=0, planned=0; const mode=calMode(), used=new Map(); let noType=0;
   for(let d=1; d<=days; d++){
-    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today, t=dayType(ds);
-    if(ls||t) trained++;
+    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today, t=dayType(ds), doc=dayDoc(ds);
+    if(!fut&&(ls||t)) trained++; if(fut&&doc) planned++;
     const cls=["cal-day"]; let inner=String(d);
     if(mode==="type"){
       if(t){ cls.push("ty","ty-"+t.k); inner=`${d}<small>${t.a}</small>`; used.set(t.k,(used.get(t.k)||0)+1); }
       else if(ls){ cls.push("none"); noType++; }
     } else if(ls) cls.push("l"+dayLevel(ls));
-    if(ds===today) cls.push("today"); if(fut&&!t) cls.push("future");
-    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${t?`, ${t.n}`:""}${ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t?"":", kein Training"}`;
-    cells+=fut&&!t?`<span class="${cls.join(" ")}">${d}</span>`:`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${inner}</button>`;
+    if(ds===today) cls.push("today"); if(fut) cls.push(doc?"plan":"future");
+    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${t?`, ${t.n}`:""}${fut?(doc?", geplant":", noch nichts geplant"):ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t?"":", kein Training"}`;
+    cells+=`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${inner}</button>`;
   }
   const legend=mode==="type"
-    ?`<span class="legend">${DAY_TYPES.filter(t=>used.has(t.k)).map(t=>`<span class="legend ty-${t.k}"><i class="ty"></i>${esc(t.n)} ${used.get(t.k)}×</span>`).join("")}${noType?`<span class="legend"><i class="none"></i>Ohne Art ${noType}×</span>`:""}${!used.size&&!noType?"Noch keine Trainingsart vergeben":""}</span>`
-    :`<span class="legend">Sätze <i class="l1"></i>1–7 <i class="l2"></i>8–15 <i class="l3"></i>16+</span>`;
+    ?`<span class="legend">${DAY_TYPES.filter(t=>used.has(t.k)).map(t=>`<span class="legend ty-${t.k}"><i class="ty"></i>${esc(t.n)} ${used.get(t.k)}×</span>`).join("")}${noType?`<span class="legend"><i class="none"></i>Ohne Art ${noType}×</span>`:""}${planned?`<span class="legend"><i class="plan"></i>Geplant ${planned}×</span>`:""}${!used.size&&!noType&&!planned?"Noch keine Trainingsart vergeben":""}</span>`
+    :`<span class="legend">Sätze <i class="l1"></i>1–7 <i class="l2"></i>8–15 <i class="l3"></i>16+${planned?` <i class="plan"></i>Geplant`:""}</span>`;
   return `<div class="card cal">
-    <div class="cal-head"><button class="cal-nav" data-act="calMove" data-d="-1" aria-label="Vorheriger Monat">${ICON_L}</button><h3>${esc(fmtMonth.format(first))}</h3><button class="cal-nav" data-act="calMove" data-d="1" aria-label="Nächster Monat" ${isCurrent?"disabled":""}>${ICON_R}</button></div>
+    <div class="cal-head"><button class="cal-nav" data-act="calMove" data-d="-1" aria-label="Vorheriger Monat">${ICON_L}</button><h3>${esc(fmtMonth.format(first))}</h3><button class="cal-nav" data-act="calMove" data-d="1" aria-label="Nächster Monat" ${atMax?"disabled":""}>${ICON_R}</button></div>
     <div class="cal-grid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(w=>`<span class="wd">${w}</span>`).join("")}${cells}</div>
     <div class="cal-foot"><span class="num"><b>${trained}</b> ${trained===1?"Trainingstag":"Trainingstage"}</span>
       <div class="seg" role="group" aria-label="Farbe nach"><button data-act="calMode" data-v="type" aria-pressed="${mode==="type"}">Trainingsart</button><button data-act="calMode" data-v="sets" aria-pressed="${mode==="sets"}">Sätze</button></div></div>
@@ -802,8 +842,12 @@ function viewHistory(){
   const {y,m}=S.cal||{y:new Date().getFullYear(),m:new Date().getMonth()};
   let h=calendarCard(byDate);
   const prefix=y+"-"+pad(m+1)+"-";
+  const today=todayStr();
+  const plans=[...S.docs.values()].filter(d=>d&&d.kind==="day"&&d.date>today&&d.date.startsWith(prefix)).sort((a,b)=>a.date.localeCompare(b.date));
+  if(plans.length) h+=`<div class="group"><h3>Geplant</h3><div class="list">${plans.map(d=>{const names=planIds(d.date).map(id=>ex(id).name);
+    return `<button class="item" data-act="day" data-date="${d.date}"><div class="grow"><div class="name" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(relDay(d.date))}${dayDiff(d.date)>-7?` · ${esc(fmtShort.format(toDate(d.date)))}`:""} ${typeBadge(d.date)}</div><div class="sub">${names.length?esc(names.join(", ")):esc(d.note||"Noch keine Übungen eingeplant")}</div></div>${ICON.chev}</button>`;}).join("")}</div></div>`;
   const dates=[...byDate.keys()].filter(d=>d.startsWith(prefix)).sort().reverse();
-  if(!dates.length) return h+`<p class="hint">In diesem Monat gibt es keine Trainings. Tipp auf einen Tag im Kalender, um ein Training nachzutragen.</p>`;
+  if(!dates.length) return h+(plans.length?"":`<p class="hint">In diesem Monat gibt es keine Trainings. Tipp auf einen vergangenen Tag, um ein Training nachzutragen, oder auf einen kommenden Tag, um es zu planen.</p>`);
   return h+dates.map(date=>{
     const ls=byDate.get(date).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
     const vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
@@ -813,13 +857,24 @@ function viewHistory(){
 }
 function viewDay(date){
   const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
-  let h=`<div class="date-head"><p class="eyebrow">${esc(relDay(date))}</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>`+typePicker(date);
-  if(!ls.length) return h+`<div class="card empty"><h3>Kein Training an diesem Tag</h3><p class="muted">Hast du trainiert und es nur nicht eingetragen? Dann kannst du es hier nachtragen.</p><button class="btn primary" data-act="pickFor" data-date="${date}">${ICON.plus}Training nachtragen</button></div>`;
+  const fut=date>todayStr(), doc=dayDoc(date);
+  let h=`<div class="date-head"><p class="eyebrow">${esc(fut?"Planen · "+relDay(date):relDay(date))}</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>`+typePicker(date);
+  if(fut){
+    h+=planEditor(date);
+    if(doc) h+=`<div class="btn-row"><button class="btn" data-act="copyPlan" data-date="${date}">Eine Woche später wiederholen</button><button class="btn" data-act="clearPlan" data-date="${date}">Plan löschen</button></div>
+      <p class="hint">Am Tag selbst siehst du den Plan im Reiter „Training“ und kannst die Übungen direkt eintragen.</p>`;
+    else h+=`<p class="hint">Wähle eine Trainingsart und/oder Übungen. Der Tag erscheint dann im Kalender als geplant (gestrichelt).</p>`;
+    return h;
+  }
+  const loggedIds=new Set(ls.map(l=>l.exId));
+  const planned=plannedList(date,loggedIds);
+  const editPlan=date===todayStr()?`<details class="plan-edit"${planIds(date).length?"":""}><summary>${planIds(date).length?"Plan bearbeiten":"Übungen für heute planen"}</summary><div class="stack">${planEditor(date)}</div></details>`:"";
+  if(!ls.length) return h+planned+(planned?`<button class="btn" data-act="pickFor" data-date="${date}">${ICON.plus}Andere Übung eintragen</button>`:`<div class="card empty"><h3>Kein Training an diesem Tag</h3><p class="muted">Hast du trainiert und es nur nicht eingetragen? Dann kannst du es hier nachtragen.</p><button class="btn primary" data-act="pickFor" data-date="${date}">${ICON.plus}Training nachtragen</button></div>`)+editPlan;
   const sets=ls.reduce((a,l)=>a+(l.sets||[]).length,0), vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
   h+=`<p class="meta num">${ls.length} ${ls.length===1?"Übung":"Übungen"} · ${sets} ${sets===1?"Satz":"Sätze"}${vol?` · ${fmtNum(Math.round(vol))} kg Volumen`:""}</p>`;
-  h+=dayList(date,ls);
+  h+=dayList(date,ls)+planned;
   h+=`<button class="btn primary big" data-act="dayPdf" data-date="${date}">${ICON.doc}Diesen Tag als PDF</button>
-  <button class="btn" data-act="pickFor" data-date="${date}">${ICON.plus}Übung zu diesem Tag hinzufügen</button>`;
+  <button class="btn" data-act="pickFor" data-date="${date}">${ICON.plus}Übung zu diesem Tag hinzufügen</button>`+editPlan;
   return h;
 }
 function makeDayPdf(date){
@@ -909,6 +964,9 @@ document.addEventListener("click",ev=>{
     case "export": exportBackup(); break;
     case "pt": S.prog.sel=+b.dataset.i; render(); break;
     case "setType": setDayType(b.dataset.date,b.dataset.k); render(); break;
+    case "planEx": { const d=b.dataset.date, id=b.dataset.ex, cur=planIds(d); saveDay(d,{plan:cur.includes(id)?cur.filter(x=>x!==id):[...cur,id]}); const open=document.querySelector("details.plan-edit[open]"); render(); if(open){ const dt=document.querySelector("details.plan-edit"); if(dt) dt.open=true; } break; }
+    case "copyPlan": { const d=b.dataset.date, src=dayDoc(d); if(!src) return; const n=addDays(d,7); saveDay(n,{type:src.type||null,plan:src.plan||[],note:src.note||""}); toast(`Für ${fmtWeekday.format(toDate(n))}, ${fmtShort.format(toDate(n))} übernommen`); break; }
+    case "clearPlan": put("dy_"+b.dataset.date,null); toast("Plan gelöscht"); render(); break;
     case "calMode": { const c=S.docs.get("cfg")||{kind:"settings"}; put("cfg",{...c,kind:"settings",calMode:b.dataset.v,updatedAt:Date.now()}); render(); break; }
     case "calMove": { const c=S.cal, d=new Date(c.y,c.m+(+b.dataset.d),1); S.cal={y:d.getFullYear(),m:d.getMonth()}; render(); break; }
     case "day": push({type:"day",date:b.dataset.date}); break;
@@ -965,6 +1023,7 @@ document.addEventListener("input",ev=>{
   }
   else if(f==="note"){ S.draft.note=el.value; scheduleSave(); }
   else if(f==="query"){ S.query=el.value; const list=$("#exlist"); if(list) list.innerHTML=exerciseList(exercises(),top()&&top().type==="pick"?"pickEx":"openEx"); }
+  else if(f==="plannote") saveDay(el.dataset.date,{note:el.value});
   else if(f==="exname") S.exDraft.name=el.value;
   else if(f==="exnotes") S.exDraft.notes=el.value;
   else if(f==="sk") S.exDraft.settings[+el.dataset.i].k=el.value;
