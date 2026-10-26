@@ -173,15 +173,81 @@ function build(model){
     if(model.includeTable) y=drawTable(pdf,y,ex,rows,hasW,newPage);
   });
 
-  // Fußzeilen
+  addFooters(pdf,model.title);
+  return pdf.output(model.title);
+}
+
+function addFooters(pdf,title){
   const total=pdf.pages.length;
   pdf.pages.forEach((ops,i)=>{
     pdf.page=ops;
     pdf.line(M,PH-38,PW-M,PH-38,{color:C.line,w:.5});
-    pdf.text(M,PH-26,"Gym-Logbuch · "+model.title,{size:8,color:C.faint});
+    pdf.text(M,PH-26,"Gym-Logbuch · "+title,{size:8,color:C.faint});
     pdf.text(PW-M,PH-26,`Seite ${i+1} von ${total}`,{size:8,color:C.faint,align:"right"});
   });
-  return pdf.output(model.title);
+}
+
+/* ---------- Trainingstag als Tabelle ---------- */
+function buildDay(model){
+  // model: {dateLong, date, created, exercises:[{name, group, settingsLine, note, sets:[{w,r}]}]}
+  const pdf=new PDF(); let y=0;
+  const newPage=()=>{ pdf.addPage(); y=M; };
+  newPage();
+  pdf.text(M,y+8,"GYM-LOGBUCH",{size:8.5,bold:true,color:C.accent});
+  pdf.text(PW-M,y+8,`Erstellt am ${dLong(model.created)}`,{size:8.5,color:C.muted,align:"right"});
+  pdf.text(M,y+36,"Trainingstag",{size:24,bold:true});
+  pdf.text(M,y+56,model.dateLong,{size:11,color:C.muted});
+  y+=76;
+  let sets=0, reps=0, vol=0;
+  for(const e of model.exercises) for(const st of e.sets){ sets++; reps+=st.r||0; vol+=(st.w||0)*(st.r||0); }
+  const cells=[["Übungen",nf0.format(model.exercises.length)],["Sätze",nf0.format(sets)],["Wiederholungen",nf0.format(reps)],["Volumen",vol?nf0.format(vol)+" kg":"–"]];
+  const cw=CW/cells.length;
+  pdf.rect(M,y,CW,52,{fill:C.band});
+  cells.forEach(([label,val],i)=>{
+    const x=M+i*cw+14;
+    pdf.text(x,y+24,val,{size:16,bold:true});
+    pdf.text(x,y+40,label,{size:8.5,color:C.muted});
+    if(i) pdf.line(M+i*cw,y+10,M+i*cw,y+42,{color:C.line,w:.75});
+  });
+  y+=72;
+
+  const cols=[{t:"Übung",w:CW-44-80-60-90},{t:"Satz",w:44,r:true},{t:"Gewicht",w:80,r:true},{t:"Wdh.",w:60,r:true},{t:"Volumen",w:90,r:true}];
+  const pad=6, rh=20;
+  const header=()=>{
+    pdf.rect(M,y,CW,20,{fill:C.band});
+    let x=M; cols.forEach(c=>{ pdf.text(c.r?x+c.w-pad:x+pad,y+13.5,c.t,{size:8,bold:true,color:C.muted,align:c.r?"right":"left"}); x+=c.w; });
+    y+=20;
+  };
+  header();
+  model.exercises.forEach((e,ei)=>{
+    const meta=[e.group,e.settingsLine].filter(Boolean).join(" · ");
+    const metaLines=meta?wrap(pdf,meta,8,false,cols[0].w-2*pad):[];
+    const noteLines=e.note?wrap(pdf,"Notiz: "+e.note,8,false,CW-2*pad):[];
+    const nameLines=wrap(pdf,e.name,9.5,true,cols[0].w-2*pad);
+    const firstRowH=Math.max(rh,nameLines.length*12+metaLines.length*10+9);
+    const blockH=firstRowH+Math.max(0,e.sets.length-1)*rh+noteLines.length*10+(noteLines.length?8:0);
+    if(y+Math.min(blockH,firstRowH+rh*2)>BOTTOM){ newPage(); header(); }
+    if(ei%2===1) pdf.rect(M,y,CW,Math.min(blockH,BOTTOM-y),{fill:"#fafbfc"});
+    const rows=e.sets.length?e.sets:[{w:null,r:null}];
+    rows.forEach((st,si)=>{
+      const h=si===0?firstRowH:rh;
+      if(y+h>BOTTOM){ newPage(); header(); pdf.text(M+pad,y+13.5,e.name+" (Forts.)",{size:9,bold:true,color:C.muted}); }
+      let x=M;
+      if(si===0){
+        nameLines.forEach((l,li)=>pdf.text(x+pad,y+13.5+li*12,l,{size:9.5,bold:true}));
+        metaLines.forEach((l,li)=>pdf.text(x+pad,y+13.5+nameLines.length*12+li*10-1,l,{size:8,color:C.muted}));
+      }
+      x+=cols[0].w;
+      const vals=[e.sets.length?String(si+1):"–", st.w!=null?nf.format(st.w)+" kg":"–", st.r!=null?String(st.r):"–", st.w&&st.r?nf0.format(st.w*st.r)+" kg":"–"];
+      cols.slice(1).forEach((c,ci)=>{ pdf.text(x+c.w-pad,y+13.5,vals[ci],{size:9.5,bold:ci===1,color:ci===0?C.muted:C.ink,align:"right"}); x+=c.w; });
+      y+=h;
+      if(si<rows.length-1) pdf.line(M+cols[0].w,y,M+CW,y,{color:C.grid,w:.4});
+    });
+    if(noteLines.length){ noteLines.forEach(l=>{ pdf.text(M+pad,y+9,l,{size:8,color:C.muted}); y+=10; }); y+=8; }
+    pdf.line(M,y,M+CW,y,{color:C.line,w:.75});
+  });
+  addFooters(pdf,"Trainingstag "+dLong(model.date));
+  return pdf.output("Trainingstag "+dLong(model.date));
 }
 
 function drawChart(pdf,x0,y0,w,h,rows,hasW){
@@ -271,5 +337,5 @@ function drawTable(pdf,y,ex,rows,hasW,newPage){
   return y+6;
 }
 
-window.GymReport={build};
+window.GymReport={build,buildDay};
 })();

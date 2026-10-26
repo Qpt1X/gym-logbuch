@@ -22,6 +22,7 @@
   --bg:#eef1f5; --surface:#ffffff; --sunk:#e3e8ef; --ink:#121823; --muted:#566274; --line:#d2d8e1;
   --accent:#1f46c2; --accent-ink:#ffffff; --accent-soft:#dfe6fb;
   --pr:#c62f28; --pr-soft:#fbe2df; --ok:#1d7a4b;
+  --cal1:#c9d6f7; --cal2:#7d9bec; --cal3:#1f46c2; --cal-ink3:#ffffff;
   --f-display:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --radius:12px;
@@ -30,13 +31,13 @@
   :root:not([data-theme="light"]){
     --bg:#0d1219; --surface:#161d28; --sunk:#1e2734; --ink:#e6ebf2; --muted:#93a0b2; --line:#2a3546;
     --accent:#7196ff; --accent-ink:#0a1124; --accent-soft:#1c2a4f;
-    --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; color-scheme:dark;
+    --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0d1219; --surface:#161d28; --sunk:#1e2734; --ink:#e6ebf2; --muted:#93a0b2; --line:#2a3546;
   --accent:#7196ff; --accent-ink:#0a1124; --accent-soft:#1c2a4f;
-  --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; color-scheme:dark;
+  --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; color-scheme:dark;
 }
 *{box-sizing:border-box}
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
@@ -165,6 +166,26 @@ textarea.input{min-height:76px;resize:vertical}
 .chart text{fill:var(--muted);font-size:10px;font-family:var(--f-body);font-variant-numeric:tabular-nums}
 .chart text.endlabel{fill:var(--ink);font-weight:600;font-size:11px}
 .hist{display:flex;flex-direction:column}
+.cal{padding:14px 12px 12px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.cal-head h3{font-size:1.45rem;text-transform:uppercase;flex:1;text-align:center}
+.cal-nav{width:44px;height:40px;border:1px solid var(--line);background:var(--surface);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.cal-nav svg{width:20px;height:20px}
+.cal-nav:disabled{opacity:.35}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-grid .wd{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:4px}
+.cal-day{aspect-ratio:1;max-width:100%;border:0;border-radius:10px;background:none;font-family:var(--f-display);font-size:1.15rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);display:flex;align-items:center;justify-content:center;position:relative}
+.cal-day.out{visibility:hidden}
+.cal-day.future{color:var(--muted);opacity:.45}
+.cal-day.l1{background:var(--cal1)}
+.cal-day.l2{background:var(--cal2);color:var(--cal-ink3)}
+.cal-day.l3{background:var(--cal3);color:var(--cal-ink3)}
+.cal-day.today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cal-day.picked{box-shadow:inset 0 0 0 2px var(--pr)}
+.cal-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:.8rem;color:var(--muted)}
+.legend{display:flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.legend i.l1{background:var(--cal1)}.legend i.l2{background:var(--cal2)}.legend i.l3{background:var(--cal3)}
 .chart-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .seg{display:inline-flex;background:var(--sunk);border-radius:9px;padding:3px}
 .seg button{border:0;background:none;border-radius:7px;padding:6px 12px;font-weight:600;font-size:.88rem;color:var(--muted)}
@@ -244,7 +265,7 @@ const GROUPS = ["Brust","Rücken","Schultern","Beine","Po","Arme","Bauch","Ganzk
 const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Beine"],["Beinbeuger","Beine"],["Bizepscurls","Arme"]];
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.1";
+const APP_VERSION = "1.2";
 const RANGES = [["4w","4 Wochen","Letzte 4 Wochen"],["3m","3 Monate","Letzte 3 Monate"],["6m","6 Monate","Letzte 6 Monate"],["12m","12 Monate","Letzte 12 Monate"],["all","Alles","Gesamter Zeitraum"]];
 const TAB_TITLES = {today:"Training", exercises:"Übungen", history:"Verlauf", more:"Mehr"};
 
@@ -270,6 +291,7 @@ const S = {
   query: "",
   armedDelete: false,
   prog: {metric:"w", view:"chart", sel:null},
+  cal: null,
   rep: null
 };
 let installPrompt = null; // Android: Installations-Dialog von Chrome
@@ -441,8 +463,9 @@ function render(){
     if(t.type==="log"){ const e=ex(t.exId); title=e?e.name:"Übung"; html=viewLog(); }
     else if(t.type==="exercise"){ const e=ex(t.exId); title=e?e.name:"Übung"; html=viewExercise(t.exId); }
     else if(t.type==="editEx"){ title=S.exDraft.id?"Übung bearbeiten":"Neue Übung"; html=viewEditEx(); }
-    else if(t.type==="pick"){ title="Übung wählen"; html=viewPick(); }
+    else if(t.type==="pick"){ title=t.date&&t.date!==todayStr()?"Nachtragen":"Übung wählen"; html=viewPick(); }
     else if(t.type==="report"){ title="Bericht"; html=viewReport(); }
+    else if(t.type==="day"){ title=dayDiff(t.date)<2?relDay(t.date):fmtShortY.format(toDate(t.date)); html=viewDay(t.date); }
   } else {
     html={today:viewToday,exercises:viewExercises,history:viewHistory,more:viewMore}[S.tab]();
   }
@@ -469,7 +492,7 @@ function viewToday(){
   if(today.length){
     const vol=today.reduce((a,l)=>a+volume(l.sets||[]),0);
     const setCount=today.reduce((a,l)=>a+(l.sets||[]).length,0);
-    h+=`<p class="meta num">${today.length} ${today.length===1?"Übung":"Übungen"} · ${setCount} Sätze${vol?` · ${fmtNum(Math.round(vol))} kg Volumen`:""}</p>`;
+    h+=`<p class="meta num">${today.length} ${today.length===1?"Übung":"Übungen"} · ${setCount} ${setCount===1?"Satz":"Sätze"}${vol?` · ${fmtNum(Math.round(vol))} kg Volumen`:""}</p>`;
     h+=`<div class="stack">${today.map(l=>{const e=ex(l.exId); if(!e) return "";
       return `<button class="log-card" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${l.date}">
         <div class="top"><h3>${esc(e.name)}</h3>${isPR(l)?'<span class="pr">Rekord</span>':""}</div>
@@ -512,7 +535,8 @@ function viewExercises(){
 }
 function viewPick(){
   const exs=exercises();
-  return `${exs.length>6?searchBox():""}<button class="btn" data-act="newExLog">${ICON.plus}Neue Übung anlegen</button><div id="exlist" class="stack">${exs.length?exerciseList(exs,"pickEx"):`<div class="chips">${PRESETS.map(([n],i)=>`<button class="chip" data-act="preset" data-i="${i}">${esc(n)}</button>`).join("")}</div>`}</div>`;
+  const t=top(), d=t&&t.date&&t.date!==todayStr()?t.date:null;
+  return `${d?`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(d)))}</p>`:""}${exs.length>6?searchBox():""}<button class="btn" data-act="newExLog">${ICON.plus}Neue Übung anlegen</button><div id="exlist" class="stack">${exs.length?exerciseList(exs,"pickEx"):`<div class="chips">${PRESETS.map(([n],i)=>`<button class="chip" data-act="preset" data-i="${i}">${esc(n)}</button>`).join("")}</div>`}</div>`;
 }
 
 function settingsDl(e){
@@ -699,20 +723,69 @@ function viewEditEx(){
   return h;
 }
 
+function dayLevel(ls){ const n=ls.reduce((a,l)=>a+(l.sets||[]).length,0); return n>=16?3:n>=8?2:1; }
+const fmtMonth=new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"});
+const ICON_L='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
+const ICON_R='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+function logsByDate(){ const m=new Map(); for(const l of logs()){ if(!m.has(l.date)) m.set(l.date,[]); m.get(l.date).push(l); } return m; }
+function calendarCard(byDate){
+  if(!S.cal){ const n=new Date(); S.cal={y:n.getFullYear(),m:n.getMonth()}; }
+  const {y,m}=S.cal, today=todayStr(), now=new Date();
+  const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate(), lead=(first.getDay()+6)%7;
+  const isCurrent=y===now.getFullYear()&&m===now.getMonth();
+  let cells="";
+  for(let i=0;i<lead;i++) cells+=`<span class="cal-day out" aria-hidden="true"></span>`;
+  let trained=0;
+  for(let d=1; d<=days; d++){
+    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today;
+    if(ls) trained++;
+    const cls=["cal-day"]; if(ls) cls.push("l"+dayLevel(ls)); if(ds===today) cls.push("today"); if(fut) cls.push("future");
+    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:", kein Training"}`;
+    cells+=fut?`<span class="${cls.join(" ")}">${d}</span>`:`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${d}</button>`;
+  }
+  return `<div class="card cal">
+    <div class="cal-head"><button class="cal-nav" data-act="calMove" data-d="-1" aria-label="Vorheriger Monat">${ICON_L}</button><h3>${esc(fmtMonth.format(first))}</h3><button class="cal-nav" data-act="calMove" data-d="1" aria-label="Nächster Monat" ${isCurrent?"disabled":""}>${ICON_R}</button></div>
+    <div class="cal-grid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(w=>`<span class="wd">${w}</span>`).join("")}${cells}</div>
+    <div class="cal-foot"><span class="num"><b>${trained}</b> ${trained===1?"Trainingstag":"Trainingstage"}${isCurrent?"":""}</span>
+      <span class="legend">Sätze <i class="l1"></i>1–7 <i class="l2"></i>8–15 <i class="l3"></i>16+</span></div>
+  </div>`;
+}
+function dayList(date,ls){
+  return `<div class="list">${ls.map(l=>{const e=ex(l.exId); return `<button class="item" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${date}" style="flex-direction:column;align-items:stretch;gap:4px">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${esc(e?e.name:"Gelöschte Übung")}</span>${isPR(l)?'<span class="pr">Rekord</span>':`<span class="meta num">${volume(l.sets||[])?fmtNum(Math.round(volume(l.sets)))+" kg":""}</span>`}</div>${setsLine(l.sets||[])}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`;}).join("")}</div>`;
+}
 function viewHistory(){
-  const all=logs();
-  if(!all.length) return `<div class="card empty"><h3>Noch kein Training</h3><p class="muted">Sobald du Sätze einträgst, erscheinen deine Trainingstage hier – neuester zuerst.</p><button class="btn primary" data-act="tab" data-tab="today">Zum Training</button></div>`;
-  const byDate=new Map();
-  for(const l of all){ if(!byDate.has(l.date)) byDate.set(l.date,[]); byDate.get(l.date).push(l); }
-  const dates=[...byDate.keys()].sort().reverse().slice(0,60);
-  return dates.map(date=>{
+  const byDate=logsByDate();
+  if(!byDate.size) return calendarCard(byDate)+`<div class="card empty"><h3>Noch kein Training</h3><p class="muted">Sobald du Sätze einträgst, werden deine Trainingstage im Kalender farbig markiert. Tipp auf einen Tag, um das Training zu sehen oder nachzutragen.</p><button class="btn primary" data-act="tab" data-tab="today">Zum Training</button></div>`;
+  const {y,m}=S.cal||{y:new Date().getFullYear(),m:new Date().getMonth()};
+  let h=calendarCard(byDate);
+  const prefix=y+"-"+pad(m+1)+"-";
+  const dates=[...byDate.keys()].filter(d=>d.startsWith(prefix)).sort().reverse();
+  if(!dates.length) return h+`<p class="hint">In diesem Monat gibt es keine Trainings. Tipp auf einen Tag im Kalender, um ein Training nachzutragen.</p>`;
+  return h+dates.map(date=>{
     const ls=byDate.get(date).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
     const vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
     const label=dayDiff(date)<7?relDay(date):fmtLong.format(toDate(date));
-    return `<section class="day"><h3>${esc(label)}<small class="num">${ls.length} ${ls.length===1?"Übung":"Übungen"}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>
-      <div class="list">${ls.map(l=>{const e=ex(l.exId); return `<button class="item" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${date}" style="flex-direction:column;align-items:stretch;gap:4px">
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${esc(e?e.name:"Gelöschte Übung")}</span>${isPR(l)?'<span class="pr">Rekord</span>':""}</div>${setsLine(l.sets||[])}</button>`;}).join("")}</div></section>`;
+    return `<section class="day"><h3><button class="btn ghost" data-act="day" data-date="${date}" style="padding:0;min-height:0;font:inherit;color:inherit;text-transform:inherit">${esc(label)}</button><small class="num">${ls.length} ${ls.length===1?"Übung":"Übungen"}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>${dayList(date,ls)}</section>`;
   }).join("");
+}
+function viewDay(date){
+  const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+  let h=`<div class="date-head"><p class="eyebrow">${esc(relDay(date))}</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>`;
+  if(!ls.length) return h+`<div class="card empty"><h3>Kein Training an diesem Tag</h3><p class="muted">Hast du trainiert und es nur nicht eingetragen? Dann kannst du es hier nachtragen.</p><button class="btn primary" data-act="pickFor" data-date="${date}">${ICON.plus}Training nachtragen</button></div>`;
+  const sets=ls.reduce((a,l)=>a+(l.sets||[]).length,0), vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
+  h+=`<p class="meta num">${ls.length} ${ls.length===1?"Übung":"Übungen"} · ${sets} ${sets===1?"Satz":"Sätze"}${vol?` · ${fmtNum(Math.round(vol))} kg Volumen`:""}</p>`;
+  h+=dayList(date,ls);
+  h+=`<button class="btn primary big" data-act="dayPdf" data-date="${date}">${ICON.doc}Diesen Tag als PDF</button>
+  <button class="btn" data-act="pickFor" data-date="${date}">${ICON.plus}Übung zu diesem Tag hinzufügen</button>`;
+  return h;
+}
+function makeDayPdf(date){
+  const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+  const model={date,dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
+    exercises:ls.map(l=>{const e=ex(l.exId)||{name:"Gelöschte Übung"}; return {name:e.name,group:e.group||"",settingsLine:(e.settings||[]).filter(x=>x.k||x.v).map(x=>`${x.k} ${x.v}`.trim()).join(" · "),note:l.note||"",sets:l.sets||[]};})};
+  const bytes=window.GymReport.buildDay(model);
+  return {blob:new Blob([bytes],{type:"application/pdf"}),name:`gym-logbuch-training-${date}.pdf`};
 }
 
 function viewMore(){
@@ -741,17 +814,17 @@ document.addEventListener("click",ev=>{
     case "tab": setTab(b.dataset.tab); break;
     case "back": pop(); break;
     case "pick": push({type:"pick"}); break;
-    case "pickEx": replace({type:"log",exId:b.dataset.ex,date:todayStr()}); break;
+    case "pickEx": replace({type:"log",exId:b.dataset.ex,date:top().date||todayStr()}); break;
     case "openLog": push({type:"log",exId:b.dataset.ex,date:b.dataset.date}); break;
     case "openEx": push({type:"exercise",exId:b.dataset.ex}); break;
     case "newEx": push({type:"editEx",exId:null,thenLog:S.tab==="today"}); break;
-    case "newExLog": replace({type:"editEx",exId:null,thenLog:true}); break;
+    case "newExLog": replace({type:"editEx",exId:null,thenLog:true,date:top().date||null}); break;
     case "editEx": push({type:"editEx",exId:b.dataset.ex}); break;
     case "preset": {
       const [n,g]=PRESETS[+b.dataset.i];
       const found=exercises().find(e=>e.name===n);
       const id=found?found.id:createExercise(n,g,[],"");
-      if(top()&&top().type==="pick") replace({type:"log",exId:id,date:todayStr()}); else push({type:"log",exId:id,date:todayStr()});
+      if(top()&&top().type==="pick") replace({type:"log",exId:id,date:top().date||todayStr()}); else push({type:"log",exId:id,date:todayStr()});
       break;
     }
     case "fill": {
@@ -779,7 +852,7 @@ document.addEventListener("click",ev=>{
       if(id){ const cur=S.docs.get(id); put(id,{...cur,name,group:d.group||"Sonstiges",settings,notes:d.notes.trim(),updatedAt:Date.now()}); }
       else id=createExercise(name,d.group,settings,d.notes.trim());
       const t=top();
-      if(t.thenLog) replace({type:"log",exId:id,date:todayStr()});
+      if(t.thenLog) replace({type:"log",exId:id,date:t.date||todayStr()});
       else { pop(); toast("Übung gespeichert"); }
       break;
     }
@@ -792,6 +865,15 @@ document.addEventListener("click",ev=>{
     }
     case "export": exportBackup(); break;
     case "pt": S.prog.sel=+b.dataset.i; render(); break;
+    case "calMove": { const c=S.cal, d=new Date(c.y,c.m+(+b.dataset.d),1); S.cal={y:d.getFullYear(),m:d.getMonth()}; render(); break; }
+    case "day": push({type:"day",date:b.dataset.date}); break;
+    case "pickFor": push({type:"pick",date:b.dataset.date}); break;
+    case "dayPdf": {
+      try{
+        const r=makeDayPdf(b.dataset.date); saveBlob(r.blob,r.name); toast("PDF gespeichert");
+      }catch(e){ console.error(e); toast("PDF konnte nicht erstellt werden"); }
+      break;
+    }
     case "progView": S.prog.view=b.dataset.v; render(); break;
     case "progMetric": S.prog.metric=b.dataset.m; S.prog.sel=null; render(); break;
     case "report": push({type:"report",exId:b.dataset.ex||null}); break;
