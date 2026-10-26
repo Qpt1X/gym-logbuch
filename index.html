@@ -58,6 +58,7 @@ h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;line-
 .bar.scrolled{border-bottom-color:var(--line)}
 .bar .wrap{display:flex;align-items:center;gap:10px;min-height:58px;padding-block:8px}
 .bar h1{font-size:1.75rem;text-transform:uppercase;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar.sub h1{font-size:1.4rem}
 .back{border:0;background:var(--sunk);border-radius:999px;padding:6px 14px 6px 10px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 .back svg{width:18px;height:18px}
 .sync{font-size:.78rem;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
@@ -164,6 +165,23 @@ textarea.input{min-height:76px;resize:vertical}
 .chart text{fill:var(--muted);font-size:10px;font-family:var(--f-body);font-variant-numeric:tabular-nums}
 .chart text.endlabel{fill:var(--ink);font-weight:600;font-size:11px}
 .hist{display:flex;flex-direction:column}
+.chart-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.seg{display:inline-flex;background:var(--sunk);border-radius:9px;padding:3px}
+.seg button{border:0;background:none;border-radius:7px;padding:6px 12px;font-weight:600;font-size:.88rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.chips.small .chip{padding:5px 11px;font-size:.84rem}
+.chart .hit{fill:transparent;cursor:pointer}
+.chart .sel{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.chart text.tip{fill:var(--ink);font-weight:700;font-size:11px}
+.chart .tipbg{fill:var(--surface);stroke:var(--line)}
+.tbl-wrap{overflow-x:auto;margin:0 -2px}
+.tbl{width:100%;border-collapse:collapse;font-size:.92rem;font-variant-numeric:tabular-nums}
+.tbl th{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{text-align:right;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:first-child,.tbl td:first-child{text-align:left;padding-left:2px}
+.tbl td.b{font-weight:600}
+.result{padding:14px 16px;display:flex;flex-direction:column;gap:10px;border-color:var(--ok)}
+.result .status i{background:var(--ok)}
 .hist .item{flex-direction:column;align-items:stretch;gap:4px}
 
 /* Editor */
@@ -216,6 +234,7 @@ textarea.input{min-height:76px;resize:vertical}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 
+<script src="report.js"></script>
 <script>
 (function(){
 "use strict";
@@ -225,12 +244,14 @@ const GROUPS = ["Brust","Rücken","Schultern","Beine","Po","Arme","Bauch","Ganzk
 const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Beine"],["Beinbeuger","Beine"],["Bizepscurls","Arme"]];
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.0";
+const APP_VERSION = "1.1";
+const RANGES = [["4w","4 Wochen","Letzte 4 Wochen"],["3m","3 Monate","Letzte 3 Monate"],["6m","6 Monate","Letzte 6 Monate"],["12m","12 Monate","Letzte 12 Monate"],["all","Alles","Gesamter Zeitraum"]];
 const TAB_TITLES = {today:"Training", exercises:"Übungen", history:"Verlauf", more:"Mehr"};
 
 const ICON = {
   chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
   plusItem:'<svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
@@ -247,7 +268,9 @@ const S = {
   draft: null,          // Logger-Entwurf
   exDraft: null,        // Übungs-Editor-Entwurf
   query: "",
-  armedDelete: false
+  armedDelete: false,
+  prog: {metric:"w", view:"chart", sel:null},
+  rep: null
 };
 let installPrompt = null; // Android: Installations-Dialog von Chrome
 let waitingWorker = null; // neue App-Version wartet
@@ -350,6 +373,8 @@ function enter(screen){
   if(screen.type==="log") openDraft(screen.exId,screen.date);
   if(screen.type==="editEx") openExDraft(screen.exId);
   if(screen.type==="pick") S.query="";
+  if(screen.type==="exercise") S.prog.sel=null;
+  if(screen.type==="report") S.rep={range:"3m",exIds:screen.exId?new Set([screen.exId]):null,chart:true,table:true,result:null,busy:false};
 }
 function leaveCurrent(){ const t=top(); if(t&&t.type==="log") saveDraft(true); }
 
@@ -410,13 +435,14 @@ function render(){
   if(!S.ready) return;
   const t=top();
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false"));
-  $("#back").hidden=!t;
+  $("#back").hidden=!t; $("#bar").classList.toggle("sub",!!t);
   let html="", title=TAB_TITLES[S.tab];
   if(t){
     if(t.type==="log"){ const e=ex(t.exId); title=e?e.name:"Übung"; html=viewLog(); }
     else if(t.type==="exercise"){ const e=ex(t.exId); title=e?e.name:"Übung"; html=viewExercise(t.exId); }
     else if(t.type==="editEx"){ title=S.exDraft.id?"Übung bearbeiten":"Neue Übung"; html=viewEditEx(); }
     else if(t.type==="pick"){ title="Übung wählen"; html=viewPick(); }
+    else if(t.type==="report"){ title="Bericht"; html=viewReport(); }
   } else {
     html={today:viewToday,exercises:viewExercises,history:viewHistory,more:viewMore}[S.tab]();
   }
@@ -520,29 +546,59 @@ function viewLog(){
   return h;
 }
 
-function chartSvg(points){
+function niceStep(range,count){ const raw=range/Math.max(1,count), mag=Math.pow(10,Math.floor(Math.log10(raw))), n=raw/mag; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag; }
+function chartSvg(points,unit,label,sel){
   // points: [{date, v}] chronologisch
-  const W=320,H=130,L=34,R=14,T=14,B=22;
+  const W=320,H=150,L=38,R=16,T=26,B=22;
   const vs=points.map(p=>p.v); let lo=Math.min(...vs), hi=Math.max(...vs);
-  if(hi===lo){ hi+=5; lo=Math.max(0,lo-5); }
-  const padV=(hi-lo)*.12; lo=Math.max(0,lo-padV); hi+=padV;
-  const x=i=>L+(points.length===1?0:(i*(W-L-R)/(points.length-1)));
+  if(hi===lo){ hi+=unit==="kg"?5:2; lo=Math.max(0,lo-(unit==="kg"?5:2)); }
+  if(unit!=="kg"&&hi-lo<3){ hi=Math.ceil(hi+1); lo=Math.max(0,Math.floor(lo-1)); }
+  const step=unit==="kg"?niceStep(hi-lo,3):Math.max(1,Math.round(niceStep(hi-lo,3))); lo=Math.max(0,Math.floor(lo/step)*step); hi=Math.ceil(hi/step)*step;
+  const x=i=>L+(points.length===1?(W-L-R)/2:(i*(W-L-R)/(points.length-1)));
   const y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
   const pts=points.map((p,i)=>[x(i),y(p.v)]);
   const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
   const area=line+` L${pts[pts.length-1][0].toFixed(1)} ${H-B} L${pts[0][0].toFixed(1)} ${H-B} Z`;
-  const ticks=[lo,(lo+hi)/2,hi];
-  const end=pts[pts.length-1], endV=points[points.length-1].v;
-  const endAnchor=end[0]>W-60?"end":"middle";
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Verlauf des geschätzten Maximalgewichts">
-    ${ticks.map(t=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/><text x="${L-6}" y="${(y(t)+3).toFixed(1)}" text-anchor="end">${Math.round(t)}</text>`).join("")}
+  const ticks=[]; for(let v=lo; v<=hi+1e-9; v+=step) ticks.push(v);
+  const si=sel!=null&&sel<points.length?sel:points.length-1;
+  const sp=pts[si], sv=points[si];
+  const tipText=`${fmtShort.format(toDate(sv.date))}  ${fmtNum(Math.round(sv.v*10)/10)}${unit?" "+unit:""}`;
+  const tipW=tipText.length*6.2+14, tipX=Math.min(Math.max(sp[0]-tipW/2,L),W-R-tipW), tipY=Math.max(0,sp[1]-30);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}: Verlauf über ${points.length} Einheiten">
+    ${ticks.map(t=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/><text x="${L-6}" y="${(y(t)+3).toFixed(1)}" text-anchor="end">${fmtNum(t)}</text>`).join("")}
     <path class="area" d="${area}"/><path class="line" d="${line}"/>
-    ${pts.slice(0,-1).map(p=>`<circle class="dot" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3"/>`).join("")}
-    <circle class="end" cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="5"/>
-    <text class="endlabel" x="${end[0].toFixed(1)}" y="${Math.max(10,end[1]-9).toFixed(1)}" text-anchor="${endAnchor}">${fmtNum(Math.round(endV*10)/10)} kg</text>
+    ${pts.map((p,i)=>i===si?"":`<circle class="dot" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3"/>`).join("")}
+    <circle class="sel" cx="${sp[0].toFixed(1)}" cy="${sp[1].toFixed(1)}" r="5.5"/>
+    <rect class="tipbg" x="${tipX.toFixed(1)}" y="${tipY.toFixed(1)}" width="${tipW.toFixed(1)}" height="20" rx="6"/>
+    <text class="tip" x="${(tipX+tipW/2).toFixed(1)}" y="${(tipY+14).toFixed(1)}" text-anchor="middle">${tipText}</text>
     <text x="${L}" y="${H-6}" text-anchor="start">${fmtShort.format(toDate(points[0].date))}</text>
     ${points.length>1?`<text x="${W-R}" y="${H-6}" text-anchor="end">${fmtShort.format(toDate(points[points.length-1].date))}</text>`:""}
+    ${pts.map((p,i)=>`<circle class="hit" data-act="pt" data-i="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${Math.max(10,Math.min(18,(W-L-R)/Math.max(1,points.length-1)/2)).toFixed(1)}"><title>${fmtShort.format(toDate(points[i].date))}: ${fmtNum(Math.round(points[i].v*10)/10)} ${unit}</title></circle>`).join("")}
   </svg>`;
+}
+function logStats(l){
+  const sets=l.sets||[]; let e=null, r=null;
+  for(const s of sets){ const x=e1rm(s.w,s.r); if(x!=null&&(e==null||x>e)) e=x; if(s.r!=null&&(r==null||s.r>r)) r=s.r; }
+  return {best:maxW(sets), e1rm:e, reps:r, volume:volume(sets)};
+}
+const METRICS={w:["Bestes Gewicht","kg","best"],e:["Geschätztes 1RM","kg","e1rm"],v:["Volumen","kg","volume"],r:["Beste Wiederholungen","Wdh.","reps"]};
+function progressCard(hist){
+  const hasW=hist.some(l=>maxW(l.sets||[])!=null);
+  const P=S.prog; const metric=hasW?(P.metric==="r"?"w":P.metric):"r";
+  const [label,unit,key]=METRICS[metric];
+  const chrono=hist.slice(0,20).reverse().map(l=>({date:l.date,...logStats(l)}));
+  const pts=chrono.filter(r=>r[key]!=null&&r[key]!==0).map(r=>({date:r.date,v:r[key]}));
+  let h=`<div class="card chart"><div class="chart-top"><p class="eyebrow">Fortschritt</p>
+    <div class="seg" role="group" aria-label="Ansicht"><button data-act="progView" data-v="chart" aria-pressed="${P.view==="chart"}">Grafik</button><button data-act="progView" data-v="table" aria-pressed="${P.view==="table"}">Tabelle</button></div></div>`;
+  if(P.view==="chart"){
+    if(hasW) h+=`<div class="chips small" style="margin-bottom:8px">${["w","e","v"].map(m=>`<button class="chip" data-act="progMetric" data-m="${m}" aria-pressed="${metric===m}">${METRICS[m][0]}</button>`).join("")}</div>`;
+    if(pts.length>=2) h+=chartSvg(pts,unit,label,P.sel)+`<p class="hint" style="margin-top:4px">Tipp auf einen Punkt, um den Wert zu sehen.</p>`;
+    else h+=`<p class="hint">Ab der zweiten Einheit siehst du hier deinen Fortschritt als Kurve.</p>`;
+  } else {
+    const rows=hist.slice(0,60).map(l=>({date:l.date,...logStats(l)}));
+    h+=`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Datum</th>${hasW?`<th>Bestes Gew.</th><th>1RM</th><th>Volumen</th>`:`<th>Beste Wdh.</th>`}</tr></thead><tbody>${rows.map(r=>`<tr><td>${fmtShortY.format(toDate(r.date))}</td>${hasW?`<td class="b">${r.best!=null?fmtNum(r.best)+" kg":"–"}</td><td>${r.e1rm!=null?fmtNum(Math.round(r.e1rm))+" kg":"–"}</td><td>${r.volume?fmtNum(Math.round(r.volume))+" kg":"–"}</td>`:`<td class="b">${r.reps??"–"}</td>`}</tr>`).join("")}</tbody></table></div>`;
+  }
+  return h+`</div>`;
 }
 
 function viewExercise(exId){
@@ -558,15 +614,71 @@ function viewExercise(exId){
     <div class="card stat"><b>${bestE!=null?fmtNum(Math.round(bestE)):"–"}</b><span>Geschätztes 1RM (kg)</span></div>
     <div class="card stat"><b>${hist.length}</b><span>Einheiten</span></div>
   </div>`;
-  const pts=hist.slice(0,12).reverse().map(l=>{let v=null; for(const s of l.sets||[]){const x=e1rm(s.w,s.r); if(x!=null&&(v==null||x>v)) v=x;} return v==null?null:{date:l.date,v};}).filter(Boolean);
-  if(pts.length>=2) h+=`<div class="card chart"><p class="eyebrow">Fortschritt · geschätztes 1RM</p>${chartSvg(pts)}</div>`;
-  else if(hist.length) h+=`<p class="hint">Ab der zweiten Einheit siehst du hier deinen Fortschritt als Kurve.</p>`;
   if(hist.length){
+    h+=progressCard(hist);
+    h+=`<button class="btn" data-act="report" data-ex="${esc(e.id)}">${ICON.doc}Fortschritt als PDF</button>`;
     h+=`<div class="group"><h3>Alle Einheiten</h3><div class="list hist">${hist.map(l=>`<button class="item" data-act="openLog" data-ex="${esc(e.id)}" data-date="${l.date}">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${relDay(l.date)}</span>${isPR(l)?'<span class="pr">Rekord</span>':`<span class="meta num">${volume(l.sets||[])?fmtNum(Math.round(volume(l.sets)))+" kg":""}</span>`}</div>
       ${setsLine(l.sets||[])}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`).join("")}</div></div>`;
   } else h+=`<p class="hint">Noch keine Einheit eingetragen.</p>`;
   return h;
+}
+
+/* ---------- PDF-Bericht ---------- */
+function rangeFrom(range){
+  const d=toDate(todayStr());
+  if(range==="4w") d.setDate(d.getDate()-27);
+  else if(range==="3m") d.setMonth(d.getMonth()-3);
+  else if(range==="6m") d.setMonth(d.getMonth()-6);
+  else if(range==="12m") d.setFullYear(d.getFullYear()-1);
+  else { const all=logs().map(l=>l.date).sort(); return all[0]||todayStr(); }
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+}
+function reportSelection(){
+  const R=S.rep, from=rangeFrom(R.range), to=todayStr();
+  const exs=exercises().filter(e=>!R.exIds||R.exIds.has(e.id));
+  const order=e=>{const i=GROUPS.indexOf(e.group||"Sonstiges");return i<0?99:i;};
+  exs.sort((a,b)=>order(a)-order(b)||a.name.localeCompare(b.name,"de"));
+  const items=exs.map(e=>({e,logs:logsFor(e.id).filter(l=>l.date>=from&&l.date<=to).reverse()})).filter(x=>x.logs.length);
+  return {from,to,items};
+}
+function viewReport(){
+  const R=S.rep;
+  const withLogs=exercises().filter(e=>logsFor(e.id).length);
+  const sel=reportSelection();
+  const sessions=sel.items.reduce((a,x)=>a+x.logs.length,0);
+  let h=`<p class="muted" style="margin:0">Erstellt eine PDF mit Kurve und Tabelle pro Übung. Die Datei kannst du speichern, ausdrucken oder z. B. deinem Trainer schicken.</p>
+  <div class="field"><span>Zeitraum</span><div class="chips">${RANGES.map(([k,l])=>`<button class="chip" data-act="repRange" data-k="${k}" aria-pressed="${R.range===k}">${l}</button>`).join("")}</div></div>
+  <div class="field"><span>Übungen</span><div class="chips"><button class="chip" data-act="repAll" aria-pressed="${!R.exIds}">Alle</button>${withLogs.map(e=>`<button class="chip" data-act="repEx" data-ex="${esc(e.id)}" aria-pressed="${!!R.exIds&&R.exIds.has(e.id)}">${esc(e.name)}</button>`).join("")}</div></div>
+  <div class="field"><span>Inhalt</span><div class="chips"><button class="chip" data-act="repPart" data-k="chart" aria-pressed="${R.chart}">Grafik</button><button class="chip" data-act="repPart" data-k="table" aria-pressed="${R.table}">Tabelle</button></div></div>
+  <p class="meta num">${sel.items.length} ${sel.items.length===1?"Übung":"Übungen"} · ${sessions} ${sessions===1?"Einheit":"Einheiten"} · ${fmtShortY.format(toDate(sel.from))} – ${fmtShortY.format(toDate(sel.to))}</p>`;
+  if(R.result) h+=`<div class="card result"><div class="status"><i></i>${esc(R.result.name)}</div><p class="muted" style="margin:0">Die PDF wurde gespeichert. Auf dem Handy findest du sie in „Downloads“ bzw. „Eigene Dateien“.</p>
+    <div class="btn-row"><button class="btn" data-act="repSave">Nochmal speichern</button>${R.result.canShare?`<button class="btn" data-act="repShare">Teilen</button>`:""}</div></div>`;
+  h+=`<button class="btn primary big" data-act="repMake" ${sel.items.length?"":"disabled"}>${ICON.doc}${R.busy?"Wird erstellt…":"PDF erstellen"}</button>`;
+  if(!sel.items.length) h+=`<p class="hint">Im gewählten Zeitraum gibt es keine Einträge. Wähle einen längeren Zeitraum.</p>`;
+  return h;
+}
+function setsPlain(sets,hasW){ return sets.map(s=>s.w!=null&&s.r!=null?`${fmtNum(s.w)} × ${s.r}`:s.w!=null?`${fmtNum(s.w)} kg`:hasW?`${s.r} Wdh.`:`${s.r}`).join(", "); }
+function slug(s){ return s.toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
+function makeReport(){
+  const R=S.rep, sel=reportSelection(), rl=RANGES.find(r=>r[0]===R.range)[2];
+  const dates=new Set(); let setsN=0, vol=0, sessions=0;
+  const exercisesModel=sel.items.map(({e,logs:ls})=>{
+    for(const l of ls){ dates.add(l.date); setsN+=(l.sets||[]).length; vol+=volume(l.sets||[]); sessions++; }
+    return {name:e.name, group:e.group||"Sonstiges", settingsLine:(e.settings||[]).filter(s=>s.k||s.v).map(s=>`${s.k} ${s.v}`.trim()).join(" · "),
+      rows:ls.map(l=>({date:l.date, setsText:setsPlain(l.sets||[],ls.some(x=>maxW(x.sets||[])!=null)), ...logStats(l)}))};
+  });
+  const bytes=window.GymReport.build({title:"Fortschrittsbericht",rangeLabel:rl,fromDate:sel.from,toDate:sel.to,created:todayStr(),
+    includeChart:R.chart,includeTable:R.table,summary:{days:dates.size,sessions,sets:setsN,volume:Math.round(vol)},exercises:exercisesModel});
+  const name=`gym-logbuch-${sel.items.length===1?slug(sel.items[0].e.name)+"-":""}fortschritt-${todayStr()}.pdf`;
+  const blob=new Blob([bytes],{type:"application/pdf"});
+  let canShare=false; try{ canShare=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],name,{type:"application/pdf"})]})); }catch(e){}
+  return {blob,name,canShare};
+}
+function saveBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
 }
 
 function viewEditEx(){
@@ -613,7 +725,8 @@ function viewMore(){
     ${installPrompt?`<p class="muted">Mit einem Tipp bekommst du ein eigenes App-Icon auf dem Startbildschirm.</p><button class="btn primary" data-act="install">App installieren</button>`
       :`<p><b>Android (Chrome):</b> Menü ⋮ oben rechts → „App installieren“ oder „Zum Startbildschirm hinzufügen“.</p>
         <p><b>iPhone (Safari):</b> Teilen-Symbol unten → „Zum Home-Bildschirm“.</p>`}</div>`;
-  return `${install}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
+  return `${install}${pdfCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -678,6 +791,34 @@ document.addEventListener("click",ev=>{
       S.stack=[]; S.tab="exercises"; render(); toast("Übung gelöscht"); break;
     }
     case "export": exportBackup(); break;
+    case "pt": S.prog.sel=+b.dataset.i; render(); break;
+    case "progView": S.prog.view=b.dataset.v; render(); break;
+    case "progMetric": S.prog.metric=b.dataset.m; S.prog.sel=null; render(); break;
+    case "report": push({type:"report",exId:b.dataset.ex||null}); break;
+    case "repRange": S.rep.range=b.dataset.k; S.rep.result=null; render(); break;
+    case "repAll": S.rep.exIds=null; S.rep.result=null; render(); break;
+    case "repEx": {
+      const id=b.dataset.ex, R=S.rep;
+      if(!R.exIds) R.exIds=new Set([id]); else if(R.exIds.has(id)){ R.exIds.delete(id); if(!R.exIds.size) R.exIds=null; } else R.exIds.add(id);
+      R.result=null; render(); break;
+    }
+    case "repPart": { const R=S.rep, k=b.dataset.k, other=k==="chart"?"table":"chart"; if(R[k]&&!R[other]) { toast("Mindestens Grafik oder Tabelle"); return; } R[k]=!R[k]; R.result=null; render(); break; }
+    case "repMake": {
+      if(S.rep.busy) return;
+      S.rep.busy=true; render();
+      setTimeout(()=>{
+        try{ const res=makeReport(); S.rep.result=res; saveBlob(res.blob,res.name); toast("PDF erstellt"); }
+        catch(e){ console.error(e); toast("PDF konnte nicht erstellt werden"); }
+        S.rep.busy=false; render();
+      },30);
+      break;
+    }
+    case "repSave": if(S.rep.result) saveBlob(S.rep.result.blob,S.rep.result.name); break;
+    case "repShare": {
+      const r=S.rep.result; if(!r) return;
+      navigator.share({files:[new File([r.blob],r.name,{type:"application/pdf"})],title:"Fortschrittsbericht"}).catch(()=>{});
+      break;
+    }
     case "import": $("#importFile").click(); break;
     case "install": if(installPrompt){ installPrompt.prompt(); installPrompt.userChoice.finally(()=>{ installPrompt=null; render(); }); } break;
     case "update": if(waitingWorker) waitingWorker.postMessage("skipWaiting"); break;

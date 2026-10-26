@@ -12,6 +12,7 @@ Läuft auf Android und iPhone, funktioniert offline und speichert alle Daten nur
 ## Dateien
 
 - `index.html` – die komplette App
+- `report.js` – erstellt den PDF-Fortschrittsbericht (ohne externe Bibliotheken)
 - `sw.js` – sorgt dafür, dass die App offline startet
 - `manifest.webmanifest` – Name, Farben und Icon für die Installation
 - `icons/` – App-Icons

@@ -1,9 +1,10 @@
 // Gym-Logbuch Service Worker: macht die App offline nutzbar.
 // Bei jeder neuen App-Version die Versionsnummer hochzählen.
-const VERSION = "gym-logbuch-1.0";
+const VERSION = "gym-logbuch-1.1";
 const APP_FILES = [
   "./",
   "./index.html",
+  "./report.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -13,7 +14,7 @@ const APP_FILES = [
 const FONT_CACHE = "gym-logbuch-fonts";
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(APP_FILES)));
+  event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(APP_FILES.map(u => new Request(u, { cache: "reload" })))));
 });
 
 self.addEventListener("activate", event => {
