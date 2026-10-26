@@ -23,6 +23,7 @@
   --accent:#1f46c2; --accent-ink:#ffffff; --accent-soft:#dfe6fb;
   --pr:#c62f28; --pr-soft:#fbe2df; --ok:#1d7a4b;
   --cal1:#c9d6f7; --cal2:#7d9bec; --cal3:#1f46c2; --cal-ink3:#ffffff;
+  --t-push:#2a78d6; --t-push-ink:#fff; --t-pull:#eb6834; --t-pull-ink:#fff; --t-beine:#1baf7a; --t-beine-ink:#0b1a14; --t-oben:#eda100; --t-oben-ink:#1f1600; --t-unten:#e87ba4; --t-unten-ink:#2a0d18; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#6250d6; --t-cardio-ink:#fff; --t-sonst:#e34948; --t-sonst-ink:#fff;
   --f-display:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --radius:12px;
@@ -31,13 +32,13 @@
   :root:not([data-theme="light"]){
     --bg:#0d1219; --surface:#161d28; --sunk:#1e2734; --ink:#e6ebf2; --muted:#93a0b2; --line:#2a3546;
     --accent:#7196ff; --accent-ink:#0a1124; --accent-soft:#1c2a4f;
-    --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; color-scheme:dark;
+    --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; --t-push:#3987e5; --t-push-ink:#fff; --t-pull:#d95926; --t-pull-ink:#fff; --t-beine:#199e70; --t-beine-ink:#fff; --t-oben:#c98500; --t-oben-ink:#1f1600; --t-unten:#d55181; --t-unten-ink:#fff; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#9085e9; --t-cardio-ink:#120d33; --t-sonst:#e66767; --t-sonst-ink:#fff; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0d1219; --surface:#161d28; --sunk:#1e2734; --ink:#e6ebf2; --muted:#93a0b2; --line:#2a3546;
   --accent:#7196ff; --accent-ink:#0a1124; --accent-soft:#1c2a4f;
-  --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; color-scheme:dark;
+  --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; --t-push:#3987e5; --t-push-ink:#fff; --t-pull:#d95926; --t-pull-ink:#fff; --t-beine:#199e70; --t-beine-ink:#fff; --t-oben:#c98500; --t-oben-ink:#1f1600; --t-unten:#d55181; --t-unten-ink:#fff; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#9085e9; --t-cardio-ink:#120d33; --t-sonst:#e66767; --t-sonst-ink:#fff; color-scheme:dark;
 }
 *{box-sizing:border-box}
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
@@ -185,6 +186,27 @@ textarea.input{min-height:76px;resize:vertical}
 .cal-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:.8rem;color:var(--muted)}
 .legend{display:flex;align-items:center;gap:6px}
 .legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.legend i.ty{background:var(--tc)}
+.legend i.none{background:var(--sunk);box-shadow:inset 0 0 0 1.5px var(--muted)}
+.legend{flex-wrap:wrap}
+.ty-push{--tc:var(--t-push);--tci:var(--t-push-ink)}
+.ty-pull{--tc:var(--t-pull);--tci:var(--t-pull-ink)}
+.ty-beine{--tc:var(--t-beine);--tci:var(--t-beine-ink)}
+.ty-oben{--tc:var(--t-oben);--tci:var(--t-oben-ink)}
+.ty-unten{--tc:var(--t-unten);--tci:var(--t-unten-ink)}
+.ty-ganz{--tc:var(--t-ganz);--tci:var(--t-ganz-ink)}
+.ty-cardio{--tc:var(--t-cardio);--tci:var(--t-cardio-ink)}
+.ty-sonst{--tc:var(--t-sonst);--tci:var(--t-sonst-ink)}
+.cal-day.ty{background:var(--tc);color:var(--tci);flex-direction:column;gap:0;line-height:1}
+.cal-day small{font-family:var(--f-body);font-size:.6rem;font-weight:700;letter-spacing:.03em;opacity:.9;margin-top:2px}
+.cal-day.none{background:var(--sunk);box-shadow:inset 0 0 0 1.5px var(--muted)}
+.cal-day.today.ty,.cal-day.today.none{box-shadow:inset 0 0 0 2px var(--ink),inset 0 0 0 4px var(--surface)}
+.type-row{display:flex;flex-wrap:wrap;gap:8px}
+.tchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px 7px 10px;font-weight:600;font-size:.9rem}
+.tchip i{width:12px;height:12px;border-radius:50%;background:var(--tc);flex:none}
+.tchip[aria-pressed="true"]{background:var(--tc);border-color:var(--tc);color:var(--tci)}
+.tchip[aria-pressed="true"] i{background:var(--tci)}
+.tbadge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 9px;font-family:var(--f-body);font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:var(--tc);color:var(--tci);vertical-align:middle}
 .legend i.l1{background:var(--cal1)}.legend i.l2{background:var(--cal2)}.legend i.l3{background:var(--cal3)}
 .chart-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .seg{display:inline-flex;background:var(--sunk);border-radius:9px;padding:3px}
@@ -265,7 +287,9 @@ const GROUPS = ["Brust","Rücken","Schultern","Beine","Po","Arme","Bauch","Ganzk
 const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Beine"],["Beinbeuger","Beine"],["Bizepscurls","Arme"]];
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.2";
+const APP_VERSION = "1.3";
+const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
+const typeOf = k => DAY_TYPES.find(t=>t.k===k)||null;
 const RANGES = [["4w","4 Wochen","Letzte 4 Wochen"],["3m","3 Monate","Letzte 3 Monate"],["6m","6 Monate","Letzte 6 Monate"],["12m","12 Monate","Letzte 12 Monate"],["all","Alles","Gesamter Zeitraum"]];
 const TAB_TITLES = {today:"Training", exercises:"Übungen", history:"Verlauf", more:"Mehr"};
 
@@ -489,6 +513,7 @@ function viewToday(){
   const exs=exercises();
   let h=`<div class="date-head"><p class="eyebrow">Heute</p><h2>${esc(fmtLong.format(new Date()))}</h2></div>`;
   if(!exs.length) return h+emptyStart();
+  h+=typePicker(date);
   if(today.length){
     const vol=today.reduce((a,l)=>a+volume(l.sets||[]),0);
     const setCount=today.reduce((a,l)=>a+(l.sets||[]).length,0);
@@ -727,6 +752,14 @@ function dayLevel(ls){ const n=ls.reduce((a,l)=>a+(l.sets||[]).length,0); return
 const fmtMonth=new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"});
 const ICON_L='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
 const ICON_R='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+function dayType(date){ const d=S.docs.get("dy_"+date); return d&&d.kind==="day"?typeOf(d.type):null; }
+function setDayType(date,k){ const cur=dayType(date); if(cur&&cur.k===k) put("dy_"+date,null); else put("dy_"+date,{kind:"day",date,type:k,updatedAt:Date.now()}); }
+function calMode(){ const c=S.docs.get("cfg"); return c&&c.calMode==="sets"?"sets":"type"; }
+function typeBadge(date){ const t=dayType(date); return t?`<span class="tbadge ty-${t.k}">${esc(t.n)}</span>`:""; }
+function typePicker(date){
+  const cur=dayType(date);
+  return `<div class="field"><span>Trainingsart${cur?"":" (optional)"}</span><div class="type-row">${DAY_TYPES.map(t=>`<button class="tchip ty-${t.k}" data-act="setType" data-date="${date}" data-k="${t.k}" aria-pressed="${!!cur&&cur.k===t.k}"><i></i>${esc(t.n)}</button>`).join("")}</div></div>`;
+}
 function logsByDate(){ const m=new Map(); for(const l of logs()){ if(!m.has(l.date)) m.set(l.date,[]); m.get(l.date).push(l); } return m; }
 function calendarCard(byDate){
   if(!S.cal){ const n=new Date(); S.cal={y:n.getFullYear(),m:n.getMonth()}; }
@@ -735,19 +768,28 @@ function calendarCard(byDate){
   const isCurrent=y===now.getFullYear()&&m===now.getMonth();
   let cells="";
   for(let i=0;i<lead;i++) cells+=`<span class="cal-day out" aria-hidden="true"></span>`;
-  let trained=0;
+  let trained=0; const mode=calMode(), used=new Map(); let noType=0;
   for(let d=1; d<=days; d++){
-    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today;
-    if(ls) trained++;
-    const cls=["cal-day"]; if(ls) cls.push("l"+dayLevel(ls)); if(ds===today) cls.push("today"); if(fut) cls.push("future");
-    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:", kein Training"}`;
-    cells+=fut?`<span class="${cls.join(" ")}">${d}</span>`:`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${d}</button>`;
+    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today, t=dayType(ds);
+    if(ls||t) trained++;
+    const cls=["cal-day"]; let inner=String(d);
+    if(mode==="type"){
+      if(t){ cls.push("ty","ty-"+t.k); inner=`${d}<small>${t.a}</small>`; used.set(t.k,(used.get(t.k)||0)+1); }
+      else if(ls){ cls.push("none"); noType++; }
+    } else if(ls) cls.push("l"+dayLevel(ls));
+    if(ds===today) cls.push("today"); if(fut&&!t) cls.push("future");
+    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${t?`, ${t.n}`:""}${ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t?"":", kein Training"}`;
+    cells+=fut&&!t?`<span class="${cls.join(" ")}">${d}</span>`:`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${inner}</button>`;
   }
+  const legend=mode==="type"
+    ?`<span class="legend">${DAY_TYPES.filter(t=>used.has(t.k)).map(t=>`<span class="legend ty-${t.k}"><i class="ty"></i>${esc(t.n)} ${used.get(t.k)}×</span>`).join("")}${noType?`<span class="legend"><i class="none"></i>Ohne Art ${noType}×</span>`:""}${!used.size&&!noType?"Noch keine Trainingsart vergeben":""}</span>`
+    :`<span class="legend">Sätze <i class="l1"></i>1–7 <i class="l2"></i>8–15 <i class="l3"></i>16+</span>`;
   return `<div class="card cal">
     <div class="cal-head"><button class="cal-nav" data-act="calMove" data-d="-1" aria-label="Vorheriger Monat">${ICON_L}</button><h3>${esc(fmtMonth.format(first))}</h3><button class="cal-nav" data-act="calMove" data-d="1" aria-label="Nächster Monat" ${isCurrent?"disabled":""}>${ICON_R}</button></div>
     <div class="cal-grid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(w=>`<span class="wd">${w}</span>`).join("")}${cells}</div>
-    <div class="cal-foot"><span class="num"><b>${trained}</b> ${trained===1?"Trainingstag":"Trainingstage"}${isCurrent?"":""}</span>
-      <span class="legend">Sätze <i class="l1"></i>1–7 <i class="l2"></i>8–15 <i class="l3"></i>16+</span></div>
+    <div class="cal-foot"><span class="num"><b>${trained}</b> ${trained===1?"Trainingstag":"Trainingstage"}</span>
+      <div class="seg" role="group" aria-label="Farbe nach"><button data-act="calMode" data-v="type" aria-pressed="${mode==="type"}">Trainingsart</button><button data-act="calMode" data-v="sets" aria-pressed="${mode==="sets"}">Sätze</button></div></div>
+    <div class="cal-foot" style="margin-top:8px">${legend}</div>
   </div>`;
 }
 function dayList(date,ls){
@@ -766,12 +808,12 @@ function viewHistory(){
     const ls=byDate.get(date).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
     const vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
     const label=dayDiff(date)<7?relDay(date):fmtLong.format(toDate(date));
-    return `<section class="day"><h3><button class="btn ghost" data-act="day" data-date="${date}" style="padding:0;min-height:0;font:inherit;color:inherit;text-transform:inherit">${esc(label)}</button><small class="num">${ls.length} ${ls.length===1?"Übung":"Übungen"}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>${dayList(date,ls)}</section>`;
+    return `<section class="day"><h3><span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="day" data-date="${date}" style="padding:0;min-height:0;font:inherit;color:inherit;text-transform:inherit">${esc(label)}</button>${typeBadge(date)}</span><small class="num">${ls.length} ${ls.length===1?"Übung":"Übungen"}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>${dayList(date,ls)}</section>`;
   }).join("");
 }
 function viewDay(date){
   const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
-  let h=`<div class="date-head"><p class="eyebrow">${esc(relDay(date))}</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>`;
+  let h=`<div class="date-head"><p class="eyebrow">${esc(relDay(date))}</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>`+typePicker(date);
   if(!ls.length) return h+`<div class="card empty"><h3>Kein Training an diesem Tag</h3><p class="muted">Hast du trainiert und es nur nicht eingetragen? Dann kannst du es hier nachtragen.</p><button class="btn primary" data-act="pickFor" data-date="${date}">${ICON.plus}Training nachtragen</button></div>`;
   const sets=ls.reduce((a,l)=>a+(l.sets||[]).length,0), vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
   h+=`<p class="meta num">${ls.length} ${ls.length===1?"Übung":"Übungen"} · ${sets} ${sets===1?"Satz":"Sätze"}${vol?` · ${fmtNum(Math.round(vol))} kg Volumen`:""}</p>`;
@@ -782,7 +824,8 @@ function viewDay(date){
 }
 function makeDayPdf(date){
   const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
-  const model={date,dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
+  const t=dayType(date);
+  const model={date,typeName:t?t.n:"",dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
     exercises:ls.map(l=>{const e=ex(l.exId)||{name:"Gelöschte Übung"}; return {name:e.name,group:e.group||"",settingsLine:(e.settings||[]).filter(x=>x.k||x.v).map(x=>`${x.k} ${x.v}`.trim()).join(" · "),note:l.note||"",sets:l.sets||[]};})};
   const bytes=window.GymReport.buildDay(model);
   return {blob:new Blob([bytes],{type:"application/pdf"}),name:`gym-logbuch-training-${date}.pdf`};
@@ -865,6 +908,8 @@ document.addEventListener("click",ev=>{
     }
     case "export": exportBackup(); break;
     case "pt": S.prog.sel=+b.dataset.i; render(); break;
+    case "setType": setDayType(b.dataset.date,b.dataset.k); render(); break;
+    case "calMode": { const c=S.docs.get("cfg")||{kind:"settings"}; put("cfg",{...c,kind:"settings",calMode:b.dataset.v,updatedAt:Date.now()}); render(); break; }
     case "calMove": { const c=S.cal, d=new Date(c.y,c.m+(+b.dataset.d),1); S.cal={y:d.getFullYear(),m:d.getMonth()}; render(); break; }
     case "day": push({type:"day",date:b.dataset.date}); break;
     case "pickFor": push({type:"pick",date:b.dataset.date}); break;
@@ -959,7 +1004,7 @@ $("#importFile").addEventListener("change",ev=>{
   fr.onload=async()=>{
     let parsed; try{ parsed=JSON.parse(fr.result); }catch(e){ toast("Diese Datei ist kein Gym-Logbuch-Backup"); return; }
     if(!parsed||parsed.app!=="gym-logbuch"||!parsed.docs){ toast("Diese Datei ist kein Gym-Logbuch-Backup"); return; }
-    const entries=Object.entries(parsed.docs).filter(([id,d])=>d&&(d.kind==="exercise"||d.kind==="log")&&/^[A-Za-z0-9_\-.~:@+]+$/.test(id))
+    const entries=Object.entries(parsed.docs).filter(([id,d])=>d&&(d.kind==="exercise"||d.kind==="log"||d.kind==="day")&&/^[A-Za-z0-9_\-.~:@+]+$/.test(id))
       .filter(([id,d])=>{const cur=S.docs.get(id); return !cur||(d.updatedAt||0)>(cur.updatedAt||0);});
     if(!entries.length){ toast("Alles schon vorhanden – nichts Neues im Backup"); return; }
     toast("Importiere…");
