@@ -140,9 +140,16 @@ textarea.input{min-height:76px;resize:vertical}
 .lastline{padding:10px 14px;background:var(--accent-soft);border-radius:10px;font-size:.92rem}
 .lastline b{font-family:var(--f-display);font-size:1.05rem;font-variant-numeric:tabular-nums}
 .sets{display:flex;flex-direction:column;gap:8px}
-.set-head,.set-row{display:grid;grid-template-columns:2.2rem 1fr 1fr 3.1rem;gap:8px;align-items:center}
+.set-head,.set-row{display:grid;grid-template-columns:var(--cols,2.2rem 1fr 1fr 3.1rem);gap:8px;align-items:center}
 .set-head{font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 2px}
-.set-head span:nth-child(2),.set-head span:nth-child(3){text-align:center}
+.set-head span{text-align:center}
+.set-row .fake{height:46px;border:1px solid var(--line);background:var(--surface);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--f-display);font-size:1.4rem;font-weight:600;font-variant-numeric:tabular-nums}
+.set-row .chk.fake-chk{height:46px}
+.lay-item{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 6px;border-top:1px solid var(--line);background:var(--surface)}
+.lay-item:first-child{border-top:0}
+.lay-item b{flex:1;font-weight:600}
+.lay-item .meta{white-space:nowrap}
+.lay-preview{background:var(--bg);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .set-row .n{font-family:var(--f-display);font-size:1.4rem;font-weight:700;color:var(--muted);text-align:center}
 .set-row input{width:100%;min-width:0;height:54px;border:1px solid var(--line);background:var(--surface);border-radius:10px;text-align:center;font-family:var(--f-display);font-size:1.6rem;font-weight:600;font-variant-numeric:tabular-nums}
 .set-row input::placeholder{color:var(--muted);opacity:.55}
@@ -374,7 +381,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.9";
+const APP_VERSION = "2.0";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -442,8 +449,13 @@ function parseNum(v){ if(v==null) return null; const s=String(v).trim().replace(
 function fmtNum(n){return n==null?"":nf.format(n)}
 function inputVal(n){return n==null?"":String(n).replace(".",",")}
 function e1rm(w,r){ if(!w||!r) return null; return r===1?w:w*(1+r/30); }
+const LAYOUT_DEFAULT=["n","w","r","c"];
+const LAYOUT_INFO={n:{t:"Satznummer",h:"Satz",col:"2.2rem"},w:{t:"Gewicht",h:"kg",col:"1fr"},r:{t:"Wiederholungen",h:"Wdh.",col:"1fr"},c:{t:"Haken (abhaken)",h:"",col:"3.1rem"}};
+function layoutOrder(){ const l=cfg().layout; return Array.isArray(l)&&l.length===4&&LAYOUT_DEFAULT.every(k=>l.includes(k))?l:LAYOUT_DEFAULT; }
+function repsFirst(){ const l=layoutOrder(); return l.indexOf("r")<l.indexOf("w"); }
+function layoutCols(){ return layoutOrder().map(k=>LAYOUT_INFO[k].col).join(" "); }
 function setText(s){
-  if(s.w!=null && s.r!=null) return `${fmtNum(s.w)}<span class="x"> × </span>${s.r}`;
+  if(s.w!=null && s.r!=null) return repsFirst()?`${s.r}<span class="x"> × </span>${fmtNum(s.w)} kg`:`${fmtNum(s.w)}<span class="x"> × </span>${s.r}`;
   if(s.w!=null) return `${fmtNum(s.w)} kg`;
   if(s.r!=null) return `${s.r} Wdh.`;
   return "";
@@ -693,15 +705,16 @@ function viewLog(){
   const tgt=targetText(planTarget(d.date,d.exId));
   if(tgt) h+=`<div class="lastline" style="background:var(--sunk)">Ziel laut Plan: <b>${esc(tgt)}</b></div>`;
   if(last) h+=`<div class="lastline">Letztes Mal · ${relDay(last.date)}: <b>${(last.sets||[]).map(s=>setText(s).replace(/<[^>]+>/g,"")).join(" · ")}</b></div>`;
-  h+=`<div class="sets"><div class="set-head"><span>Satz</span><span>kg</span><span>Wdh.</span><span></span></div>`;
+  const L=layoutOrder(), rf=repsFirst();
+  h+=`<div class="sets" style="--cols:${layoutCols()}"><div class="set-head">${L.map(k=>`<span>${LAYOUT_INFO[k].h}</span>`).join("")}</div>`;
   d.sets.forEach((s,i)=>{
     const filled=parseNum(s.w)!=null||parseNum(s.r)!=null;
-    h+=`<div class="set-row${filled?" filled":""}" data-row="${i}">
-      <span class="n">${i+1}</span>
-      <input id="w-${i}" data-field="w" data-i="${i}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Gewicht Satz ${i+1} in kg" placeholder="${g[i].w!=null?esc(inputVal(g[i].w)):"–"}" value="${esc(s.w)}">
-      <input id="r-${i}" data-field="r" data-i="${i}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Wiederholungen Satz ${i+1}" placeholder="${g[i].r!=null?g[i].r:"–"}" value="${esc(s.r)}">
-      <button class="chk" data-act="fill" data-i="${i}" aria-label="Satz ${i+1} wie vorgeschlagen übernehmen">${ICON.check}</button>
-    </div>`;
+    const cell={
+      n:`<span class="n">${i+1}</span>`,
+      w:`<input id="w-${i}" data-field="w" data-i="${i}" inputmode="decimal" enterkeyhint="${rf?"done":"next"}" autocomplete="off" aria-label="Gewicht Satz ${i+1} in kg" placeholder="${g[i].w!=null?esc(inputVal(g[i].w)):"–"}" value="${esc(s.w)}">`,
+      r:`<input id="r-${i}" data-field="r" data-i="${i}" inputmode="numeric" enterkeyhint="${rf?"next":"done"}" autocomplete="off" aria-label="Wiederholungen Satz ${i+1}" placeholder="${g[i].r!=null?g[i].r:"–"}" value="${esc(s.r)}">`,
+      c:`<button class="chk" data-act="fill" data-i="${i}" aria-label="Satz ${i+1} wie vorgeschlagen übernehmen">${ICON.check}</button>`};
+    h+=`<div class="set-row${filled?" filled":""}" data-row="${i}">${L.map(k=>cell[k]).join("")}</div>`;
   });
   h+=`</div>
   <p class="hint">Graue Zahlen sind Vorschläge: dein Ziel aus dem Plan oder deine Werte vom letzten Mal. Tipp auf den Haken, um sie zu übernehmen, oder tipp eigene Werte ein. Ohne Gewicht zählt der Satz als Körpergewicht.</p>
@@ -823,7 +836,7 @@ function viewReport(){
   if(!sel.items.length) h+=`<p class="hint">Im gewählten Zeitraum gibt es keine Einträge. Wähle einen längeren Zeitraum.</p>`;
   return h;
 }
-function setsPlain(sets,hasW){ return sets.map(s=>s.w!=null&&s.r!=null?`${fmtNum(s.w)} × ${s.r}`:s.w!=null?`${fmtNum(s.w)} kg`:hasW?`${s.r} Wdh.`:`${s.r}`).join(", "); }
+function setsPlain(sets,hasW){ return sets.map(s=>s.w!=null&&s.r!=null?(repsFirst()?`${s.r} × ${fmtNum(s.w)} kg`:`${fmtNum(s.w)} × ${s.r}`):s.w!=null?`${fmtNum(s.w)} kg`:hasW?`${s.r} Wdh.`:`${s.r}`).join(", "); }
 function slug(s){ return s.toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
 function makeReport(){
   const R=S.rep, sel=reportSelection(), rl=RANGES.find(r=>r[0]===R.range)[2];
@@ -834,7 +847,7 @@ function makeReport(){
       rows:ls.map(l=>({date:l.date, setsText:setsPlain(l.sets||[],ls.some(x=>maxW(x.sets||[])!=null)), ...logStats(l)}))};
   });
   const bytes=window.GymReport.build({title:"Fortschrittsbericht",rangeLabel:rl,fromDate:sel.from,toDate:sel.to,created:todayStr(),
-    includeChart:R.chart,includeTable:R.table,summary:{days:dates.size,sessions,sets:setsN,volume:Math.round(vol)},exercises:exercisesModel});
+    includeChart:R.chart,includeTable:R.table,repsFirst:repsFirst(),summary:{days:dates.size,sessions,sets:setsN,volume:Math.round(vol)},exercises:exercisesModel});
   const name=`gym-logbuch-${sel.items.length===1?slug(sel.items[0].e.name)+"-":""}fortschritt-${todayStr()}.pdf`;
   const blob=new Blob([bytes],{type:"application/pdf"});
   let canShare=false; try{ canShare=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],name,{type:"application/pdf"})]})); }catch(e){}
@@ -904,6 +917,7 @@ function sortDayLogs(date,ls){
   return [...ls].sort((a,b)=>rank(a)-rank(b)||((a.createdAt||a.updatedAt||0)-(b.createdAt||b.updatedAt||0)));
 }
 function applyOrder(kind,date,ids){
+  if(kind==="layout"){ saveCfg({layout:ids}); return; }
   if(kind==="plan"||kind==="planopen"){
     const items=planItems(date), byId=new Map(items.map(x=>[x.id,x]));
     let next;
@@ -927,7 +941,10 @@ function planEditor(date){
   return `<div class="field"><span>Übungen für diesen Tag</span>
     ${items.length?`<div class="list sortable" data-sort="plan" data-date="${date}">${items.map((it,i)=>{const e=ex(it.id), l=lastBefore(it.id,date), ls=l?l.sets||[]:[], f=ls[0]||{};
       return `<div class="plan-row" data-sort-id="${esc(it.id)}"><div class="plan-top">${items.length>1?`<span class="drag-handle" aria-hidden="true">${ICON.grip}</span>`:""}<div class="grow"><div class="name" style="font-weight:600">${esc(e.name)}</div><div class="sub meta num">${l?`Zuletzt: ${ls.map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert"}</div></div><button class="icon-btn" data-act="planRm" data-date="${date}" data-i="${i}" aria-label="${esc(e.name)} aus dem Plan entfernen">${ICON.x}</button></div>
-        <div class="plan-tg"><span>Ziel</span><label><input id="pt-${date}-${i}-s" data-field="pt" data-k="s" data-date="${date}" data-i="${i}" inputmode="numeric" placeholder="${ls.length||3}" value="${it.s??""}" aria-label="Sätze">Sätze</label><label><input id="pt-${date}-${i}-r" data-field="pt" data-k="r" data-date="${date}" data-i="${i}" inputmode="numeric" placeholder="${f.r??10}" value="${it.r??""}" aria-label="Wiederholungen">Wdh.</label><label><input id="pt-${date}-${i}-w" data-field="pt" data-k="w" data-date="${date}" data-i="${i}" inputmode="decimal" placeholder="${f.w!=null?esc(inputVal(f.w)):"–"}" value="${it.w!=null?esc(inputVal(it.w)):""}" aria-label="Gewicht in kg">kg</label></div></div>`;}).join("")}</div>`
+        <div class="plan-tg"><span>Ziel</span>${layoutOrder().filter(k=>k!=="c").map(k=>({
+          n:`<label><input id="pt-${date}-${i}-s" data-field="pt" data-k="s" data-date="${date}" data-i="${i}" inputmode="numeric" placeholder="${ls.length||3}" value="${it.s??""}" aria-label="Sätze">Sätze</label>`,
+          r:`<label><input id="pt-${date}-${i}-r" data-field="pt" data-k="r" data-date="${date}" data-i="${i}" inputmode="numeric" placeholder="${f.r??10}" value="${it.r??""}" aria-label="Wiederholungen">Wdh.</label>`,
+          w:`<label><input id="pt-${date}-${i}-w" data-field="pt" data-k="w" data-date="${date}" data-i="${i}" inputmode="decimal" placeholder="${f.w!=null?esc(inputVal(f.w)):"–"}" value="${it.w!=null?esc(inputVal(it.w)):""}" aria-label="Gewicht in kg">kg</label>`}[k])).join("")}</div></div>`;}).join("")}</div>`
       :`<p class="hint">Noch keine Übungen eingeplant. Stell dir dein Training zusammen und leg auf Wunsch Sätze, Wiederholungen und Gewicht als Ziel fest.</p>`}
     ${items.length>1?`<p class="sort-hint">Gedrückt halten und ziehen, um die Reihenfolge zu ändern.</p>`:""}
     <button class="btn" data-act="planAdd" data-date="${date}">${ICON.plus}Übungen hinzufügen</button></div>
@@ -1044,7 +1061,7 @@ function viewDay(date){
 function makeDayPdf(date){
   const ls=sortDayLogs(date,logsByDate().get(date)||[]);
   const ts=dayTypes(date);
-  const model={date,typeName:typesName(ts),dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
+  const model={date,repsFirst:repsFirst(),typeName:typesName(ts),dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
     exercises:ls.map(l=>{const e=ex(l.exId)||{name:"Gelöschte Übung"}; return {name:e.name,group:e.kind?groupsText(e):"",settingsLine:(e.settings||[]).filter(x=>x.k||x.v).map(x=>`${x.k} ${x.v}`.trim()).join(" · "),note:l.note||"",sets:l.sets||[]};})};
   const bytes=window.GymReport.buildDay(model);
   return {blob:new Blob([bytes],{type:"application/pdf"}),name:`gym-logbuch-training-${date}.pdf`};
@@ -1069,10 +1086,17 @@ function viewMore(){
     ${"vibrate" in navigator?sw("vib","Vibration am Ende"):""}
     <p class="hint">Pro Übung kannst du im Eintragen-Bildschirm über „Pause“ eine eigene Zeit wählen oder den Timer ausschalten.${/iPhone|iPad/.test(navigator.userAgent)?" Auf dem iPhone ist der Ton im Lautlos-Modus stumm, und Vibration gibt es leider nicht.":""}</p>
     <div><button class="btn" data-act="restTest">Ton testen</button></div></div>`;
+  const L=layoutOrder(), isDef=L.join()===LAYOUT_DEFAULT.join(), isAlt=L.join()==="n,r,w,c";
+  const sample={n:`<span class="n">1</span>`,w:`<span class="fake">80</span>`,r:`<span class="fake">12</span>`,c:`<span class="chk fake-chk">${ICON.check}</span>`};
+  const layoutCard=`<div class="card panel"><h3>Eingabe-Layout</h3><p class="muted">Lege fest, in welcher Reihenfolge Satz, Gewicht, Wiederholungen und Haken beim Eintragen nebeneinander stehen. Gedrückt halten und ziehen. Gilt für die ganze App.</p>
+    <div class="list sortable" data-sort="layout" data-date="">${L.map((k,i)=>`<div class="lay-item" data-sort-id="${k}"><span class="drag-handle" aria-hidden="true">${ICON.grip}</span><b>${LAYOUT_INFO[k].t}</b><span class="meta num">${i+1}.</span></div>`).join("")}</div>
+    <div class="chips"><button class="chip" data-act="layoutPreset" data-v="n,w,r,c" aria-pressed="${isDef}">Satz · kg · Wdh. · ✓</button><button class="chip" data-act="layoutPreset" data-v="n,r,w,c" aria-pressed="${isAlt}">Satz · Wdh. · kg · ✓</button></div>
+    <div class="field"><span>Vorschau</span><div class="lay-preview" style="--cols:${layoutCols()}"><div class="set-head">${L.map(k=>`<span>${LAYOUT_INFO[k].h}</span>`).join("")}</div><div class="set-row filled">${L.map(k=>sample[k]).join("")}</div></div></div>
+    <p class="hint">Sätze werden dann überall als ${repsFirst()?"„12 × 80 kg“ (Wdh. × Gewicht)":"„80 × 12“ (Gewicht × Wdh.)"} angezeigt, auch in den PDFs.</p></div>`;
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1128,6 +1152,7 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "layoutPreset": saveCfg({layout:b.dataset.v.split(",")}); render(); toast("Layout gespeichert"); break;
     case "restPick": openRestSheet(b.dataset.ex||null); break;
     case "sheetPick": S.sheet.val=+b.dataset.v; renderSheet(true); break;
     case "sheetCancel": closeSheet(); break;
@@ -1262,8 +1287,7 @@ document.addEventListener("keydown",ev=>{
   if(ev.key!=="Enter") return;
   const el=ev.target, f=el.dataset&&el.dataset.field;
   if(f==="newgroup"){ ev.preventDefault(); const b=document.querySelector('[data-act="groupAdd"]'); b&&b.click(); return; }
-  if(f==="w"){ ev.preventDefault(); const r=$("#r-"+el.dataset.i); r&&r.focus(); }
-  else if(f==="r"){ ev.preventDefault(); const n=$("#w-"+(+el.dataset.i+1)); n?n.focus():el.blur(); }
+  if(f==="w"||f==="r"){ ev.preventDefault(); const all=[...document.querySelectorAll(".set-row input")], i=all.indexOf(el); const n=all[i+1]; n?n.focus():el.blur(); }
 });
 
 window.addEventListener("scroll",()=>$("#bar").classList.toggle("scrolled",window.scrollY>4),{passive:true});

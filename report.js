@@ -105,7 +105,9 @@ function wrap(pdf,str,size,bold,maxW){
 /* ---------- Bericht ---------- */
 const M=48, CW=PW-2*M, BOTTOM=PH-56;
 
+let ROW_RF=false;
 function build(model){
+  ROW_RF=!!model.repsFirst;
   // model: {title, rangeLabel, fromDate, toDate, created, includeChart, includeTable, summary:{days,sessions,sets,volume}, exercises:[{name, group, settingsLine, rows:[{date, setsText, best, e1rm, reps, volume}]}]}
   const pdf=new PDF(); let y=0;
   const newPage=()=>{ pdf.addPage(); y=M; };
@@ -211,7 +213,8 @@ function buildDay(model){
   });
   y+=72;
 
-  const cols=[{t:"Übung",w:CW-44-80-60-90},{t:"Satz",w:44,r:true},{t:"Gewicht",w:80,r:true},{t:"Wdh.",w:60,r:true},{t:"Volumen",w:90,r:true}];
+  const RF=!!model.repsFirst;
+  const cols=[{t:"Übung",w:CW-44-80-60-90},{t:"Satz",w:44,r:true},...(RF?[{t:"Wdh.",w:60,r:true},{t:"Gewicht",w:80,r:true}]:[{t:"Gewicht",w:80,r:true},{t:"Wdh.",w:60,r:true}]),{t:"Volumen",w:90,r:true}];
   const pad=6, rh=20;
   const header=()=>{
     pdf.rect(M,y,CW,20,{fill:C.band});
@@ -238,8 +241,10 @@ function buildDay(model){
         metaLines.forEach((l,li)=>pdf.text(x+pad,y+13.5+nameLines.length*12+li*10-1,l,{size:8,color:C.muted}));
       }
       x+=cols[0].w;
-      const vals=[e.sets.length?String(si+1):"–", st.w!=null?nf.format(st.w)+" kg":"–", st.r!=null?String(st.r):"–", st.w&&st.r?nf0.format(st.w*st.r)+" kg":"–"];
-      cols.slice(1).forEach((c,ci)=>{ pdf.text(x+c.w-pad,y+13.5,vals[ci],{size:9.5,bold:ci===1,color:ci===0?C.muted:C.ink,align:"right"}); x+=c.w; });
+      const wv=st.w!=null?nf.format(st.w)+" kg":"–", rv=st.r!=null?String(st.r):"–";
+      const vals=[e.sets.length?String(si+1):"–", RF?rv:wv, RF?wv:rv, st.w&&st.r?nf0.format(st.w*st.r)+" kg":"–"];
+      const boldIdx=RF?2:1;
+      cols.slice(1).forEach((c,ci)=>{ pdf.text(x+c.w-pad,y+13.5,vals[ci],{size:9.5,bold:ci===boldIdx,color:ci===0?C.muted:C.ink,align:"right"}); x+=c.w; });
       y+=h;
       if(si<rows.length-1) pdf.line(M+cols[0].w,y,M+CW,y,{color:C.grid,w:.4});
     });
@@ -307,7 +312,7 @@ function drawChart(pdf,x0,y0,w,h,rows,hasW){
 
 function drawTable(pdf,y,ex,rows,hasW,newPage){
   const cols=hasW
-    ?[{t:"Datum",w:62},{t:"Sätze (kg × Wdh.)",w:CW-62-70-70-80},{t:"Bestes Gewicht",w:70,r:true},{t:"Gesch. 1RM",w:70,r:true},{t:"Volumen",w:80,r:true}]
+    ?[{t:"Datum",w:62},{t:ROW_RF?"Sätze (Wdh. × kg)":"Sätze (kg × Wdh.)",w:CW-62-70-70-80},{t:"Bestes Gewicht",w:70,r:true},{t:"Gesch. 1RM",w:70,r:true},{t:"Volumen",w:80,r:true}]
     :[{t:"Datum",w:62},{t:"Sätze (Wdh.)",w:CW-62-90},{t:"Beste Wdh.",w:90,r:true}];
   const pad=6, lh=11.5;
   const header=()=>{
