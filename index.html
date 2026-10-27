@@ -615,7 +615,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.9";
+const APP_VERSION = "3.10";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -970,7 +970,7 @@ function viewToday(){
   const doneAt=dayDoc(date)&&dayDoc(date).done;
   if(doneAt){
     h+=`<div class="card done-card"><span class="ic">${ICON.check}</span><div style="flex:1;min-width:0"><b>Training beendet</b><div class="meta">um ${new Date(doneAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} Uhr</div></div><button class="btn" data-act="finishView" data-date="${date}">Übersicht</button></div>
-    <div class="btn-row"><button class="btn" data-act="pick">${ICON.plus}Noch etwas eintragen</button><button class="btn" data-act="unfinish" data-date="${date}">Rückgängig</button></div>`;
+    <div class="btn-row"><button class="btn" data-act="pick">${ICON.plus}Noch etwas eintragen</button><button class="btn" data-act="unfinish" data-date="${date}">Training fortsetzen</button></div>`;
   } else {
     h+=`<button class="btn primary big" data-act="pick">${ICON.plus}Übung eintragen</button>`;
     if(!today.length) h+=`<button class="btn" data-act="applyOpen" data-date="${date}">${ICON.copy}Ganze Einheit übernehmen</button>`;
@@ -1655,7 +1655,7 @@ document.addEventListener("click",ev=>{
     }
     case "finishView": S.bodyYaw=null; push({type:"finish",date:b.dataset.date}); break;
     case "finishClose": setTab("today"); break;
-    case "unfinish": { const d=b.dataset.date; saveDay(d,{done:null}); toast("Training läuft weiter"); const t=top(); if(t&&t.type==="finish"&&d===todayStr()) setTab("today"); else render(); break; }
+    case "unfinish": { const d=b.dataset.date; saveDay(d,{done:null}); toast("Training läuft weiter – deine Einträge bleiben erhalten"); const t=top(); if(t&&t.type==="finish"&&d===todayStr()) setTab("today"); else render(); break; }
     case "pfSex": { const v=b.dataset.v, p=profile(); saveProfile({sex:p.sex===v?null:v}); render(); break; }
     case "pfModel": saveProfile({model:b.dataset.v}); render(); break;
     case "ibNew": S.ibForm={src:b.dataset.src==="fh"?"fh":"ib",date:todayStr(),weight:"",smm:"",fatMass:"",pbf:"",bmr:"",ffm:"",visc:""}; render(); break;
@@ -2708,7 +2708,7 @@ function viewFinish(date){
   h+=`<div class="stack">${done?`<button class="btn primary big" data-act="finishClose">${ICON.check}Fertig</button>`:(isToday?`<button class="btn success big" data-act="finish" data-date="${date}">${ICON.check}Training beenden</button>`:"")}
     <button class="btn" data-act="dayPdf" data-date="${date}">${ICON.doc}Tag als PDF speichern</button>
     ${tplSaveForm(date)}
-    ${done?`<button class="btn" data-act="unfinish" data-date="${date}">Rückgängig: Training doch nicht beendet</button>`:""}</div>`;
+    ${done?`<button class="btn" data-act="unfinish" data-date="${date}">Training fortsetzen</button>`:""}</div>`;
   return h;
 }
 function mountAnatomy(date){
