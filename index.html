@@ -546,15 +546,37 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 "use strict";
 
 /* ---------- Konstanten ---------- */
-const GROUPS = ["Brust","Rücken","Schultern","Beine","Po","Arme","Bauch","Ganzkörper","Cardio","Sonstiges"];
-const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Beine"],["Beinbeuger","Beine"],["Bizepscurls","Arme"]];
+const GROUPS = ["Brust","Rücken","Schultern","Bizeps","Trizeps","Unterarme","Bauch","Po","Oberschenkel vorne","Oberschenkel hinten","Waden","Beine","Ganzkörper","Cardio","Sonstiges"];
+// „Arme“ gibt es nur noch für ältere Übungen, die noch nicht genauer eingeordnet sind
+const LEGACY_GROUPS = ["Arme"];
+const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Oberschenkel vorne"],["Beinbeuger","Oberschenkel hinten"],["Bizepscurls","Bizeps"],["Trizepsdrücken am Kabel","Trizeps"],["Wadenheben","Waden"]];
 function customGroups(){ return (cfg().groups||[]).filter(g=>typeof g==="string"&&g.trim()); }
-function allGroups(){ return [...GROUPS.filter(g=>g!=="Sonstiges"),...customGroups(),"Sonstiges"]; }
+function legacyUsed(){ const u=new Set(); for(const [,d] of S.docs) if(d&&d.kind==="exercise") for(const g of exGroups(d)) if(LEGACY_GROUPS.includes(g)) u.add(g); return [...u]; }
+function allGroups(){ return [...GROUPS.filter(g=>g!=="Sonstiges"),...legacyUsed(),...customGroups(),"Sonstiges"]; }
+// Ältere Übungen mit eindeutigem Namen genauer einordnen (z. B. „Bizepscurls“: Arme → Bizeps)
+const GROUP_MIGRATE=[
+  ["Arme",/unterarm|handgelenk|wrist|griffkraft|farmer/i,"Unterarme"],
+  ["Arme",/trizeps|triceps|dips|push.?down|pushdown|french|kickback|stirndr|skull/i,"Trizeps"],
+  ["Arme",/bizeps|biceps|curl|hammer/i,"Bizeps"],
+  ["Beine",/beinstreck|leg.?ext|quadri/i,"Oberschenkel vorne"],
+  ["Beine",/beinbeug|leg.?curl|beincurl|hamstring/i,"Oberschenkel hinten"],
+  ["Beine",/wade|calf|calves/i,"Waden"]];
+function migrateGroups(force){
+  if(!force&&cfg().groupsV2) return 0;
+  const out=[];
+  for(const [id,d] of S.docs){ if(!d||d.kind!=="exercise") continue;
+    const G=exGroups(d); let changed=false;
+    const N=G.map(g=>{ const m=GROUP_MIGRATE.find(([from,re])=>from===g&&re.test(d.name)); if(m){ changed=true; return m[2]; } return g; });
+    if(changed){ const groups=[...new Set(N)]; out.push([id,{...d,group:groups[0],groups,updatedAt:Date.now()}]); } }
+  if(out.length) putMany(out);
+  if(!cfg().groupsV2) saveCfg({groupsV2:true});
+  return out.length;
+}
 function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:[e.group||"Sonstiges"]; return [...new Set(g)]; }
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.5";
+const APP_VERSION = "3.6";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -749,6 +771,7 @@ async function init(){
   const local=readLocal();
   if(local===undefined){ S.mode="memory"; setSync("memory"); }
   else { S.mode="local"; setSync("local"); if(local&&local.docs) for(const [id,d] of Object.entries(local.docs)) S.docs.set(id,d); }
+  if(S.mode!=="memory"||S.docs.size) migrateGroups(false);
   S.ready=true; render();
   // Browser bitten, die Daten nicht automatisch zu löschen
   try{ if(navigator.storage&&navigator.storage.persist) S.persisted=await navigator.storage.persist(); }catch(e){}
@@ -953,7 +976,9 @@ function searchBox(){ return `<label class="search">${ICON.search}<input class="
 function viewExercises(){
   const exs=exercises();
   if(!exs.length) return emptyStart();
-  return `${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
+  const vague=exs.filter(e=>exGroups(e).includes("Arme"));
+  const tip=vague.length?`<div class="card panel"><b>Arme genauer einordnen</b><p class="muted" style="margin:0">Bei ${vague.length===1?"dieser Übung":"diesen Übungen"} steht noch „Arme“. Tipp drauf und wähle Bizeps, Trizeps oder Unterarme, dann zeigt die Körperansicht genau, was du trainiert hast.</p><div class="chips">${vague.map(e=>`<button class="chip" data-act="editEx" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join("")}</div></div>`:"";
+  return `${tip}${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
 }
 function viewPick(){
   const exs=exercises();
@@ -2448,9 +2473,11 @@ function renderEvalSheet(){
 }
 
 /* ---------- Trainingsabschluss ---------- */
-const GROUP_REGIONS={"Brust":["chest"],"Rücken":["back"],"Schultern":["shoulders"],"Arme":["arms"],"Bauch":["abs"],"Po":["glutes"],"Beine":["legs","hip"],"Ganzkörper":["chest","back","shoulders","arms","abs","glutes","legs"],"Cardio":[],"Sonstiges":[]};
-const REGION_WORDS=[[/hüft|abduk|adduk|hip/i,["hip","glutes"]],[/po\b|gesäß|glute/i,["glutes"]],[/bizeps|trizeps|unterarm|arm/i,["arms"]],[/wade|oberschenkel|bein|quad|hamstring|knie/i,["legs"]],[/schulter|delt/i,["shoulders"]],[/brust|pec/i,["chest"]],[/bauch|core|rumpf|abs/i,["abs"]],[/rücken|lat|nacken|trapez/i,["back"]]];
-const REGION_NAMES={chest:"Brust",shoulders:"Schultern",arms:"Arme",abs:"Bauch",back:"Rücken",glutes:"Po",hip:"Hüfte",legs:"Beine",neck:"Nacken"};
+const ARMS=["biceps","triceps","forearms"], LEGS=["quads","hamstrings","calves"];
+const GROUP_REGIONS={"Brust":["chest"],"Rücken":["back"],"Schultern":["shoulders"],"Bizeps":["biceps"],"Trizeps":["triceps"],"Unterarme":["forearms"],"Arme":ARMS,"Bauch":["abs"],"Po":["glutes"],
+  "Oberschenkel vorne":["quads"],"Oberschenkel hinten":["hamstrings"],"Waden":["calves"],"Beine":[...LEGS,"hip"],"Ganzkörper":["chest","back","shoulders",...ARMS,"abs","glutes",...LEGS],"Cardio":[],"Sonstiges":[]};
+const REGION_WORDS=[[/hüft|abduk|adduk|hip/i,["hip","glutes"]],[/po\b|gesäß|glute/i,["glutes"]],[/bizeps|biceps/i,["biceps"]],[/trizeps|triceps/i,["triceps"]],[/unterarm|handgelenk|griff/i,["forearms"]],[/arm/i,ARMS],[/wade|calf/i,["calves"]],[/beinbeug|hamstring|oberschenkel hinten|oberschenkel-rück|beinrück/i,["hamstrings"]],[/beinstreck|quad|oberschenkel vorne|oberschenkel/i,["quads"]],[/bein|knie/i,LEGS],[/schulter|delt/i,["shoulders"]],[/brust|pec/i,["chest"]],[/bauch|core|rumpf|abs/i,["abs"]],[/rücken|lat|nacken|trapez/i,["back"]]];
+const REGION_NAMES={chest:"Brust",shoulders:"Schultern",arms:"Arme",biceps:"Bizeps",triceps:"Trizeps",forearms:"Unterarme",abs:"Bauch",back:"Rücken",glutes:"Po",hip:"Hüfte",legs:"Beine",quads:"Oberschenkel vorne",hamstrings:"Oberschenkel hinten",calves:"Waden",neck:"Nacken"};
 function groupRegions(g){ if(GROUP_REGIONS[g]) return GROUP_REGIONS[g]; for(const [re,r] of REGION_WORDS) if(re.test(g)) return r; return []; }
 function daySummary(date){
   const ls=sortDayLogs(date,logsByDate().get(date)||[]);
@@ -2827,7 +2854,7 @@ $("#importFile").addEventListener("change",ev=>{
       .filter(([id,d])=>{const cur=S.docs.get(id); return !cur||(d.updatedAt||0)>(cur.updatedAt||0);});
     if(!entries.length){ toast("Alles schon vorhanden – nichts Neues im Backup"); return; }
     toast("Importiere…");
-    await putMany(entries); render(); toast(`${entries.length} Einträge importiert`);
+    await putMany(entries); migrateGroups(true); render(); toast(`${entries.length} Einträge importiert`);
   };
   fr.readAsText(file);
 });

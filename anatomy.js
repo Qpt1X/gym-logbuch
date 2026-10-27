@@ -4,7 +4,8 @@
    Multiplikation eingefärbt, so bleiben Linien und Schattierung der Zeichnung sichtbar. */
 (function(){
 "use strict";
-const REG=["bg","none","chest","shoulders","arms","abs","back","glutes","hip","legs","neck"];
+// Ab Nummer 11: Arme und Beine in einzelne Muskeln aufgeteilt (Bizeps/Trizeps/Unterarme, Oberschenkel vorne/hinten, Waden)
+const REG=["bg","none","chest","shoulders","arms","abs","back","glutes","hip","legs","neck","biceps","triceps","forearms","quads","hamstrings","calves"];
 const cache={};
 
 function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
