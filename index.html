@@ -258,6 +258,27 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .ib-row .meta{white-space:normal}
 .wx-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--sunk);font-weight:600;font-size:.88rem}
 .wx-chip svg{width:18px;height:18px}
+.daily{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.daily.ask{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.daily-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.daily-top b{font-weight:700}
+.daily-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dv{display:flex;flex-direction:column;gap:4px}
+.dv>span:first-child{font-size:.78rem;font-weight:600;color:var(--muted)}
+.dv .in{display:flex;align-items:center;gap:6px;color:var(--muted);font-weight:600}
+.dv input{width:100%;min-width:0;height:46px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:center;font-family:var(--f-display);font-size:1.4rem;font-weight:600;font-variant-numeric:tabular-nums}
+.dv input::placeholder{color:var(--muted);opacity:.55}
+.steps-live{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.steps-live .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);animation:blink 1.2s infinite}
+.steps-live b{font-family:var(--f-display);font-size:1.4rem}
+.steps-live .btn{min-height:36px;margin-left:auto}
+@keyframes blink{50%{opacity:.25}}
+.bars{display:flex;align-items:flex-end;gap:6px;height:110px;padding-top:16px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;height:100%;justify-content:flex-end}
+.bars .b i{display:block;width:100%;max-width:30px;border-radius:4px 4px 0 0;background:var(--accent)}
+.bars .b small{font-size:.68rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bars .b em{font-style:normal;font-size:.66rem;color:var(--ink);font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion: reduce){.steps-live .dot{animation:none}}
 .done-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border-color:var(--ok)}
 .done-card .ic{width:40px;height:40px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
 .done-card .ic svg{width:22px;height:22px}
@@ -446,7 +467,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "2.6";
+const APP_VERSION = "2.7";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -745,6 +766,7 @@ function viewToday(){
   const hr=new Date().getHours(), gr=hr<11?"Guten Morgen":hr<18?"Hallo":"Guten Abend";
   let h=`<div class="date-head"><p class="eyebrow">${firstName()?esc(gr+", "+firstName()):"Heute"}</p><h2>${esc(fmtLong.format(new Date()))}</h2></div>`;
   if(!exs.length) return h+emptyStart();
+  h+=dailyCard(date);
   h+=typePicker(date);
   const doneIds0=new Set(today.map(l=>l.exId));
   h+=plannedList(date,doneIds0);
@@ -1039,8 +1061,8 @@ function saveDay(date,patch){
   if("types" in patch||"type" in patch){ const t=patch.types!==undefined?patch.types:(patch.type?[patch.type]:[]); next.types=t||[]; }
   else next.types=dayTypeKeys(next);
   delete next.type;
-  if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order; if(!next.done) delete next.done; if(!next.dur) delete next.dur; if(!next.wx) delete next.wx;
-  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx)?next:null);
+  if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order; if(!next.done) delete next.done; if(!next.dur) delete next.dur; if(!next.wx) delete next.wx; if(!(next.bw>0)) delete next.bw; if(!(next.steps>0)) delete next.steps;
+  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx||next.bw||next.steps)?next:null);
 }
 function sortDayLogs(date,ls){
   const d=dayDoc(date), ord=d&&d.order||[], plan=planIds(date);
@@ -1212,6 +1234,7 @@ function viewDay(date){
     else h+=`<p class="hint">Wähle eine Trainingsart und/oder Übungen. Der Tag erscheint dann im Kalender als geplant (gestrichelt).</p>`;
     return h;
   }
+  if(date!==todayStr()) h+=dailyCard(date);
   const loggedIds=new Set(ls.map(l=>l.exId));
   const planned=plannedList(date,loggedIds);
   const editPlan=date===todayStr()?`<details class="plan-edit"${S.planOpen?" open":""}><summary>${planIds(date).length?"Plan bearbeiten":"Übungen für heute planen"}</summary><div class="stack">${planEditor(date)}</div></details>`:"";
@@ -1253,6 +1276,13 @@ function viewMore(){
         <p><b>iPhone (Safari):</b> Teilen-Symbol unten → „Zum Home-Bildschirm“.</p>`}</div>`;
   const rc=restCfg();
   const sw=(k,label)=>`<div class="switch-row"><span>${label}</span><button class="switch" role="switch" data-act="restSet" data-k="${k}" aria-checked="${!!rc[k]}" aria-label="${esc(label)}"></button></div>`;
+  const WE=weightEntries().filter(e=>dayDiffBetween(e.date,todayStr())<=120), pts=WE.map(e=>({date:e.date,v:e.w}));
+  const stepDays=[...Array(7)].map((_,i)=>addDays(todayStr(),i-6)), stepVals=stepDays.map(d=>(dayDoc(d)||{}).steps||0), smax=Math.max(1,...stepVals);
+  const bodyCard=`<div class="card panel"><h3>Körpergewicht & Schritte</h3>
+    <div class="switch-row"><span>Vor dem Training nach dem Gewicht fragen</span><button class="switch" role="switch" data-act="askWeight" aria-checked="${askWeight()}" aria-label="Vor dem Training nach dem Gewicht fragen"></button></div>
+    ${pts.length>=2?`<div class="chart" style="padding:0">${chartSvg(pts,"kg","Körpergewicht",null)}</div><p class="meta num" style="margin:0">${fmtNum(pts[0].v)} kg → ${fmtNum(pts[pts.length-1].v)} kg in ${dayDiffBetween(pts[0].date,pts[pts.length-1].date)} Tagen</p>`:`<p class="hint">Sobald du an zwei Tagen dein Gewicht einträgst, siehst du hier deinen Verlauf.</p>`}
+    <div class="field"><span>Schritte, letzte 7 Tage</span><div class="bars">${stepDays.map((d,i)=>`<div class="b"><em>${stepVals[i]?(stepVals[i]<1000?fmtNum(stepVals[i]):fmtNum(Math.round(stepVals[i]/100)/10)+"k"):""}</em><i style="height:${Math.round(stepVals[i]/smax*70)}px;${stepVals[i]?"":"background:var(--line);height:2px"}"></i><small>${esc(new Intl.DateTimeFormat("de-DE",{weekday:"short"}).format(toDate(d)))}</small></div>`).join("")}</div></div>
+    <p class="hint">Gewicht und Schritte trägst du im Reiter „Training“ ein. Für frühere Tage geht das in der Tagesansicht im Kalender.</p></div>`;
   const wxCard=`<div class="card panel"><h3>Wetter</h3>
     <div class="switch-row"><span>Wetter beim Trainingsabschluss anzeigen</span><button class="switch" role="switch" data-act="wxToggle" aria-checked="${wxOn()}" aria-label="Wetter anzeigen"></button></div>
     <p class="muted">Beim Beenden fragt die App einmal deinen ungefähren Standort ab und holt das aktuelle Wetter. Die Sprüche gehen dann aufs Wetter ein, etwa an einem verregneten oder sonnigen Tag. Dein Standort wird auf etwa 1 km gerundet an den kostenlosen Wetterdienst Open-Meteo geschickt und nicht gespeichert, nur das Wetter selbst.</p>
@@ -1285,7 +1315,7 @@ function viewMore(){
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${ibCard}${wxCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${bodyCard}${ibCard}${wxCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1343,6 +1373,10 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "bwSkip": saveCfg({bwSkip:todayStr()}); render(); break;
+    case "stepsStart": Steps.start().then(ok=>{ if(ok){ toast("Schritte werden gezählt, solange die App offen ist"); render(); } }); break;
+    case "stepsStop": Steps.stop(); toast("Schritte gespeichert"); render(); break;
+    case "askWeight": saveCfg({askWeight:!askWeight()}); render(); break;
     case "applyOpen": push({type:"applyPick",date:b.dataset.date}); break;
     case "applyDay": case "applyTpl": {
       const d=top().date; let items, types;
@@ -1534,6 +1568,15 @@ document.addEventListener("input",ev=>{
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
   else if(f==="ib"){ if(S.ibForm) S.ibForm[el.dataset.k]=el.value; }
   else if(f==="dur"){ const v=parseNum(el.value); clearTimeout(S.durT); S.durT=setTimeout(()=>{ saveDay(el.dataset.date,{dur:v&&v>0?Math.round(v):null}); render(); const i=$("#durEdit"); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },900); }
+  else if(f==="bw"||f==="steps"){
+    const k=f, dt=el.dataset.date; S.dvT=S.dvT||{}; clearTimeout(S.dvT[k+dt]);
+    S.dvT[k+dt]=setTimeout(()=>{ let v=parseNum(el.value); if(k==="steps") v=v!=null?Math.max(0,Math.round(v)):null; if(k==="bw"&&v!=null&&(v<20||v>400)) return;
+      saveDay(dt,{[k]:v}); if(k==="steps"&&Steps.active()&&Steps.date()===dt){ Steps.stop(); }
+      const d=dayDoc(dt)||{}, prev=weightEntries().filter(e=>e.date<dt).pop(), box=$("#bwDelta");
+      if(box&&k==="bw") box.textContent=d.bw&&prev?`${d.bw-prev.w>0?"+":d.bw-prev.w<0?"−":"±"}${fmtNum(Math.abs(Math.round((d.bw-prev.w)*10)/10))} kg seit ${relDay(prev.date)}`:"";
+      if(k==="bw"&&d.bw){ const c=el.closest(".daily"); if(c){ c.classList.remove("ask"); const tb=c.querySelector(".daily-top"); if(tb) tb.innerHTML="<b>Tageswerte</b>"; } }
+    },700);
+  }
   else if(f==="tplname"){ if(S.tplForm) S.tplForm.name=el.value; }
   else if(f==="ffname"){ if(S.fieldForm) S.fieldForm.n=el.value; }
   else if(f==="ffunit"){ if(S.fieldForm) S.fieldForm.unit=el.value; }
@@ -1642,11 +1685,33 @@ function age(p){
   if(p.birthDate&&/^\d{4}-\d{2}-\d{2}$/.test(p.birthDate)){ const b=toDate(p.birthDate), n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate())) a--; return a>0&&a<120?a:null; }
   const y=+p.birthYear; return y>1900?new Date().getFullYear()-y:null;
 }
+/* ---------- Körpergewicht & Schritte pro Tag ---------- */
+function weightEntries(){ const out=[]; for(const [id,d] of S.docs){ if(d&&d.kind==="day"&&d.bw>0) out.push({date:d.date,w:d.bw,src:"day"}); else if(d&&d.kind==="inbody"&&d.weight>0) out.push({date:d.date,w:d.weight,src:"ib"}); }
+  const by=new Map(); for(const e of out.sort((a,b)=>a.date.localeCompare(b.date)||(a.src==="day"?1:-1))) by.set(e.date,e); return [...by.values()]; }
+function latestWeight(upTo){ const L=weightEntries().filter(e=>e.date<=(upTo||todayStr())); return L.length?L[L.length-1]:null; }
+function askWeight(){ return cfg().askWeight!==false; }
+function dailyCard(date){
+  const d=dayDoc(date)||{}, prev=weightEntries().filter(e=>e.date<date).pop();
+  const ask=askWeight()&&!d.bw&&cfg().bwSkip!==date&&date===todayStr();
+  const delta=d.bw&&prev?d.bw-prev.w:null;
+  const motion=typeof DeviceMotionEvent!=="undefined";
+  const live=Steps.active()&&Steps.date()===date;
+  return `<div class="card daily${ask?" ask":""}">
+    <div class="daily-top"><b>${ask?"Wie viel wiegst du heute?":"Tageswerte"}</b>${ask?`<button class="btn ghost" data-act="bwSkip" style="min-height:32px;padding:0 6px">Nicht heute</button>`:""}</div>
+    <div class="daily-row">
+      <label class="dv"><span>Körpergewicht</span><span class="in"><input id="bw-${date}" data-field="bw" data-date="${date}" inputmode="decimal" placeholder="${prev?esc(inputVal(prev.w)):"–"}" value="${d.bw?esc(inputVal(d.bw)):""}" aria-label="Körpergewicht in kg">kg</span></label>
+      <label class="dv"><span>Schritte</span><span class="in"><input id="st-${date}" data-field="steps" data-date="${date}" inputmode="numeric" placeholder="0" value="${d.steps?d.steps:""}" aria-label="Schritte an diesem Tag"></span></label>
+    </div>
+    <div class="meta num" id="bwDelta">${delta!=null?`${delta>0?"+":delta<0?"−":"±"}${fmtNum(Math.abs(Math.round(delta*10)/10))} kg seit ${esc(relDay(prev.date))}`:prev&&!d.bw?`Zuletzt ${fmtNum(prev.w)} kg (${esc(relDay(prev.date))})`:""}</div>
+    ${date===todayStr()&&motion?(live?`<div class="steps-live"><span class="dot"></span><b class="num" id="stLive">${fmtNum(Steps.count())}</b> Schritte gezählt <button class="btn" data-act="stepsStop">Stopp</button></div>`:`<button class="btn ghost" data-act="stepsStart" style="align-self:flex-start;min-height:34px;padding:0 4px">Schritte jetzt live zählen</button>`):""}
+  </div>`;
+}
 function bodyState(onDate){
   // aktuellste InBody-Messung bis zu diesem Tag (höchstens 180 Tage alt), sonst Profilangaben
   const p=profile(), d=onDate||todayStr();
   const ib=inbodyList().find(m=>m.date<=d&&dayDiffBetween(m.date,d)<=180)||null;
-  const weight=(ib&&ib.weight)||parseNum(p.weight);
+  const lw=latestWeight(d), ibW=ib&&ib.weight?{w:ib.weight,date:ib.date}:null;
+  const weight=(lw&&(!ibW||lw.date>=ibW.date)?lw.w:ibW?ibW.w:null)||parseNum(p.weight);
   const pbf=ib&&ib.pbf!=null?ib.pbf:(ib&&ib.fatMass&&ib.weight?ib.fatMass/ib.weight*100:parseNum(p.bodyFat));
   const ffm=ib&&ib.ffm?ib.ffm:(weight&&pbf!=null?weight*(1-pbf/100):null);
   let bmr=null, src="";
@@ -1891,6 +1956,33 @@ function viewLayoutCard(){
     <p class="hint">Sätze werden überall als ${repsFirst()?"„12 × 80 kg“ (Wdh. × Gewicht)":"„80 × 12“ (Gewicht × Wdh.)"} angezeigt${extraKeys().length?", zusätzliche Felder dahinter, z. B. „· Sitzhöhe 4“":""}. Ausgeblendete Felder behalten ihre bisherigen Werte.</p></div>`;
   return h;
 }
+
+/* ---------- Live-Schrittzähler (Bewegungssensor, nur solange die App offen ist) ---------- */
+const Steps=(()=>{
+  let on=false, n=0, base=0, day="", avg=9.81, sm=9.81, armed=true, last=0, lock=null, saveT=null;
+  function onMotion(e){
+    const a=e.accelerationIncludingGravity; if(!a||a.x==null) return;
+    const m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z), t=e.timeStamp||performance.now(); S._motionSeen=true;
+    sm=sm*.75+m*.25; avg=avg*.98+m*.02;
+    if(armed&&sm>avg+1.15&&t-last>280){ n++; last=t; armed=false; tick(); }
+    else if(!armed&&sm<avg+.25) armed=true;
+  }
+  function tick(){ const el=document.getElementById("stLive"); if(el) el.textContent=fmtNum(n);
+    clearTimeout(saveT); saveT=setTimeout(()=>{ saveDay(day,{steps:base+n}); const inp=document.getElementById("st-"+day); if(inp&&document.activeElement!==inp) inp.value=base+n; },1500); }
+  async function start(){
+    if(typeof DeviceMotionEvent!=="undefined"&&typeof DeviceMotionEvent.requestPermission==="function"){
+      try{ const r=await DeviceMotionEvent.requestPermission(); if(r!=="granted"){ toast("Zugriff auf den Bewegungssensor wurde nicht erlaubt"); return false; } }catch(e){ toast("Bewegungssensor nicht verfügbar"); return false; }
+    }
+    day=todayStr(); base=(dayDoc(day)||{}).steps||0; n=0; on=true; armed=true; last=0;
+    window.addEventListener("devicemotion",onMotion);
+    try{ if(navigator.wakeLock) navigator.wakeLock.request("screen").then(l=>{ if(on) lock=l; else l.release(); }).catch(()=>{}); }catch(e){}
+    setTimeout(()=>{ if(on&&n===0&&!S._motionSeen) toast("Noch keine Bewegung erkannt. Trag das Handy in der Hosentasche oder Hand."); },8000);
+    return true;
+  }
+  function stop(){ if(!on) return; on=false; window.removeEventListener("devicemotion",onMotion); clearTimeout(saveT); saveDay(day,{steps:base+n}); try{ lock&&lock.release(); }catch(e){} lock=null; }
+  document.addEventListener("visibilitychange",async()=>{ if(on&&document.visibilityState==="visible"&&navigator.wakeLock&&!lock){ try{ lock=await navigator.wakeLock.request("screen"); }catch(e){} } if(document.visibilityState==="hidden") lock=null; });
+  return {start,stop,active:()=>on,count:()=>n,date:()=>day};
+})();
 
 /* ---------- Pausentimer ---------- */
 function restCfg(){ const r=cfg().rest||{}; return {auto:r.auto!==false, def:r.def>0?r.def:90, sound:r.sound!==false, vib:r.vib!==false}; }
