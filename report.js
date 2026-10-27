@@ -213,8 +213,10 @@ function buildDay(model){
   });
   y+=72;
 
-  const RF=!!model.repsFirst;
-  const cols=[{t:"Übung",w:CW-44-80-60-90},{t:"Satz",w:44,r:true},...(RF?[{t:"Wdh.",w:60,r:true},{t:"Gewicht",w:80,r:true}]:[{t:"Gewicht",w:80,r:true},{t:"Wdh.",w:60,r:true}]),{t:"Volumen",w:90,r:true}];
+  // Wertespalten in der Reihenfolge des Eingabe-Layouts
+  const fcols=(model.cols&&model.cols.length?model.cols:[{t:"Gewicht",bold:true},{t:"Wdh."}]);
+  const satzW=40, volW=72, valW=Math.max(46,Math.min(84,(CW-satzW-volW-120)/fcols.length));
+  const cols=[{t:"Übung",w:CW-satzW-volW-valW*fcols.length},{t:"Satz",w:satzW,r:true},...fcols.map(c=>({t:c.t,w:valW,r:true,bold:!!c.bold})),{t:"Volumen",w:volW,r:true}];
   const pad=6, rh=20;
   const header=()=>{
     pdf.rect(M,y,CW,20,{fill:C.band});
@@ -241,10 +243,9 @@ function buildDay(model){
         metaLines.forEach((l,li)=>pdf.text(x+pad,y+13.5+nameLines.length*12+li*10-1,l,{size:8,color:C.muted}));
       }
       x+=cols[0].w;
-      const wv=st.w!=null?nf.format(st.w)+" kg":"–", rv=st.r!=null?String(st.r):"–";
-      const vals=[e.sets.length?String(si+1):"–", RF?rv:wv, RF?wv:rv, st.w&&st.r?nf0.format(st.w*st.r)+" kg":"–"];
-      const boldIdx=RF?2:1;
-      cols.slice(1).forEach((c,ci)=>{ pdf.text(x+c.w-pad,y+13.5,vals[ci],{size:9.5,bold:ci===boldIdx,color:ci===0?C.muted:C.ink,align:"right"}); x+=c.w; });
+      const cellVals=st.cells||[st.w!=null?nf.format(st.w)+" kg":"–", st.r!=null?String(st.r):"–"];
+      const vals=[e.sets.length?String(si+1):"–", ...cellVals, st.w&&st.r?nf0.format(st.w*st.r)+" kg":"–"];
+      cols.slice(1).forEach((c,ci)=>{ let v=vals[ci]||"–"; const sz=9.5; while(v.length>1&&pdf.width(v,sz,!!c.bold)>c.w-pad-2) v=v.slice(0,-2)+"…"; pdf.text(x+c.w-pad,y+13.5,v,{size:sz,bold:!!c.bold,color:ci===0?C.muted:C.ink,align:"right"}); x+=c.w; });
       y+=h;
       if(si<rows.length-1) pdf.line(M+cols[0].w,y,M+CW,y,{color:C.grid,w:.4});
     });
