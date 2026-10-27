@@ -1,6 +1,6 @@
 // Gym-Logbuch Service Worker: macht die App offline nutzbar.
 // Bei jeder neuen App-Version die Versionsnummer hochzählen.
-const VERSION = "gym-logbuch-2.8";
+const VERSION = "gym-logbuch-2.9";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -12,8 +12,29 @@ const APP_FILES = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./icons/bear-1-thumb.webp","./icons/bear-2-thumb.webp","./icons/bear-3-thumb.webp","./icons/bear-4-thumb.webp",
+  "./icons/bear-5-thumb.webp","./icons/bear-6-thumb.webp","./icons/bear-7-thumb.webp"
 ];
+const PREFS = "gym-logbuch-prefs";
+const ICON_IDS = ["bear-1","bear-2","bear-3","bear-4","bear-5","bear-6","bear-7"];
+
+// Manifest mit dem App-Symbol, das in der App gewählt wurde
+async function manifestResponse(req){
+  let base = await caches.match("./manifest.webmanifest", { ignoreSearch: true });
+  if (!base) { try { base = await fetch(req); } catch (e) { return Response.error(); } }
+  let json; try { json = await base.clone().json(); } catch (e) { return base; }
+  try {
+    const hit = await (await caches.open(PREFS)).match("./__icon");
+    const id = hit ? (await hit.json()).icon : "std";
+    if (ICON_IDS.includes(id)) json.icons = [
+      { src: `icons/${id}-192.png`, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: `icons/${id}-512.png`, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: `icons/${id}-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }
+    ];
+  } catch (e) {}
+  return new Response(JSON.stringify(json), { headers: { "Content-Type": "application/manifest+json" } });
+}
 const FONT_CACHE = "gym-logbuch-fonts";
 
 self.addEventListener("install", event => {
@@ -23,7 +44,7 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== VERSION && k !== FONT_CACHE).map(k => caches.delete(k))
+      keys.filter(k => k !== VERSION && k !== FONT_CACHE && k !== PREFS).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
@@ -48,6 +69,8 @@ self.addEventListener("fetch", event => {
   }
 
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.endsWith("/manifest.webmanifest")) { event.respondWith(manifestResponse(req)); return; }
 
   // App-Dateien: sofort aus dem Speicher, damit die App auch im Keller-Gym ohne Netz startet
   event.respondWith(

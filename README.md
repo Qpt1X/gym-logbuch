@@ -16,7 +16,7 @@ Läuft auf Android und iPhone, funktioniert offline und speichert alle Daten nur
 - `anatomy.js` – anatomische Körperzeichnung (Mann/Frau, vorne/hinten) für den Abschluss-Screen
 - `sw.js` – sorgt dafür, dass die App offline startet
 - `manifest.webmanifest` – Name, Farben und Icon für die Installation
-- `icons/` – App-Icons
+- `icons/` – App-Icons (Standard und die Bären-Motive, wählbar unter „Mehr“ → „App-Symbol“)
 
 ## Neue Version veröffentlichen
 

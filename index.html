@@ -259,6 +259,13 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .src-tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--sunk);color:var(--muted);vertical-align:1px}
 .src-tag.fh{background:var(--accent-soft);color:var(--accent)}
 .goal-chips{flex-wrap:wrap}
+.icon-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.icon-pick{position:relative;padding:0;border:2px solid transparent;border-radius:22%;background:none;aspect-ratio:1;cursor:pointer;overflow:visible}
+.icon-pick img{width:100%;height:100%;border-radius:20%;display:block;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.icon-pick[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.icon-pick:disabled{opacity:.55;cursor:default}
+.icon-pick em{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);font-style:normal;font-size:.68rem;font-weight:700;background:var(--accent);color:#fff;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.icon-grid:has(em) .icon-pick:has(em){opacity:1}
 .goal-box{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
 .goal-box.good{border-left-color:var(--ok)} .goal-box.warn{border-left-color:var(--pr);background:var(--pr-soft)} .goal-box.mixed{border-left-color:#d98a1c}
 .goal-head{font-weight:700}
@@ -284,6 +291,20 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .daily.ask{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .daily-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .daily-top b{font-weight:700}
+.kcal-day{border-top:1px solid var(--line);padding-top:8px}
+.kcal-day>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer}
+.kcal-day>summary::-webkit-details-marker{display:none}
+.kcal-day .flame{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--pr-soft);color:var(--pr)}
+.kcal-day .flame svg{width:18px;height:18px}
+.kcal-day summary>span:nth-child(2){flex:1;display:flex;flex-direction:column;line-height:1.3}
+.kcal-day summary small{color:var(--muted);font-size:.8rem}
+.kcal-day .chev{font-style:normal;color:var(--muted);font-size:1.3rem;transition:transform .2s}
+.kcal-day[open] .chev{transform:rotate(90deg)}
+.kcal-rows{display:flex;flex-direction:column;gap:6px;padding:10px 0 2px 42px}
+.kcal-rows>div{display:flex;justify-content:space-between;gap:10px;font-size:.88rem}
+.kcal-rows>div span{color:var(--muted)}
+.kcal-rows .sum{border-top:1px solid var(--line);padding-top:6px;font-weight:700}
+.kcal-rows .sum span{color:inherit}
 .daily-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .dv{display:flex;flex-direction:column;gap:4px}
 .dv>span:first-child{font-size:.78rem;font-weight:600;color:var(--muted)}
@@ -489,7 +510,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "2.8";
+const APP_VERSION = "2.9";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -503,6 +524,7 @@ const RANGES = [["4w","4 Wochen","Letzte 4 Wochen"],["3m","3 Monate","Letzte 3 M
 const TAB_TITLES = {today:"Training", exercises:"Übungen", history:"Verlauf", more:"Mehr"};
 
 const ICON = {
+  flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.3 1.2-3.7 2.3-4.8.3 1.5 1 2.4 2 2.8-.6-2.8.2-5.6.7-8z"/></svg>',
   chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   body:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M6 8.5h12M12 8.5v6M12 14.5l-3 6.5M12 14.5l3 6.5M6 8.5l-1 5M18 8.5l1 5"/></svg>',
@@ -1316,7 +1338,7 @@ function viewMore(){
     ${"vibrate" in navigator?sw("vib","Vibration am Ende"):""}
     <p class="hint">Pro Übung kannst du im Eintragen-Bildschirm über „Pause“ eine eigene Zeit wählen oder den Timer ausschalten.${/iPhone|iPad/.test(navigator.userAgent)?" Auf dem iPhone ist der Ton im Lautlos-Modus stumm, und Vibration gibt es leider nicht.":""}</p>
     <div><button class="btn" data-act="restTest">Ton testen</button></div></div>`;
-  const layoutCard=viewLayoutCard();
+  const layoutCard=viewLayoutCard(), iconCard=viewIconCard();
   const P=profile();
   const pin=(k,label,ph,mode,unit)=>`<label class="field"><span>${label}</span><input class="input" id="pf-${k}" data-field="pf" data-k="${k}" inputmode="${mode||"decimal"}" placeholder="${ph}" value="${esc(P[k]||"")}" autocomplete="off"></label>`;
   const meCard=`<div class="card panel"><h3>Über mich</h3><p class="muted">Für die persönliche Ansprache, das Körpermodell und die Kalorienschätzung. Bleibt nur auf diesem Handy.</p>
@@ -1345,7 +1367,7 @@ function viewMore(){
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${goalCard}${ibCard}${bodyCard}${wxCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${goalCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1403,6 +1425,10 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "iconPick": saveCfg({icon:{...iconCfg(),pick:b.dataset.v,random:false}}); applyIcon(); render(); toast("App-Symbol gewählt"); break;
+    case "iconRandom": saveCfg({icon:{...iconCfg(),random:!iconCfg().random}}); applyIcon(); render(); break;
+    case "iconPeriod": saveCfg({icon:{...iconCfg(),period:b.dataset.v}}); applyIcon(); render(); break;
+    case "kcalToggle": { const dEl=b.closest("details"); S.kcalOpen=dEl?!dEl.open:false; break; }
     case "bwSkip": saveCfg({bwSkip:todayStr()}); render(); break;
     case "stepsStart": Steps.start().then(ok=>{ if(ok){ toast("Schritte werden gezählt, solange die App offen ist"); render(); } }); break;
     case "stepsStop": Steps.stop(); toast("Schritte gespeichert"); render(); break;
@@ -1611,6 +1637,7 @@ document.addEventListener("input",ev=>{
       saveDay(dt,{[k]:v}); if(k==="steps"&&Steps.active()&&Steps.date()===dt){ Steps.stop(); }
       const d=dayDoc(dt)||{}, prev=weightEntries().filter(e=>e.date<dt).pop(), box=$("#bwDelta");
       if(box&&k==="bw") box.textContent=d.bw&&prev?`${d.bw-prev.w>0?"+":d.bw-prev.w<0?"−":"±"}${fmtNum(Math.abs(Math.round((d.bw-prev.w)*10)/10))} kg seit ${relDay(prev.date)}`:"";
+      refreshKcal(dt);
       if(k==="bw"&&d.bw){ const c=el.closest(".daily"); if(c){ c.classList.remove("ask"); const tb=c.querySelector(".daily-top"); if(tb) tb.innerHTML="<b>Tageswerte</b>"; } }
     },700);
   }
@@ -1742,9 +1769,43 @@ function dailyCard(date){
       <label class="dv"><span>Schritte</span><span class="in"><input id="st-${date}" data-field="steps" data-date="${date}" inputmode="numeric" placeholder="0" value="${d.steps?d.steps:""}" aria-label="Schritte an diesem Tag"></span></label>
     </div>
     <div class="meta num" id="bwDelta">${delta!=null?`${delta>0?"+":delta<0?"−":"±"}${fmtNum(Math.abs(Math.round(delta*10)/10))} kg seit ${esc(relDay(prev.date))}`:prev&&!d.bw?`Zuletzt ${fmtNum(prev.w)} kg (${esc(relDay(prev.date))})`:""}</div>
+    ${kcalBlock(date)}
     ${date===todayStr()&&motion?(live?`<div class="steps-live"><span class="dot"></span><b class="num" id="stLive">${fmtNum(Steps.count())}</b> Schritte gezählt <button class="btn" data-act="stepsStop">Stopp</button></div>`:`<button class="btn ghost" data-act="stepsStart" style="align-self:flex-start;min-height:34px;padding:0 4px">Schritte jetzt live zählen</button>`):""}
   </div>`;
 }
+/* ---------- Tagesverbrauch: Grundumsatz + Training + Schritte + Verdauung ---------- */
+// Schrittlänge nach Körpergröße (ca. 41,5 % bei Männern, 41,3 % bei Frauen), Netto-Kosten des Gehens etwa 0,5 kcal pro kg und km.
+function stepLength(p){ const h=parseNum(p.height); if(h>100&&h<230) return h/100*(p.sex==="w"?0.413:0.415); return p.sex==="w"?0.67:0.74; }
+function dayEnergy(date){
+  const b=bodyState(date); if(!b.bmr) return null;
+  const p=profile(), d=dayDoc(date)||{}, isToday=date===todayStr();
+  let train=0, trainMin=0, met=null;
+  const S0=daySummary(date);
+  if(S0.ls.length){ const TM=trainingMinutes(date,S0); met=metFor(S0,TM); trainMin=TM.min; train=Math.max(0,(met-1)*(b.bmr/24)*(TM.min/60)); }
+  const steps=d.steps||0, km=steps*stepLength(p)/1000, stepK=b.weight?0.5*b.weight*km:0;
+  const now=new Date(), frac=isToday?Math.min(1,(now-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000):1;
+  const restNow=b.bmr*frac, activity=train+stepK;
+  const tefNow=0.1*(restNow+activity), tefDay=0.1*(b.bmr+activity);
+  return {bmr:b.bmr,src:b.src,frac,restNow,train,trainMin,met,steps,km,stepK,tefNow,tefDay,
+    now:Math.round(restNow+activity+tefNow), day:Math.round(b.bmr+activity+tefDay), isToday};
+}
+function kcalBlock(date){
+  const E=dayEnergy(date);
+  if(!E) return `<div class="kcal-day" id="kcal-${date}"><span class="muted">Für den Tagesverbrauch trag unter „Mehr“ → „Über mich“ Gewicht, Größe, Geburtstag und Geschlecht ein.</span></div>`;
+  const r=v=>fmtNum(Math.round(v));
+  const timeTxt=new Intl.DateTimeFormat("de-DE",{hour:"2-digit",minute:"2-digit"}).format(new Date());
+  return `<details class="kcal-day" id="kcal-${date}"${S.kcalOpen?" open":""}><summary data-act="kcalToggle"><span class="flame" aria-hidden="true">${ICON.flame||""}</span>
+      ${E.isToday?`<span><b class="num">${r(E.now)} kcal</b> bisher verbrannt<small>bis Mitternacht mindestens etwa ${r(E.day)} kcal, jeder weitere Schritt kommt dazu</small></span>`:`<span><b class="num">${r(E.day)} kcal</b> an diesem Tag verbrannt</span>`}<i class="chev" aria-hidden="true">›</i></summary>
+    <div class="kcal-rows">
+      <div><span>Grundumsatz${E.isToday?` bis ${timeTxt}`:""}</span><b class="num">${r(E.isToday?E.restNow:E.bmr)}</b></div>
+      <div><span>Training${E.trainMin?` · ${E.trainMin} min, ${fmtNum(E.met)} MET`:""}</span><b class="num">${E.train?"+"+r(E.train):"–"}</b></div>
+      <div><span>Schritte${E.steps?` · ${fmtNum(E.steps)} ≈ ${fmtNum(Math.round(E.km*10)/10)} km`:""}</span><b class="num">${E.stepK?"+"+r(E.stepK):"–"}</b></div>
+      <div><span>Verdauung · etwa 10 %</span><b class="num">+${r(E.isToday?E.tefNow:E.tefDay)}</b></div>
+      <div class="sum"><span>${E.isToday?"Bisher":"Gesamt"}</span><b class="num">${r(E.isToday?E.now:E.day)} kcal</b></div>
+      <p class="hint" style="margin:0">Grundumsatz: ${esc(E.src)}. Training: nur der Verbrauch über dem Ruhewert (MET-Methode), damit nichts doppelt zählt. Schritte: Schrittlänge aus deiner Größe, rund 0,5 kcal pro kg Körpergewicht und Kilometer zusätzlich zur Ruhe. Alltagsbewegung ohne Schritte (Stehen, Hausarbeit) ist nicht enthalten, der echte Wert liegt also eher etwas höher. Alles ist eine Schätzung.</p>
+    </div></details>`;
+}
+function refreshKcal(date){ const el=document.getElementById("kcal-"+date); if(el){ const w=document.createElement("div"); w.innerHTML=kcalBlock(date); el.replaceWith(w.firstElementChild); } }
 function bodyState(onDate){
   // aktuellste Körpermessung bis zu diesem Tag (höchstens 180 Tage alt), sonst Profilangaben
   const p=profile(), d=onDate||todayStr();
@@ -2190,7 +2251,7 @@ const Steps=(()=>{
     else if(!armed&&sm<avg+.25) armed=true;
   }
   function tick(){ const el=document.getElementById("stLive"); if(el) el.textContent=fmtNum(n);
-    clearTimeout(saveT); saveT=setTimeout(()=>{ saveDay(day,{steps:base+n}); const inp=document.getElementById("st-"+day); if(inp&&document.activeElement!==inp) inp.value=base+n; },1500); }
+    clearTimeout(saveT); saveT=setTimeout(()=>{ saveDay(day,{steps:base+n}); const inp=document.getElementById("st-"+day); if(inp&&document.activeElement!==inp) inp.value=base+n; refreshKcal(day); },1500); }
   async function start(){
     if(typeof DeviceMotionEvent!=="undefined"&&typeof DeviceMotionEvent.requestPermission==="function"){
       try{ const r=await DeviceMotionEvent.requestPermission(); if(r!=="granted"){ toast("Zugriff auf den Bewegungssensor wurde nicht erlaubt"); return false; } }catch(e){ toast("Bewegungssensor nicht verfügbar"); return false; }
@@ -2347,6 +2408,8 @@ $("#importFile").addEventListener("change",ev=>{
     let parsed; try{ parsed=JSON.parse(fr.result); }catch(e){ toast("Diese Datei ist kein Gym-Logbuch-Backup"); return; }
     if(!parsed||parsed.app!=="gym-logbuch"||!parsed.docs){ toast("Diese Datei ist kein Gym-Logbuch-Backup"); return; }
     if(parsed.docs.cfg&&parsed.docs.cfg.profile&&!Object.keys(profile()).length) saveCfg({profile:parsed.docs.cfg.profile});
+    if(parsed.docs.cfg&&parsed.docs.cfg.goal&&!goal()) saveCfg({goal:parsed.docs.cfg.goal});
+    if(parsed.docs.cfg&&parsed.docs.cfg.icon&&!cfg().icon){ saveCfg({icon:parsed.docs.cfg.icon}); applyIcon(); }
     if(parsed.docs.cfg&&Array.isArray(parsed.docs.cfg.types)){ const have=new Set(customTypes().map(t=>t.k)); const add=parsed.docs.cfg.types.filter(t=>t&&t.k&&t.n&&!have.has(t.k)); if(add.length) saveCfg({types:[...customTypes(),...add]}); }
     const entries=Object.entries(parsed.docs).filter(([id,d])=>d&&(d.kind==="exercise"||d.kind==="log"||d.kind==="day"||d.kind==="inbody"||d.kind==="tpl")&&/^[A-Za-z0-9_\-.~:@+]+$/.test(id))
       .filter(([id,d])=>{const cur=S.docs.get(id); return !cur||(d.updatedAt||0)>(cur.updatedAt||0);});
@@ -2356,6 +2419,49 @@ $("#importFile").addEventListener("change",ev=>{
   };
   fr.readAsText(file);
 });
+
+/* ---------- App-Symbol ---------- */
+// Das gewählte Symbol landet im Cache "gym-logbuch-prefs". Der Service Worker baut daraus das Manifest,
+// sodass Chrome auf Android das Symbol auf dem Startbildschirm bei der nächsten Aktualisierung übernimmt.
+const APP_ICONS=[["std","Standard"],["bear-1","Bär mit Stirnband"],["bear-2","Super-Bär"],["bear-3","Sprint-Bär"],["bear-4","Liegestütz-Bär"],["bear-5","Kreuzheben-Bär"],["bear-6","Kniebeugen-Bär"],["bear-7","Musik-Bär"]];
+const ICON_PERIODS=[["day","Täglich"],["week","Wöchentlich"],["month","Monatlich"],["year","Jährlich"]];
+function iconCfg(){ const c=cfg().icon||{}; return {pick:APP_ICONS.some(x=>x[0]===c.pick)?c.pick:"std", random:!!c.random, period:ICON_PERIODS.some(x=>x[0]===c.period)?c.period:"week"}; }
+function iconThumb(id){ return id==="std"?"icons/icon-192.png":`icons/${id}-thumb.webp`; }
+function periodKey(period,date){
+  const d=toDate(date||todayStr());
+  if(period==="day") return date||todayStr();
+  if(period==="month") return d.getFullYear()+"-"+pad(d.getMonth()+1);
+  if(period==="year") return String(d.getFullYear());
+  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())), wd=(t.getUTCDay()+6)%7; t.setUTCDate(t.getUTCDate()-wd+3);
+  const y=t.getUTCFullYear(), w1=new Date(Date.UTC(y,0,4)); return y+"-W"+pad(1+Math.round(((t-w1)/86400000-3+((w1.getUTCDay()+6)%7))/7));
+}
+function hashStr(t){ let h=2166136261; for(const ch of t){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; }
+function randomIconFor(period,date){
+  const n=APP_ICONS.length, key=periodKey(period,date), i=hashStr("gl:"+key)%n;
+  // nicht zweimal hintereinander dasselbe Symbol
+  const prevDate=period==="day"?addDays(date||todayStr(),-1):period==="week"?addDays(date||todayStr(),-7):null;
+  let prev=null;
+  if(prevDate) prev=hashStr("gl:"+periodKey(period,prevDate))%n;
+  else { const d=toDate(date||todayStr()); const pk=period==="month"?(d.getMonth()===0?(d.getFullYear()-1)+"-12":d.getFullYear()+"-"+pad(d.getMonth())):String(d.getFullYear()-1); prev=hashStr("gl:"+pk)%n; }
+  return APP_ICONS[i===prev?(i+1)%n:i][0];
+}
+function currentIcon(){ const c=iconCfg(); return c.random?randomIconFor(c.period):c.pick; }
+async function applyIcon(){
+  const id=currentIcon();
+  const fav=document.querySelector('link[rel="icon"]'), apple=document.querySelector('link[rel="apple-touch-icon"]');
+  if(fav) fav.href=id==="std"?"icons/icon-192.png":`icons/${id}-192.png`;
+  if(apple) apple.href=id==="std"?"icons/apple-touch-icon.png":`icons/${id}-180.png`;
+  try{ if(!("caches" in window)) return; const c=await caches.open("gym-logbuch-prefs"), old=await c.match("./__icon"), cur=old?(await old.json()).icon:"std";
+    if(cur!==id) await c.put("./__icon",new Response(JSON.stringify({icon:id}),{headers:{"Content-Type":"application/json"}})); }catch(e){}
+}
+function viewIconCard(){
+  const c=iconCfg(), cur=currentIcon(), isIOS=/iPhone|iPad/.test(navigator.userAgent);
+  return `<div class="card panel"><h3>App-Symbol</h3><p class="muted">Welches Symbol soll auf deinem Startbildschirm zu sehen sein?</p>
+    <div class="icon-grid">${APP_ICONS.map(([id,n])=>`<button class="icon-pick" data-act="iconPick" data-v="${id}" aria-pressed="${!c.random&&c.pick===id}" aria-label="${esc(n)}"${c.random?" disabled":""}><img src="${iconThumb(id)}" alt="" loading="lazy">${c.random&&cur===id?`<em>gerade</em>`:""}</button>`).join("")}</div>
+    <div class="switch-row"><span>Zufällig wechseln</span><button class="switch" role="switch" data-act="iconRandom" aria-checked="${c.random}" aria-label="Symbol zufällig wechseln"></button></div>
+    ${c.random?`<div class="chips">${ICON_PERIODS.map(([k,l])=>`<button class="chip" data-act="iconPeriod" data-v="${k}" aria-pressed="${c.period===k}">${l}</button>`).join("")}</div><p class="meta">Aktuell: ${esc(APP_ICONS.find(x=>x[0]===cur)[1])}</p>`:""}
+    <p class="hint">${isIOS?"Auf dem iPhone übernimmt Safari das Symbol nur beim Hinzufügen zum Home-Bildschirm. Wähle es also vorher aus. Zum späteren Wechseln müsstest du die App entfernen und neu hinzufügen. Achtung: Beim Entfernen löscht das iPhone deine Daten, mach vorher unbedingt ein Backup (unten).":"Auf Android übernimmt Chrome das neue Symbol nicht sofort: Chrome prüft beim Öffnen der App höchstens einmal am Tag, ob sich etwas geändert hat, und tauscht das Symbol dann aus, sobald die App geschlossen ist und das Handy im WLAN lädt. Bei einem neuen Bild fragt Chrome meist einmal nach, ob du das neue Symbol übernehmen willst (manchmal nur als Hinweis im Menü ⋮). Ein täglicher Wechsel kann deshalb hinterherhinken."}</p></div>`;
+}
 
 /* ---------- Installieren & Offline ---------- */
 window.addEventListener("beforeinstallprompt",ev=>{ ev.preventDefault(); installPrompt=ev; if(S.tab==="more"&&!top()) render(); });
@@ -2374,6 +2480,9 @@ if("serviceWorker" in navigator){
 }
 
 init();
+applyIcon();
+setInterval(()=>{ refreshKcal(todayStr()); },60000);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ applyIcon(); refreshKcal(todayStr()); } });
 })();
 </script>
 </body>
