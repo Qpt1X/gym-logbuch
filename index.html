@@ -213,7 +213,7 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .finish-badge{width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;animation:pop .5s cubic-bezier(.2,1.4,.4,1) both}
 .finish-badge svg{width:34px;height:34px}
 @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
-.finish-hero h2{font-size:2.5rem;text-transform:uppercase}
+.finish-hero h2{font-size:2.1rem;text-transform:uppercase}
 .finish-hero p{margin:0;font-size:1.05rem}
 .big-total{display:flex;flex-direction:column;gap:2px;padding:16px}
 .big-total b{font-family:var(--f-display);font-size:3.2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
@@ -256,6 +256,8 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .ib-row:first-child{border-top:0}
 .ib-row .grow{flex:1;min-width:0}
 .ib-row .meta{white-space:normal}
+.wx-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--sunk);font-weight:600;font-size:.88rem}
+.wx-chip svg{width:18px;height:18px}
 .done-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border-color:var(--ok)}
 .done-card .ic{width:40px;height:40px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
 .done-card .ic svg{width:22px;height:22px}
@@ -444,7 +446,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "2.5";
+const APP_VERSION = "2.6";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1037,8 +1039,8 @@ function saveDay(date,patch){
   if("types" in patch||"type" in patch){ const t=patch.types!==undefined?patch.types:(patch.type?[patch.type]:[]); next.types=t||[]; }
   else next.types=dayTypeKeys(next);
   delete next.type;
-  if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order; if(!next.done) delete next.done; if(!next.dur) delete next.dur;
-  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur)?next:null);
+  if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order; if(!next.done) delete next.done; if(!next.dur) delete next.dur; if(!next.wx) delete next.wx;
+  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx)?next:null);
 }
 function sortDayLogs(date,ls){
   const d=dayDoc(date), ord=d&&d.order||[], plan=planIds(date);
@@ -1251,6 +1253,10 @@ function viewMore(){
         <p><b>iPhone (Safari):</b> Teilen-Symbol unten → „Zum Home-Bildschirm“.</p>`}</div>`;
   const rc=restCfg();
   const sw=(k,label)=>`<div class="switch-row"><span>${label}</span><button class="switch" role="switch" data-act="restSet" data-k="${k}" aria-checked="${!!rc[k]}" aria-label="${esc(label)}"></button></div>`;
+  const wxCard=`<div class="card panel"><h3>Wetter</h3>
+    <div class="switch-row"><span>Wetter beim Trainingsabschluss anzeigen</span><button class="switch" role="switch" data-act="wxToggle" aria-checked="${wxOn()}" aria-label="Wetter anzeigen"></button></div>
+    <p class="muted">Beim Beenden fragt die App einmal deinen ungefähren Standort ab und holt das aktuelle Wetter. Die Sprüche gehen dann aufs Wetter ein, etwa an einem verregneten oder sonnigen Tag. Dein Standort wird auf etwa 1 km gerundet an den kostenlosen Wetterdienst Open-Meteo geschickt und nicht gespeichert, nur das Wetter selbst.</p>
+    ${S.wxBusy?`<p class="meta">Wetter wird abgerufen…</p>`:S.wxError==="denied"&&wxOn()?`<p class="hint">Standortzugriff wurde abgelehnt. Erlaube ihn in den Browser- bzw. App-Einstellungen für diese Seite und schalte das Wetter dann neu ein.</p>`:wxOn()&&(S.wxTest||(dayDoc(todayStr())||{}).wx)?`<p class="meta">Gerade: ${wxChip(todayStr())}</p>`:""}</div>`;
   const restCard=`<div class="card panel"><h3>Pausentimer</h3>
     ${sw("auto","Automatisch starten, wenn ich einen Satz abhake")}
     <div class="switch-row"><span>Standard-Pause</span><button class="pause-chip" data-act="restPick">${ICON.clock}${fmtClock(rc.def)}</button></div>
@@ -1279,7 +1285,7 @@ function viewMore(){
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${ibCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${ibCard}${wxCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1358,7 +1364,13 @@ document.addEventListener("click",ev=>{
     }
     case "tplDel": { if(S.armedTpl!==b.dataset.id){ S.armedTpl=b.dataset.id; render(); return; } S.armedTpl=null; put(b.dataset.id,null); toast("Einheit gelöscht"); render(); break; }
     case "planFlat": { const d=b.dataset.date, items=planItems(d), it=items[+b.dataset.i]; if(it&&it.sets){ const f=it.sets[0]||{}; it.s=it.sets.length; it.r=f.r??null; it.w=f.w??null; delete it.sets; savePlan(d,items); render(); } break; }
-    case "finish": { const d=b.dataset.date; Rest.stop(); saveDay(d,{done:Date.now()}); S.bodyYaw=null; const t=top(); if(t&&t.type==="finish") render(); else push({type:"finish",date:d}); window.scrollTo(0,0); break; }
+    case "finish": { const d=b.dataset.date; Rest.stop(); saveDay(d,{done:Date.now()}); S.bodyYaw=null; const t=top(); if(t&&t.type==="finish") render(); else push({type:"finish",date:d}); window.scrollTo(0,0);
+      if(wxOn()) fetchWeather(d).then(w=>{ const tt=top(); if(w&&tt&&tt.type==="finish"&&tt.date===d) render(); }); break; }
+    case "wxToggle": {
+      const on=!wxOn(); saveCfg({weather:{on}}); S.wxError=null; render();
+      if(on){ S.wxBusy=true; render(); fetchWeather(todayStr(),true).then(w=>{ S.wxBusy=false; S.wxTest=w; if(!w) toast(S.wxError==="denied"?"Standort nicht erlaubt":"Wetter gerade nicht abrufbar"); render(); }); }
+      break;
+    }
     case "finishView": S.bodyYaw=null; push({type:"finish",date:b.dataset.date}); break;
     case "finishClose": setTab("today"); break;
     case "unfinish": { const d=b.dataset.date; saveDay(d,{done:null}); toast("Training läuft weiter"); const t=top(); if(t&&t.type==="finish"&&d===todayStr()) setTab("today"); else render(); break; }
@@ -1711,6 +1723,75 @@ function daySummary(date){
   const endT=doneAt||last, mins=first<Infinity&&endT>first?Math.round((endT-first)/60000):null;
   return {ls,vol,sets,reps,prs,groups:[...groups.entries()].sort((a,b)=>b[1].vol-a[1].vol||b[1].sets-a[1].sets),intensity,mins:mins&&mins<300?mins:null};
 }
+/* ---------- Wetter (Open-Meteo, ohne Schlüssel; nur wenn eingeschaltet) ---------- */
+function wxOn(){ return !!(cfg().weather&&cfg().weather.on); }
+const WX_ICON={
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 10.1 4 4 0 0 0 7 18z"/></svg>',
+  rain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 6.1 4 4 0 0 0 7 14z"/><path d="M8 17.5l-1 2.5M12 17.5l-1 2.5M16 17.5l-1 2.5"/></svg>',
+  snow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 6.1 4 4 0 0 0 7 14z"/><path d="M8 18h.01M12 20h.01M16 18h.01M10 22h.01M14 22h.01"/></svg>',
+  storm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 6.1 4 4 0 0 0 7 14z"/><path d="M12.5 14l-2 4h3l-2 4"/></svg>',
+  fog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h16M3 13h18M5 17h14"/></svg>',
+  wind:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9h11a3 3 0 1 0-3-3M3 15h15a3 3 0 1 1-3 3M3 12h7"/></svg>'
+};
+function wxInfo(w){
+  const c=w.code;
+  let cat="cloud", label="Bewölkt";
+  if(c===0){ cat=w.day?"sun":"moon"; label=w.day?"Sonnig":"Klar"; }
+  else if(c===1){ cat=w.day?"sun":"moon"; label=w.day?"Überwiegend sonnig":"Überwiegend klar"; }
+  else if(c===2){ cat="cloud"; label="Teils bewölkt"; }
+  else if(c===3){ cat="cloud"; label="Bedeckt"; }
+  else if(c===45||c===48){ cat="fog"; label="Nebel"; }
+  else if(c>=51&&c<=57){ cat="rain"; label="Nieselregen"; }
+  else if((c>=61&&c<=67)||(c>=80&&c<=82)){ cat="rain"; label=c===65||c===82?"Starkregen":"Regen"; }
+  else if((c>=71&&c<=77)||c===85||c===86){ cat="snow"; label="Schnee"; }
+  else if(c>=95){ cat="storm"; label="Gewitter"; }
+  const windy=w.wind>=35;
+  return {cat:windy&&(cat==="cloud"||cat==="sun"||cat==="moon")?"wind":cat,label:windy?label+", stürmisch":label,windy};
+}
+function wxChip(date){
+  const d=dayDoc(date), w=d&&d.wx; if(!w) return "";
+  const i=wxInfo(w);
+  return `<span class="wx-chip">${WX_ICON[i.cat]}${esc(i.label)} · ${fmtNum(Math.round(w.temp))} °C${w.wind>=20?` · Wind ${Math.round(w.wind)} km/h`:""}</span>`;
+}
+function getPosition(){ return new Promise((res,rej)=>{ if(!navigator.geolocation) return rej(new Error("nogeo")); navigator.geolocation.getCurrentPosition(p=>res(p.coords),rej,{enableHighAccuracy:false,timeout:10000,maximumAge:30*60000}); }); }
+async function fetchWeather(date,force){
+  if(!wxOn()&&!force) return null;
+  if(date!==todayStr()) return null;
+  const d=dayDoc(date); if(d&&d.wx&&!force&&Date.now()-d.wx.at<3*3600e3) return d.wx;
+  try{
+    const c=await getPosition();
+    const lat=c.latitude.toFixed(2), lon=c.longitude.toFixed(2);
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,precipitation,is_day&timezone=auto`);
+    if(!r.ok) throw new Error("http "+r.status);
+    const j=await r.json(), cu=j.current||{};
+    if(cu.weather_code==null) throw new Error("no data");
+    const wx={code:cu.weather_code,temp:cu.temperature_2m,wind:cu.wind_speed_10m||0,precip:cu.precipitation||0,day:cu.is_day!==0,at:Date.now()};
+    saveDay(date,{wx}); return wx;
+  }catch(e){ console.warn("Wetter nicht verfügbar",e); S.wxError=e&&e.code===1?"denied":"fail"; return null; }
+}
+const WX_CHEERS={
+  rain:[["Regen draußen, Training drinnen, {N}!","Während andere auf dem Sofa bleiben, hast du durchgezogen."],["Dem Regen getrotzt, {N}!","Bei so einem Schmuddelwetter trotzdem ins Gym – das ist Einstellung."],["Grauer Regentag, starke Leistung, {N}!","Das Wetter hatte keine Chance gegen dich."]],
+  snow:[["Schnee draußen, Feuer im Training, {N}!","Bei dem Wetter trotzdem los – Respekt."],["Winterwetter? Egal, {N}!","Du hast dich durch den Schnee gekämpft und abgeliefert."]],
+  storm:[["Gewitter draußen, Power drinnen, {N}!","Selbst Blitz und Donner haben dich nicht aufgehalten."]],
+  sun:[["Sonne draußen, Training erledigt, {N}!","Jetzt hast du dir den Rest des sonnigen Tages verdient."],["Strahlender Tag, starkes Training, {N}!","Bei dem Wetter zu trainieren statt draußen zu faulenzen – stark."]],
+  moon:[["Abends noch durchgezogen, {N}!","Der Tag ist fast vorbei, aber dein Training ist im Kasten."]],
+  cloud:[["Trüber Tag, starkes Training, {N}!","Grau draußen, aber du hast für Farbe gesorgt."],["Bewölkt? Nicht bei dir, {N}!","Du hast den Tag mit einem Training aufgehellt."]],
+  fog:[["Nebel draußen, klarer Kopf beim Training, {N}!","Bei dem trüben Wetter trotzdem los – stark."]],
+  wind:[["Stürmisch draußen, standhaft im Gym, {N}!","Gegenwind kennst du – und du hast ihn heute besiegt."]],
+  hot:[["Über {T} °C draußen und du trainierst, {N}!","Bei der Hitze durchzuziehen braucht Willen. Trink genug!"]],
+  cold:[["{T} °C draußen und trotzdem los, {N}!","Den inneren Schweinehund bei Kälte besiegt – stark."]]
+};
+function weatherCheer(w,hsh){
+  if(!w) return null;
+  const i=wxInfo(w); let key=i.cat;
+  if(w.temp>=28&&(key==="sun"||key==="cloud"||key==="moon")) key="hot";
+  else if(w.temp<=0&&key!=="snow") key="cold";
+  const L=WX_CHEERS[key]; if(!L) return null;
+  const p=L[hsh%L.length]; return p.map(t=>t.replace("{T}",fmtNum(Math.round(w.temp))));
+}
+
 /* Glückwunsch-Sprüche: [Überschrift, Text]. {N} = Name; ohne Name fällt ", {N}" weg. Pro Tag fest gewählt. */
 const CHEERS=[
   ["Geschafft, {N}!","Glückwunsch, du hast dein Training erfolgreich hinter dich gebracht."],
@@ -1732,7 +1813,9 @@ function cheerFor(date,S0){
   let hsh=0; for(const c of date) hsh=(hsh*31+c.charCodeAt(0))>>>0;
   const wi=weekIndex(date);
   let pick;
-  if(S0.prs>0&&hsh%2===0) pick=["Neuer Rekord, {N}!",S0.prs===1?"Du hast heute einen neuen Bestwert geknackt. Weiter so!":`Du hast heute ${S0.prs} neue Bestwerte geknackt. Weiter so!`];
+  const dd=dayDoc(date), wc=weatherCheer(dd&&dd.wx,hsh);
+  if(wc&&hsh%3!==1) pick=wc;
+  else if(S0.prs>0&&hsh%2===0) pick=["Neuer Rekord, {N}!",S0.prs===1?"Du hast heute einen neuen Bestwert geknackt. Weiter so!":`Du hast heute ${S0.prs} neue Bestwerte geknackt. Weiter so!`];
   else if(wi>=3&&hsh%3===0) pick=[`Schon das ${wi}. Training diese Woche, {N}!`,"Diese Konstanz zahlt sich aus."];
   else pick=CHEERS[hsh%CHEERS.length];
   return [fillName(pick[0]),fillName(pick[1])];
@@ -1744,7 +1827,7 @@ function viewFinish(date){
   const anyVol=S0.vol>0;
   const regionsHit=Object.keys(S0.intensity).sort((a,b)=>S0.intensity[b]-S0.intensity[a]).map(r=>REGION_NAMES[r]);
   const cheer=cheerFor(date,S0);
-  let h=done?`<div class="finish-hero"><span class="finish-badge">${ICON.check}</span><h2>${esc(cheer[0])}</h2><p>${esc(cheer[1])}</p><p class="meta">${esc(fmtLong.format(toDate(date)))} ${typeBadge(date)}</p></div>`
+  let h=done?`<div class="finish-hero"><span class="finish-badge">${ICON.check}</span><h2>${esc(cheer[0])}</h2><p>${esc(cheer[1])}</p><p class="meta">${esc(fmtLong.format(toDate(date)))} ${typeBadge(date)}</p>${wxChip(date)}</div>`
     :`<div class="date-head"><p class="eyebrow">Trainingsübersicht</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>${typeBadge(date)?`<div>${typeBadge(date)}</div>`:""}`;
   if(!S0.ls.length) return h+`<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>`;
   const TM=trainingMinutes(date,S0), KC=kcalFor(date,TM.min), wi=weekIndex(date);
