@@ -509,6 +509,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 @media (prefers-reduced-motion: reduce){.toast{transition:none}}
 @media (max-width:360px){.stats{grid-template-columns:1fr 1fr}.date-head h2,.ex-head h2{font-size:2rem}}
 .update-bar{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 14px;background:var(--accent-soft);border-radius:10px;font-weight:600;font-size:.92rem}
+.in-unit{display:flex;align-items:center;gap:8px;color:var(--muted)}.in-unit .input{flex:1}
 </style>
 </head>
 <body>
@@ -553,7 +554,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.4";
+const APP_VERSION = "3.5";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -665,6 +666,21 @@ function isAssist(e){ return !!(e&&e.load==="assist"); }
 function bwOn(date){ const L=weightEntries(); if(!L.length) return null; let b=null; for(const e of L){ if(e.date<=date) b=e; else break; } return (b||L[0]).w; }
 function assistCtx(l){ const e=l&&ex(l.exId); return isAssist(e)?{bw:bwOn(l.date)}:null; }
 function effW(w,a){ a=asA(a); if(w==null||!a) return w; if(a.bw==null) return null; return Math.max(0,Math.round((a.bw-w)*10)/10); }
+/* ---------- eGym-Geräte ----------
+   Kalorien kommen aus der eGym-App und werden von Hand eingetragen.
+   Gewicht und Wiederholungen dieser Übungen zählen deshalb nicht zusätzlich zur Kalorienschätzung. */
+function isEgym(e){ return !!(e&&e.egym); }
+function egymKcal(l){ return l&&l.kcal>0?l.kcal:0; }
+function logLine(l){ return setsLine(l.sets||[],assistCtx(l))+(egymKcal(l)?`<div class="meta num">${fmtNum(l.kcal)} kcal laut eGym-App</div>`:""); }
+function trainSplit(date,S0){
+  S0=S0||daySummary(date);
+  const TM=trainingMinutes(date,S0), met=metFor(S0,TM);
+  const eg=S0.ls.filter(l=>isEgym(ex(l.exId)));
+  const egK=eg.reduce((a,l)=>a+egymKcal(l),0), egSets=eg.reduce((a,l)=>a+(l.sets||[]).length,0);
+  // Zeit nur für die übrigen Übungen schätzen (anteilig nach Sätzen), damit eGym nicht doppelt zählt
+  const restMin=!eg.length?TM.min:eg.length===S0.ls.length?0:S0.sets?Math.round(TM.min*(S0.sets-egSets)/S0.sets):TM.min;
+  return {TM,met,eg,egK,restMin};
+}
 function statSets(l){ const a=assistCtx(l), s=l.sets||[]; return a?s.map(x=>({...x,w:effW(x.w,a)})):s; }
 function setText(s,a){
   a=asA(a);
@@ -747,7 +763,7 @@ function setTab(tab){ leaveCurrent(); S.stack=[]; S.planOpen=false; S.typeForm=n
 function enter(screen){
   S.armedDelete=false;
   if(screen.type==="log") openDraft(screen.exId,screen.date);
-  if(screen.type==="editEx") openExDraft(screen.exId);
+  if(screen.type==="editEx"){ openExDraft(screen.exId); if(screen.egym) S.exDraft.egym=true; }
   if(screen.type==="pick"||screen.type==="planPick") S.query="";
   if(screen.type==="day") S.typeForm=null;
   if(screen.type==="exercise") S.prog.sel=null;
@@ -764,7 +780,7 @@ function openDraft(exId,date){
   const xin=x=>{ const o={}; if(x) for(const [k,v] of Object.entries(x)){ const d=fieldDef(k); o[k]=v==null?"":d&&d.type==="num"?inputVal(v):String(v); } return o; };
   if(existing&&existing.sets&&existing.sets.length) sets=existing.sets.map(s=>({w:inputVal(s.w),r:s.r==null?"":String(s.r),x:xin(s.x)}));
   else { const tg=planTarget(date,exId); sets=Array.from({length:Math.max(tg&&tg.sets&&tg.sets.length?tg.sets.length:tg&&tg.s?tg.s:last&&last.sets?last.sets.length:3,1)},()=>({w:"",r:"",x:{}})); }
-  S.draft={exId,date,sets,note:existing&&existing.note?existing.note:"",existed:!!existing};
+  S.draft={exId,date,sets,note:existing&&existing.note?existing.note:"",kcal:existing&&existing.kcal?String(existing.kcal):"",existed:!!existing};
 }
 function assistLive(){
   const d=S.draft; if(!d) return ""; const bw=bwOn(d.date); if(bw==null) return "";
@@ -800,24 +816,26 @@ function saveDraft(final){
   clearTimeout(draftTimer);
   const d=S.draft; if(!d) return;
   const id=logId(d.date,d.exId), sets=draftSets(), note=d.note.trim();
+  const kv=parseNum(d.kcal), kcal=kv!=null&&kv>0?Math.round(kv):null;
   const cur=S.docs.get(id);
-  if(!sets.length&&!note){ if(cur){ put(id,null); d.existed=false; } return; }
+  if(!sets.length&&!note&&!kcal){ if(cur){ put(id,null); d.existed=false; } return; }
   const body={kind:"log",exId:d.exId,date:d.date,sets,note,createdAt:(cur&&(cur.createdAt||cur.updatedAt))||Date.now(),updatedAt:Date.now()};
-  if(cur&&JSON.stringify({s:cur.sets,n:cur.note||""})===JSON.stringify({s:sets,n:note})) return;
+  if(kcal) body.kcal=kcal;
+  if(cur&&JSON.stringify({s:cur.sets,n:cur.note||"",k:cur.kcal||null})===JSON.stringify({s:sets,n:note,k:kcal})) return;
   put(id,body); d.existed=true;
 }
 
 /* ---------- Übungs-Editor ---------- */
 function openExDraft(exId){
   const e=exId?ex(exId):null;
-  S.exDraft=e?{id:e.id,name:e.name,groups:exGroups(e),settings:(e.settings||[]).map(s=>({k:s.k,v:s.v})),notes:e.notes||"",rest:e.rest,load:e.load||""}
-            :{id:null,name:"",groups:[],settings:[],notes:"",load:""};
+  S.exDraft=e?{id:e.id,name:e.name,groups:exGroups(e),settings:(e.settings||[]).map(s=>({k:s.k,v:s.v})),notes:e.notes||"",rest:e.rest,load:e.load||"",egym:!!e.egym}
+            :{id:null,name:"",groups:[],settings:[],notes:"",load:"",egym:false};
   S.exDraft.newGroup=null;
 }
-function createExercise(name,group,settings,notes,load){
+function createExercise(name,group,settings,notes,load,egym){
   const id=rid("ex"); const now=Date.now();
   const groups=Array.isArray(group)?(group.length?group:["Sonstiges"]):[group||"Sonstiges"];
-  const body={kind:"exercise",name,group:groups[0],groups,settings:settings||[],notes:notes||"",createdAt:now,updatedAt:now}; if(load) body.load=load;
+  const body={kind:"exercise",name,group:groups[0],groups,settings:settings||[],notes:notes||"",createdAt:now,updatedAt:now}; if(load) body.load=load; if(egym) body.egym=true;
   put(id,body);
   return id;
 }
@@ -838,7 +856,7 @@ function render(){
   if(t){
     if(t.type==="log"){ const e=ex(t.exId); title=e?e.name:"Übung"; html=viewLog(); }
     else if(t.type==="exercise"){ const e=ex(t.exId); title=e?e.name:"Übung"; html=viewExercise(t.exId); }
-    else if(t.type==="editEx"){ title=S.exDraft.id?"Übung bearbeiten":"Neue Übung"; html=viewEditEx(); }
+    else if(t.type==="editEx"){ title=S.exDraft.id?"Übung bearbeiten":S.exDraft.egym?"Neues eGym-Gerät":"Neue Übung"; html=viewEditEx(); }
     else if(t.type==="pick"){ title=t.date&&t.date!==todayStr()?"Nachtragen":"Übung wählen"; html=viewPick(); }
     else if(t.type==="report"){ title="Bericht"; html=viewReport(); }
     else if(t.type==="planPick"){ title="Übungen planen"; html=viewPlanPick(t.date); }
@@ -884,7 +902,7 @@ function viewToday(){
     h+=`<div class="stack${today.length>1?" sortable":""}" data-sort="day" data-date="${date}">${today.map(l=>{const e=ex(l.exId); if(!e) return "";
       return `<button class="log-card" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${l.date}" data-sort-id="${esc(l.exId)}">
         <div class="top"><h3>${esc(e.name)}</h3>${isPR(l)?'<span class="pr">Rekord</span>':""}</div>
-        ${setsLine(l.sets||[],assistCtx(l))}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}
+        ${logLine(l)}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}
       </button>`;}).join("")}</div>`;
   }
   const doneAt=dayDoc(date)&&dayDoc(date).done;
@@ -925,7 +943,7 @@ function exerciseList(list,act,sel){
   return groups.map(([g,items])=>`<div class="group"><h3>${esc(g)}</h3><div class="list">${items.map(e=>{
     const l=logsFor(e.id)[0];
     const sub=l?`${relDay(l.date)} · ${(l.sets||[]).map(s=>setPlain(s,assistCtx(l))).join(", ")}`:"Noch nicht trainiert";
-    const set=(e.settings||[]).filter(s=>s.k&&s.v).map(s=>`${s.k} ${s.v}`).join(" · ");
+    const set=[e.egym?"eGym-Gerät":"",...(e.settings||[]).filter(s=>s.k&&s.v).map(s=>`${s.k} ${s.v}`)].filter(Boolean).join(" · ");
     const also=exGroups(e).filter(x=>x!==g);
     return `<button class="item" data-act="${act}" data-ex="${esc(e.id)}"${act==="planToggle"?` aria-pressed="${!!(sel&&sel.has(e.id))}"`:""}><div class="grow"><div class="name">${esc(e.name)}</div><div class="sub num">${esc(sub)}</div>${also.length?`<div class="sub">${allGroups().includes(g)?"Auch: ":""}${esc(also.join(" · "))}</div>`:""}${set?`<div class="sub">${esc(set)}</div>`:""}</div>${act==="planToggle"?(sel&&sel.has(e.id)?ICON.check.replace("<svg","<svg class=\"chk-on\""):ICON.plusItem):act==="pickEx"?ICON.plusItem:ICON.chev}</button>`;}).join("")}</div></div>`).join("");
 }
@@ -940,7 +958,7 @@ function viewExercises(){
 function viewPick(){
   const exs=exercises();
   const t=top(), d=t&&t.date&&t.date!==todayStr()?t.date:null;
-  return `${d?`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(d)))}</p>`:""}${exs.length>4?searchBox():""}<button class="btn" data-act="newExLog">${ICON.plus}Neue Übung anlegen</button><div id="exlist" class="stack">${exs.length?exerciseList(exs,"pickEx"):`<div class="chips">${PRESETS.map(([n],i)=>`<button class="chip" data-act="preset" data-i="${i}">${esc(n)}</button>`).join("")}</div>`}</div>`;
+  return `${d?`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(d)))}</p>`:""}${exs.length>4?searchBox():""}<div class="btn-row"><button class="btn" data-act="newExLog">${ICON.plus}Neue Übung</button><button class="btn" data-act="newEgymLog">${ICON.plus}eGym-Gerät</button></div><div id="exlist" class="stack">${exs.length?exerciseList(exs,"pickEx"):`<div class="chips">${PRESETS.map(([n],i)=>`<button class="chip" data-act="preset" data-i="${i}">${esc(n)}</button>`).join("")}</div>`}</div>`;
 }
 
 function settingsDl(e){
@@ -982,6 +1000,8 @@ function viewLog(){
   h+=`</div>${AS?`<div class="meta num" id="assistLive">${assistLive()}</div>`:""}
   <p class="hint">Graue Zahlen sind Vorschläge: dein Ziel aus dem Plan oder deine Werte vom letzten Mal. Tipp auf den Haken, um sie zu übernehmen, oder tipp eigene Werte ein. Ohne Gewicht zählt der Satz als Körpergewicht.</p>
   <div class="btn-row"><button class="btn" data-act="addSet">${ICON.plus}Satz</button>${d.sets.length>1?`<button class="btn" data-act="rmSet">Letzten Satz entfernen</button>`:""}</div>
+  ${isEgym(e)?`<label class="field"><span>Kalorien laut eGym-App</span><span class="in-unit"><input class="input" id="egkcal" data-field="egkcal" inputmode="numeric" autocomplete="off" placeholder="z. B. 45" value="${esc(d.kcal)}"> kcal</span></label>
+  <p class="hint" style="margin:0">Die Kalorien liest du in der eGym-App ab. Sie gehen genau so in deine Tagesbilanz ein. Gewicht und Wiederholungen dieser Übung zählen dafür nicht noch einmal.</p>`:""}
   <label class="field"><span>Notiz</span><textarea class="input" id="note" data-field="note" placeholder="z. B. letzter Satz bis zum Versagen">${esc(d.note)}</textarea></label>
   <button class="btn primary big" data-act="doneLog">${ICON.check}Fertig</button>`;
   return h;
@@ -1060,7 +1080,7 @@ function viewExercise(exId){
     h+=`<button class="btn" data-act="report" data-ex="${esc(e.id)}">${ICON.doc}Fortschritt als PDF</button>`;
     h+=`<div class="group"><h3>Alle Einheiten</h3><div class="list hist">${hist.map(l=>`<button class="item" data-act="openLog" data-ex="${esc(e.id)}" data-date="${l.date}">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${relDay(l.date)}</span>${isPR(l)?'<span class="pr">Rekord</span>':`<span class="meta num">${volume(statSets(l))?fmtNum(Math.round(volume(statSets(l))))+" kg":""}</span>`}</div>
-      ${setsLine(l.sets||[],assistCtx(l))}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`).join("")}</div></div>`;
+      ${logLine(l)}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`).join("")}</div></div>`;
   } else h+=`<p class="hint">Noch keine Einheit eingetragen.</p>`;
   return h;
 }
@@ -1141,12 +1161,14 @@ function finishWithExercise(id,created){
 function viewEditEx(){
   const d=S.exDraft;
   const used=new Set(d.settings.map(s=>s.k));
-  let h=`<label class="field"><span>Name</span><input class="input" id="exname" data-field="exname" value="${esc(d.name)}" placeholder="z. B. Latzug am Turm" autocomplete="off"></label>
+  let h=`<label class="field"><span>Name</span><input class="input" id="exname" data-field="exname" value="${esc(d.name)}" placeholder="${d.egym?"z. B. eGym Brustpresse":"z. B. Latzug am Turm"}" autocomplete="off"></label>
   ${d.id?"":`<div id="nameSugg">${nameSuggestions(d.name)}</div>`}
   <div class="field"><span>Muskelgruppen <span style="font-weight:400">· mehrere möglich, die erste ist die Hauptgruppe</span></span><div class="chips">${allGroups().map(g=>{const i=d.groups.indexOf(g); return `<button class="chip" data-act="group" data-g="${esc(g)}" aria-pressed="${i>=0}">${i===0&&d.groups.length>1?"★ ":""}${esc(g)}</button>`;}).join("")}${d.newGroup==null?`<button class="chip" data-act="groupNew">+ Eigene</button>`:""}</div>
     ${d.newGroup!=null?`<div class="set-edit" style="grid-template-columns:1fr auto"><input class="input" id="newgroup" data-field="newgroup" value="${esc(d.newGroup)}" placeholder="z. B. Oberschenkel außen" maxlength="24" autocomplete="off"><button class="btn primary" data-act="groupAdd">Hinzufügen</button></div>`:""}</div>
-  <div class="field"><span>Gewicht am Gerät</span><div class="chips"><button class="chip" data-act="exLoad" data-v="" aria-pressed="${d.load!=="assist"}">Normales Gewicht</button><button class="chip" data-act="exLoad" data-v="assist" aria-pressed="${d.load==="assist"}">Gegengewicht (Unterstützung)</button></div>
-    <p class="hint" style="margin:0">${d.load==="assist"?"Du trägst das am Gerät eingestellte Gegengewicht ein. Die App rechnet dein echtes Trainingsgewicht aus: Körpergewicht minus Gegengewicht.":"Für Klimmzug- oder Dip-Türme mit Gegengewicht „Gegengewicht“ wählen."}</p></div>
+  <div class="field"><span>Art des Geräts</span><div class="chips"><button class="chip" data-act="exEgym" data-v="0" aria-pressed="${!d.egym}">Normal</button><button class="chip" data-act="exEgym" data-v="1" aria-pressed="${!!d.egym}">eGym-Gerät</button></div>
+    ${d.egym?`<p class="hint" style="margin:0">Beim Eintragen gibt es ein Feld für die Kalorien aus der eGym-App. Nur diese zählen für die Kalorienbilanz, Gewicht und Wiederholungen nicht zusätzlich.</p>`:""}</div>
+  ${d.egym?"":`<div class="field"><span>Gewicht am Gerät</span><div class="chips"><button class="chip" data-act="exLoad" data-v="" aria-pressed="${d.load!=="assist"}">Normales Gewicht</button><button class="chip" data-act="exLoad" data-v="assist" aria-pressed="${d.load==="assist"}">Gegengewicht (Unterstützung)</button></div>
+    <p class="hint" style="margin:0">${d.load==="assist"?"Du trägst das am Gerät eingestellte Gegengewicht ein. Die App rechnet dein echtes Trainingsgewicht aus: Körpergewicht minus Gegengewicht.":"Für Klimmzug- oder Dip-Türme mit Gegengewicht „Gegengewicht“ wählen."}</p></div>`}
   <div class="field"><span>Einstellungen am Gerät</span>
     <div class="stack" id="setlist">${d.settings.map((s,i)=>`<div class="set-edit">
       <input class="input" id="sk-${i}" data-field="sk" data-i="${i}" value="${esc(s.k)}" placeholder="Was?" aria-label="Einstellung">
@@ -1317,7 +1339,7 @@ function calendarCard(byDate){
 }
 function dayList(date,ls){
   return `<div class="list${ls.length>1?" sortable":""}" data-sort="day" data-date="${date}">${ls.map(l=>{const e=ex(l.exId); return `<button class="item" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${date}" data-sort-id="${esc(l.exId)}" style="flex-direction:column;align-items:stretch;gap:4px">
-    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${esc(e?e.name:"Gelöschte Übung")}</span>${isPR(l)?'<span class="pr">Rekord</span>':`<span class="meta num">${volume(statSets(l))?fmtNum(Math.round(volume(statSets(l))))+" kg":""}</span>`}</div>${setsLine(l.sets||[],assistCtx(l))}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`;}).join("")}</div>`;
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${esc(e?e.name:"Gelöschte Übung")}</span>${isPR(l)?'<span class="pr">Rekord</span>':`<span class="meta num">${volume(statSets(l))?fmtNum(Math.round(volume(statSets(l))))+" kg":""}</span>`}</div>${logLine(l)}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`;}).join("")}</div>`;
 }
 function viewHistory(){
   const byDate=logsByDate();
@@ -1461,6 +1483,8 @@ document.addEventListener("click",ev=>{
     case "openEx": push({type:"exercise",exId:b.dataset.ex}); break;
     case "newEx": push({type:"editEx",exId:null,thenLog:S.tab==="today"}); break;
     case "newExLog": replace({type:"editEx",exId:null,thenLog:true,date:top().date||null}); break;
+    case "newEgymLog": replace({type:"editEx",exId:null,thenLog:true,date:top().date||null,egym:true}); break;
+    case "exEgym": S.exDraft.egym=b.dataset.v==="1"; render(); break;
     case "editEx": push({type:"editEx",exId:b.dataset.ex}); break;
     case "preset": {
       const [n,g]=PRESETS[+b.dataset.i];
@@ -1631,11 +1655,12 @@ document.addEventListener("click",ev=>{
         const other=exercises().find(e=>e.id!==id&&e.name.trim().toLowerCase()===name.toLowerCase());
         if(other){ toast(`„${other.name}“ gibt es schon – bitte anderen Namen wählen`); $("#exname").focus(); return; }
         const cur=S.docs.get(id), body={...cur,name,group:groups[0],groups,settings,notes:d.notes.trim(),updatedAt:Date.now()};
-        if(d.load) body.load=d.load; else delete body.load;
+        if(d.load&&!d.egym) body.load=d.load; else delete body.load;
+        if(d.egym) body.egym=true; else delete body.egym;
         put(id,body); pop(); toast("Übung gespeichert"); break; }
       const dup=exercises().find(e=>e.name.trim().toLowerCase()===name.toLowerCase());
       if(dup){ toast(`„${dup.name}“ gibt es schon – wird verwendet`); finishWithExercise(dup.id,false); break; }
-      id=createExercise(name,groups,settings,d.notes.trim(),d.load||"");
+      id=createExercise(name,groups,settings,d.notes.trim(),d.egym?"":d.load||"",d.egym);
       finishWithExercise(id,true);
       break;
     }
@@ -1728,6 +1753,7 @@ document.addEventListener("input",ev=>{
     const al=$("#assistLive"); if(al) al.innerHTML=assistLive();
   }
   else if(f==="note"){ S.draft.note=el.value; scheduleSave(); }
+  else if(f==="egkcal"){ S.draft.kcal=el.value; scheduleSave(); }
   else if(f==="query"){ S.query=el.value; const list=$("#exlist"); if(list){ const t=top(); list.innerHTML=t&&t.type==="planPick"?exerciseList(exercises(),"planToggle",new Set(planIds(t.date))):exerciseList(exercises(),t&&t.type==="pick"?"pickEx":"openEx"); } }
   else if(f==="plannote") saveDay(el.dataset.date,{note:el.value});
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
@@ -2133,16 +2159,16 @@ function stepLength(p){ const h=parseNum(p.height); if(h>100&&h<230) return h/10
 function dayEnergy(date){
   const b=bodyState(date); if(!b.bmr) return null;
   const p=profile(), d=dayDoc(date)||{}, isToday=date===todayStr();
-  let train=0, trainMin=0, met=null;
+  let train=0, trainMin=0, met=null, egK=0;
   const S0=daySummary(date);
-  if(S0.ls.length){ const TM=trainingMinutes(date,S0); met=metFor(S0,TM); trainMin=TM.min; train=Math.max(0,(met-1)*(b.bmr/24)*(TM.min/60)); }
+  if(S0.ls.length){ const T=trainSplit(date,S0); met=T.met; trainMin=T.restMin; egK=T.egK; train=Math.max(0,(met-1)*(b.bmr/24)*(T.restMin/60)); }
   const AL=dayActs(date).map(a=>({a,K:actKcal(a,date)})).filter(x=>x.K);
   const actK=AL.reduce((s,x)=>s+(x.K.net||0),0), overlap=AL.reduce((s,x)=>s+(x.K.steps||0),0);
   const stepsAll=d.steps||0, steps=Math.max(0,stepsAll-overlap), km=steps*stepLength(p)/1000, stepK=b.weight?0.5*b.weight*km:0;
   const now=new Date(), frac=isToday?Math.min(1,(now-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000):1;
-  const restNow=b.bmr*frac, activity=train+stepK+actK;
+  const restNow=b.bmr*frac, activity=train+egK+stepK+actK;
   const tefNow=0.1*(restNow+activity), tefDay=0.1*(b.bmr+activity);
-  return {bmr:b.bmr,src:b.src,frac,restNow,train,trainMin,met,steps,stepsAll,overlap,km,stepK,actK,acts:AL,tefNow,tefDay,
+  return {bmr:b.bmr,src:b.src,frac,restNow,train,trainMin,met,egK,steps,stepsAll,overlap,km,stepK,actK,acts:AL,tefNow,tefDay,
     now:Math.round(restNow+activity+tefNow), day:Math.round(b.bmr+activity+tefDay), isToday};
 }
 function kcalBlock(date){
@@ -2155,6 +2181,7 @@ function kcalBlock(date){
     <div class="kcal-rows">
       <div><span>Grundumsatz${E.isToday?` bis ${timeTxt}`:""}</span><b class="num">${r(E.isToday?E.restNow:E.bmr)}</b></div>
       <div><span>Training${E.trainMin?` · ${E.trainMin} min, ${fmtNum(E.met)} MET`:""}</span><b class="num">${E.train?"+"+r(E.train):"–"}</b></div>
+      ${E.egK?`<div><span>eGym-Geräte · laut eGym-App</span><b class="num">+${r(E.egK)}</b></div>`:""}
       ${E.acts.length?`<div><span>Aktivitäten · ${esc(E.acts.map(x=>actName(x.a)+" "+fmtNum(+x.a.min)+" min").join(", "))}</span><b class="num">+${r(E.actK)}</b></div>`:""}
       <div><span>Schritte${E.steps?` · ${fmtNum(E.steps)} ≈ ${fmtNum(Math.round(E.km*10)/10)} km`:""}${E.overlap&&E.stepsAll?` (ohne ${fmtNum(Math.min(E.overlap,E.stepsAll))} Schritte der Aktivitäten)`:""}</span><b class="num">${E.stepK?"+"+r(E.stepK):"–"}</b></div>
       <div><span>Verdauung · etwa 10 %</span><b class="num">+${r(E.isToday?E.tefNow:E.tefDay)}</b></div>
@@ -2553,16 +2580,17 @@ function viewFinish(date){
   let h=done?`<div class="finish-hero"><span class="finish-badge">${ICON.check}</span><h2>${esc(cheer[0])}</h2><p>${esc(cheer[1])}</p><p class="meta">${esc(fmtLong.format(toDate(date)))} ${typeBadge(date)}</p>${wxChip(date)}</div>`
     :`<div class="date-head"><p class="eyebrow">Trainingsübersicht</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>${typeBadge(date)?`<div>${typeBadge(date)}</div>`:""}`;
   if(!S0.ls.length) return h+`<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>`;
-  const TM=trainingMinutes(date,S0), MET=metFor(S0,TM), KC=kcalFor(date,TM.min,MET), wi=weekIndex(date);
+  const T=trainSplit(date,S0), TM=T.TM, MET=T.met, KCm=T.restMin>0?kcalFor(date,T.restMin,MET):null, KCt=(KCm?KCm.kcal:0)+T.egK, KC=KCm||(T.egK?{kcal:KCt}:null), wi=weekIndex(date);
   if(wi) h+=`<div class="week-pill">${wi}. Training der Woche</div>`;
   h+=`<div class="three-stats">
     <div class="card"><span>Gewicht</span><b>${anyVol?fmtNum(Math.round(S0.vol)):"–"}</b><small>kg bewegt</small></div>
     <div class="card"><span>Dauer</span><b>${TM.est?"~":""}${TM.min}</b><small>min</small></div>
-    <div class="card"><span>Kalorien</span><b>${KC?"~"+fmtNum(KC.kcal):"–"}</b><small>kcal</small></div>
+    <div class="card"><span>Kalorien</span><b>${KC?"~"+fmtNum(KCt):"–"}</b><small>kcal</small></div>
   </div>
   <div class="dur-edit"><label for="durEdit">Dauer anpassen:</label><input id="durEdit" data-field="dur" data-date="${date}" inputmode="numeric" value="${TM.min}" aria-label="Trainingsdauer in Minuten"> min${TM.est?" · geschätzt aus Sätzen und Pausenzeit":TM.manual?" · von dir eingetragen":" · vom ersten Satz bis zum Beenden"}</div>
-  ${KC?`<p class="hint" style="margin:0">Kalorien sind eine Schätzung nach der MET-Methode (Compendium of Physical Activities, Krafttraining ${MET===6?"intensiv, 6,0":"moderat, 3,5"} MET, ${TM.est?"Standardwert, weil die Dauer nur geschätzt ist":`automatisch aus ${S0.sets} Sätzen in ${TM.min} Minuten bestimmt`}) mit deinem Grundumsatz: ${esc(KC.src)}. Enthalten ist auch der Ruheverbrauch während des Trainings. Der tatsächliche Verbrauch kann deutlich abweichen.</p>`
-     :`<p class="hint" style="margin:0">Für eine Kalorienschätzung trag unter „Mehr“ → „Über mich“ dein Gewicht, deine Größe, dein Alter und dein Geschlecht ein oder eine Körpermessung (InBody/Fitnesshub).</p>`}
+  ${T.egK?`<p class="hint" style="margin:0">Davon ${fmtNum(T.egK)} kcal von deinen eGym-Geräten, so wie in der eGym-App angezeigt.${KCm?" Der Rest ist eine Schätzung für die übrigen Übungen:":""}</p>`:""}
+  ${KCm?`<p class="hint" style="margin:0">Kalorien sind eine Schätzung nach der MET-Methode (Compendium of Physical Activities, Krafttraining ${MET===6?"intensiv, 6,0":"moderat, 3,5"} MET, ${TM.est?"Standardwert, weil die Dauer nur geschätzt ist":`automatisch aus ${S0.sets} Sätzen in ${TM.min} Minuten bestimmt`}) mit deinem Grundumsatz: ${esc(KC.src)}. Enthalten ist auch der Ruheverbrauch während des Trainings. Der tatsächliche Verbrauch kann deutlich abweichen.</p>`
+     :T.egK&&!T.restMin?"":`<p class="hint" style="margin:0">Für eine Kalorienschätzung trag unter „Mehr“ → „Über mich“ dein Gewicht, deine Größe, dein Alter und dein Geschlecht ein oder eine Körpermessung (InBody/Fitnesshub).</p>`}
   <div class="mini-stats">
     <div class="card stat"><b>${S0.ls.length}</b><span>${S0.ls.length===1?"Übung":"Übungen"}</span></div>
     <div class="card stat"><b>${S0.sets}</b><span>Sätze</span></div>
