@@ -289,7 +289,14 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .wx-chip svg{width:18px;height:18px}
 .daily{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .daily.ask{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.daily-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.daily-top{display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none;cursor:pointer;min-height:28px}
+.daily-top::-webkit-details-marker{display:none}
+.daily-head{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.daily-sum{font-size:.82rem;color:var(--muted)}
+.daily[open] .daily-sum{display:none}
+.daily .chev{font-style:normal;color:var(--muted);font-size:1.3rem;transition:transform .2s;flex:none}
+.daily[open]>summary .chev{transform:rotate(90deg)}
+.daily-body{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .daily-top b{font-weight:700}
 .acts{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .acts-head{display:flex;justify-content:space-between;align-items:center}
@@ -608,7 +615,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.8";
+const APP_VERSION = "3.9";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1612,6 +1619,7 @@ document.addEventListener("click",ev=>{
     case "actDel": { const t=top(); if(!S.armedAct){ S.armedAct=true; render(); return; } S.armedAct=false; const L=dayActs(t.date).filter((_,i)=>i!==t.i); saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast("Aktivität gelöscht"); break; }
     case "foodApp": { const v=b.dataset.v; saveCfg({foodApp:foodApp()===v?"":v}); render(); break; }
     case "foodImport": $("#foodFile").click(); break;
+    case "dailyToggle": { const dEl=b.closest("details"); if(dEl) saveCfg({dailyOpen:!dEl.open}); break; }
     case "kcalToggle": { const dEl=b.closest("details"); S.kcalOpen=dEl?!dEl.open:false; break; }
     case "bwSkip": saveCfg({bwSkip:todayStr()}); render(); break;
     case "stepsStart": Steps.start().then(ok=>{ if(ok){ toast("Schritte werden gezählt, solange die App offen ist"); render(); } }); break;
@@ -1839,7 +1847,7 @@ document.addEventListener("input",ev=>{
       const d=dayDoc(dt)||{}, prev=weightEntries().filter(e=>e.date<dt).pop(), box=$("#bwDelta");
       if(box&&k==="bw") box.textContent=d.bw&&prev?`${d.bw-prev.w>0?"+":d.bw-prev.w<0?"−":"±"}${fmtNum(Math.abs(Math.round((d.bw-prev.w)*10)/10))} kg seit ${relDay(prev.date)}`:"";
       refreshKcal(dt);
-      if(k==="bw"&&d.bw){ const c=el.closest(".daily"); if(c){ c.classList.remove("ask"); const tb=c.querySelector(".daily-top"); if(tb) tb.innerHTML="<b>Tageswerte</b>"; } }
+      if(k==="bw"&&d.bw){ const c=el.closest(".daily"); if(c){ c.classList.remove("ask"); const tb=c.querySelector(".daily-head>b"); if(tb) tb.textContent="Tageswerte"; const sk=c.querySelector('[data-act="bwSkip"]'); if(sk) sk.remove(); } }
     },700);
   }
   else if(f==="tplname"){ if(S.tplForm) S.tplForm.name=el.value; }
@@ -1963,8 +1971,11 @@ function dailyCard(date){
   const delta=d.bw&&prev?d.bw-prev.w:null;
   const motion=typeof DeviceMotionEvent!=="undefined";
   const live=Steps.active()&&Steps.date()===date;
-  return `<div class="card daily${ask?" ask":""}">
-    <div class="daily-top"><b>${ask?"Wie viel wiegst du heute?":"Tageswerte"}</b>${ask?`<button class="btn ghost" data-act="bwSkip" style="min-height:32px;padding:0 6px">Nicht heute</button>`:""}</div>
+  const open=cfg().dailyOpen===true;
+  return `<details class="card daily${ask?" ask":""}" id="daily-${date}"${open?" open":""}>
+    <summary class="daily-top" data-act="dailyToggle"><span class="daily-head"><b>${ask?"Wie viel wiegst du heute?":"Tageswerte"}</b><span class="daily-sum num" id="dailySum-${date}">${dailySummary(date)}</span></span><i class="chev" aria-hidden="true">›</i></summary>
+    <div class="daily-body">
+    ${ask?`<button class="btn ghost" data-act="bwSkip" style="align-self:flex-end;min-height:32px;padding:0 6px;margin-top:-6px">Heute nicht wiegen</button>`:""}
     <div class="daily-row">
       <label class="dv"><span>Körpergewicht</span><span class="in"><input id="bw-${date}" data-field="bw" data-date="${date}" inputmode="decimal" placeholder="${prev?esc(inputVal(prev.w)):"–"}" value="${d.bw?esc(inputVal(d.bw)):""}" aria-label="Körpergewicht in kg">kg</span></label>
       <label class="dv"><span>Schritte</span><span class="in"><input id="st-${date}" data-field="steps" data-date="${date}" inputmode="numeric" placeholder="0" value="${d.steps?d.steps:""}" aria-label="Schritte an diesem Tag"></span></label>
@@ -1973,8 +1984,18 @@ function dailyCard(date){
     ${kcalBlock(date)}
     ${foodBlock(date)}
     ${date===todayStr()&&motion?(live?`<div class="steps-live"><span class="dot"></span><b class="num" id="stLive">${fmtNum(Steps.count())}</b> Schritte gezählt <button class="btn" data-act="stepsStop">Stopp</button></div>`:`<button class="btn ghost" data-act="stepsStart" style="align-self:flex-start;min-height:34px;padding:0 4px">Schritte jetzt live zählen</button>`):""}
-  </div>`;
+  </div></details>`;
 }
+// Kurzfassung für die eingeklappte Ansicht: Gewicht · Schritte · verbrannt · gegessen
+function dailySummary(date){
+  const d=dayDoc(date)||{}, E=dayEnergy(date), F=foodOf(date), eat=F.kcal||macroKcal(F), out=[];
+  if(d.bw) out.push(`${fmtNum(d.bw)} kg`);
+  if(d.steps) out.push(`${fmtNum(d.steps)} Schritte`);
+  if(E) out.push(`${fmtNum(Math.round(E.isToday?E.now:E.day))} kcal verbrannt`);
+  if(eat) out.push(`${fmtNum(Math.round(eat))} kcal gegessen`);
+  return out.length?esc(out.join(" · ")):"Gewicht, Schritte, Kalorien & Ernährung";
+}
+function refreshDailySum(date){ const el=document.getElementById("dailySum-"+date); if(el) el.innerHTML=dailySummary(date); }
 /* ---------- Aktivitäten außerhalb vom Gym ---------- */
 // MET-Werte aus dem 2024 Adult Compendium of Physical Activities (Herrmann et al., 2024).
 // v: Varianten [Bezeichnung, MET], sp: Tempo-Tabelle (km/h), spm: Schritte pro Minute, wenn das Handy dabei ist
@@ -2175,7 +2196,7 @@ function foodBlock(date){
     <label class="dv kcal-in"><span>Kalorien</span><span class="in"><input id="fkcal-${date}" data-field="food" data-k="kcal" data-date="${date}" inputmode="numeric" placeholder="${mk?"≈ "+fmtNum(mk)+" aus Makros":"0"}" value="${F.kcal?esc(String(F.kcal)):""}" aria-label="Gegessene Kalorien">kcal</span></label>
     <div id="foodRes-${date}">${foodResult(date)}</div></div>`;
 }
-function refreshFood(date){ const el=document.getElementById("foodRes-"+date); if(el) el.innerHTML=foodResult(date); }
+function refreshFood(date){ const el=document.getElementById("foodRes-"+date); if(el) el.innerHTML=foodResult(date); refreshDailySum(date); }
 // Wochenbilanz und Verbrauch laut Waage (Energiebilanz: Aufnahme − Gewichtsänderung × 7.700 kcal)
 function weekBalance(){
   const t=todayStr(), days=[...Array(7)].map((_,i)=>addDays(t,i-7));
