@@ -306,6 +306,22 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .act-dot.inline{position:static;display:inline-block;margin-right:6px;box-shadow:none}
 .legend i.act-dot.inline{width:9px;height:9px;border-radius:50%;background:var(--ok);border:0}
 .chip:disabled{opacity:.45;cursor:default}
+.food-day{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.bal{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.bal.good{border-left-color:var(--ok)} .bal.warn{border-left-color:var(--pr);background:var(--pr-soft)}
+.bal-top{display:flex;flex-direction:column;gap:1px}
+.bal-top>span,.bal-top small{font-size:.8rem;color:var(--muted)}
+.bal-top b{font-size:1.35rem}
+.bal.good .bal-top b{color:var(--ok)} .bal.warn .bal-top b{color:var(--pr)}
+.bal ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.bal li{display:flex;gap:8px;align-items:flex-start}
+.bal li p{margin:0;font-size:.86rem;line-height:1.4}
+.bal li>span{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:.7rem;font-weight:800;background:var(--sunk);color:var(--muted);margin-top:1px}
+.bal li.good>span{background:var(--ok);color:#fff} .bal li.warn>span{background:var(--pr);color:#fff}
+.bal li.tip>span{background:none;font-size:1rem}
+.bal-bars .pair{display:flex;align-items:flex-end;gap:2px;height:72px}
+.bars.bal-bars .pair i{width:9px;max-width:9px;border-radius:3px 3px 0 0;display:block}
+.bars.bal-bars .pair i.in{background:var(--accent)} .bars.bal-bars .pair i.out{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
 .kcal-day{border-top:1px solid var(--line);padding-top:8px}
 .kcal-day>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer}
 .kcal-day>summary::-webkit-details-marker{display:none}
@@ -509,6 +525,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 <input type="file" id="inbodyFile" accept=".csv,text/csv,.txt,text/plain" hidden>
+<input type="file" id="foodFile" accept=".csv,text/csv,.txt,text/plain" hidden>
 
 <script src="report.js"></script>
 <script src="anatomy.js"></script>
@@ -525,7 +542,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.0";
+const APP_VERSION = "3.1";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1123,8 +1140,8 @@ function saveDay(date,patch){
   else next.types=dayTypeKeys(next);
   delete next.type;
   if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order; if(!next.done) delete next.done; if(!next.dur) delete next.dur; if(!next.wx) delete next.wx; if(!(next.bw>0)) delete next.bw; if(!(next.steps>0)) delete next.steps;
-  if(!next.acts||!next.acts.length) delete next.acts;
-  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx||next.bw||next.steps||next.acts)?next:null);
+  if(!next.acts||!next.acts.length) delete next.acts; if(!next.food||!Object.keys(next.food).length) delete next.food;
+  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx||next.bw||next.steps||next.acts||next.food)?next:null);
 }
 function sortDayLogs(date,ls){
   const d=dayDoc(date), ord=d&&d.order||[], plan=planIds(date);
@@ -1379,16 +1396,17 @@ function viewMore(){
     ${S.csvPending?`<div class="card type-form"><b>${S.csvPending.length} ${S.csvPending.length===1?"Messung":"Messungen"} erkannt. Von welchem Gerät?</b><div class="btn-row"><button class="btn primary" data-act="csvSrc" data-v="ib">InBody</button><button class="btn primary" data-act="csvSrc" data-v="fh">Fitnesshub</button><button class="btn" data-act="csvCancel">Abbrechen</button></div></div>`:""}
     <div class="btn-row">${F2?"":`<button class="btn" data-act="ibNew" data-src="ib">${ICON.plus}InBody</button><button class="btn" data-act="ibNew" data-src="fh">${ICON.plus}Fitnesshub</button>`}<button class="btn" data-act="ibImport">CSV importieren</button></div>
     <p class="hint">CSV-Export, zum Beispiel aus der InBody- bzw. LookinBody-App: Die App erkennt Spalten wie Datum, Gewicht, Muskelmasse, Körperfett, Viszeralfett und Grundumsatz (deutsch oder englisch). Ein PDF-Ergebnisblatt kann sie nicht auslesen, die Werte kannst du aber oben eintragen.</p></div>`;
-  const G0=goal(), GD=goalDef(G0), GT=GD&&GD.t?GOAL_TARGET[GD.t]:null;
-  const goalCard=`<div class="card panel"><h3>Mein Ziel</h3><p class="muted">Woran arbeitest du gerade? Die App bewertet danach deine Messungen und dein Gewicht.</p>
-    <div class="chips goal-chips">${GOALS.map(x=>`<button class="chip" data-act="goalPick" data-v="${x.k}" aria-pressed="${!!(GD&&GD.k===x.k)}">${esc(x.n)}</button>`).join("")}</div>
-    ${GD?`<p class="hint" style="margin:0">${esc(GD.d)}</p>
-    <div class="form-grid">${GT?`<label class="field"><span>${GT[0]} (${GT[1]}) · optional</span><input class="input" id="goal-target" data-field="goal" data-k="target" inputmode="decimal" placeholder="${GT[2]}" value="${esc(G0.target||"")}" autocomplete="off"></label>`:""}<label class="field"><span>Zieldatum · optional</span><input class="input" type="date" id="goal-date" data-field="goal" data-k="date" min="${todayStr()}" value="${esc(G0.date||"")}"></label></div>
+  const G0=goal(), TK=goalTargetKeys(G0);
+  const foodCard=viewFoodCard();
+  const goalCard=`<div class="card panel"><h3>Mein Ziel</h3><p class="muted">Woran arbeitest du gerade? Du kannst mehrere Ziele kombinieren, zum Beispiel Fettabbau und Muskelaufbau. Die App bewertet danach deine Messungen, dein Gewicht und deine Kalorienbilanz.</p>
+    <div class="chips goal-chips">${GOALS.map(x=>`<button class="chip" data-act="goalPick" data-v="${x.k}" aria-pressed="${goalHas(G0,x.k)}">${esc(x.n)}</button>`).join("")}</div>
+    ${G0?`<p class="hint" style="margin:0">${goalHas(G0,"fat")&&goalHas(G0,"muscle")?"Fettabbau und Muskelaufbau gleichzeitig nennt man Body Recomposition. Das klappt am besten mit einem leichten Defizit, viel Eiweiß und schwerem Krafttraining, vor allem bei Einsteigern und nach einer Pause.":esc(G0.types.map(k=>GOAL_BY[k].d).join(" "))}</p>
+    <div class="form-grid">${TK.map(k=>`<label class="field"><span>${GOAL_TARGET[k][0]} (${GOAL_TARGET[k][1]}) · optional</span><input class="input" id="goal-${k}" data-field="goal" data-k="${k}" inputmode="decimal" placeholder="${GOAL_TARGET[k][2]}" value="${esc(G0.targets[k]||"")}" autocomplete="off"></label>`).join("")}<label class="field"><span>Zieldatum · optional</span><input class="input" type="date" id="goal-date" data-field="goal" data-k="date" min="${todayStr()}" value="${esc(G0.date||"")}"></label></div>
     <div id="goalBox">${goalBox()}</div>`:""}</div>`;
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${goalCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1467,6 +1485,7 @@ document.addEventListener("click",ev=>{
       saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast(`${actName(a)} gespeichert`); break;
     }
     case "actDel": { const t=top(); if(!S.armedAct){ S.armedAct=true; render(); return; } S.armedAct=false; const L=dayActs(t.date).filter((_,i)=>i!==t.i); saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast("Aktivität gelöscht"); break; }
+    case "foodImport": $("#foodFile").click(); break;
     case "kcalToggle": { const dEl=b.closest("details"); S.kcalOpen=dEl?!dEl.open:false; break; }
     case "bwSkip": saveCfg({bwSkip:todayStr()}); render(); break;
     case "stepsStart": Steps.start().then(ok=>{ if(ok){ toast("Schritte werden gezählt, solange die App offen ist"); render(); } }); break;
@@ -1508,7 +1527,10 @@ document.addEventListener("click",ev=>{
     case "ibNew": S.ibForm={src:b.dataset.src==="fh"?"fh":"ib",date:todayStr(),weight:"",smm:"",fatMass:"",pbf:"",bmr:"",ffm:"",visc:""}; render(); break;
     case "evalOpen": openEvalSheet(b.dataset.id); break;
     case "evalClose": closeEvalSheet(); break;
-    case "goalPick": { const v=b.dataset.v, g=goal(); if(g&&g.type===v) saveCfg({goal:null}); else saveCfg({goal:{type:v,date:g&&g.date||"",target:g&&goalDef(g).t===GOALS.find(x=>x.k===v).t?g.target||"":"",set:todayStr()}}); render(); break; }
+    case "goalPick": { const v=b.dataset.v, g=goal(), T=g?[...g.types]:[];
+      if(T.includes(v)){ const L=T.filter(x=>x!==v); if(L.length) saveGoal({types:L}); else saveCfg({goal:null}); render(); break; }
+      const off=T.filter(x=>(GOAL_CONFLICT[v]||[]).includes(x)); const L=[...T.filter(x=>!off.includes(x)),v];
+      saveGoal({types:L,date:g?g.date:"",targets:g?g.targets:{}}); render(); if(off.length) toast(off.length===1&&["muscle","hold"].includes(v)&&["muscle","hold"].includes(off[0])?(v==="muscle"?"Muskelaufbau schließt den Muskelerhalt schon mit ein":"Statt Muskelaufbau jetzt: Muskeln erhalten"):`${GOAL_BY[v].n} passt nicht zu ${off.map(x=>GOAL_BY[x].n).join(" und ")}, das habe ich abgewählt`); break; }
     case "csvCancel": S.csvPending=null; render(); break;
     case "csvSrc": { const src=b.dataset.v, rows=S.csvPending||[]; S.csvPending=null; let last=null;
       for(const m of rows){ const id=(src==="fh"?"fh_":"ib_")+m.date, cur=S.docs.get(id); put(id,{...(cur||{}),...m,src,kind:"inbody",updatedAt:Date.now()}); if(!last||m.date>last.date) last={id,date:m.date}; }
@@ -1668,9 +1690,11 @@ document.addEventListener("input",ev=>{
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
   else if(f==="ib"){ if(S.ibForm) S.ibForm[el.dataset.k]=el.value; }
+  else if(f==="food"){ const k=el.dataset.k, dt=el.dataset.date; S.foodT=S.foodT||{}; clearTimeout(S.foodT[k+dt]);
+    S.foodT[k+dt]=setTimeout(()=>{ let v=parseNum(el.value); v=v!=null&&v>0?Math.round(v):null; const F={...foodOf(dt)}; if(v==null) delete F[k]; else F[k]=v; saveDay(dt,{food:Object.keys(F).length?F:null}); refreshFood(dt); },700); }
   else if(f==="act"){ if(S.actDraft){ S.actDraft[el.dataset.k]=el.value; const t=top(), pv=$("#actPreview"); if(pv&&t) pv.innerHTML=actPreview(t.date);
       if(el.dataset.k==="km"||el.dataset.k==="min"){ const A=ACT_BY[S.actDraft.k], on=A&&A.sp&&parseNum(S.actDraft.km)>0&&parseNum(S.actDraft.min)>0; document.querySelectorAll('[data-act="actVar"]').forEach(c=>{ c.disabled=!!on; c.setAttribute("aria-pressed",String(!on&&+c.dataset.v===(S.actDraft.v|0))); }); } } }
-  else if(f==="goal"){ const k=el.dataset.k; S.goalT=S.goalT||{}; clearTimeout(S.goalT[k]); S.goalT[k]=setTimeout(()=>{ saveGoal({[k]:el.value.trim()}); const gb=$("#goalBox"); if(gb) gb.innerHTML=goalBox(); },450); }
+  else if(f==="goal"){ const k=el.dataset.k; S.goalT=S.goalT||{}; clearTimeout(S.goalT[k]); S.goalT[k]=setTimeout(()=>{ const g=goal(); if(!g) return; if(k==="date") saveGoal({date:el.value.trim()}); else saveGoal({targets:{...g.targets,[k]:el.value.trim()}}); const gb=$("#goalBox"); if(gb) gb.innerHTML=goalBox(); },450); }
   else if(f==="dur"){ const v=parseNum(el.value); clearTimeout(S.durT); S.durT=setTimeout(()=>{ saveDay(el.dataset.date,{dur:v&&v>0?Math.round(v):null}); render(); const i=$("#durEdit"); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },900); }
   else if(f==="bw"||f==="steps"){
     const k=f, dt=el.dataset.date; S.dvT=S.dvT||{}; clearTimeout(S.dvT[k+dt]);
@@ -1811,6 +1835,7 @@ function dailyCard(date){
     </div>
     <div class="meta num" id="bwDelta">${delta!=null?`${delta>0?"+":delta<0?"−":"±"}${fmtNum(Math.abs(Math.round(delta*10)/10))} kg seit ${esc(relDay(prev.date))}`:prev&&!d.bw?`Zuletzt ${fmtNum(prev.w)} kg (${esc(relDay(prev.date))})`:""}</div>
     ${kcalBlock(date)}
+    ${foodBlock(date)}
     ${date===todayStr()&&motion?(live?`<div class="steps-live"><span class="dot"></span><b class="num" id="stLive">${fmtNum(Steps.count())}</b> Schritte gezählt <button class="btn" data-act="stepsStop">Stopp</button></div>`:`<button class="btn ghost" data-act="stepsStart" style="align-self:flex-start;min-height:34px;padding:0 4px">Schritte jetzt live zählen</button>`):""}
   </div>`;
 }
@@ -1932,6 +1957,111 @@ function viewAct(date){
     <div class="btn-row"><button class="btn primary" data-act="actSave">Speichern</button>${edit?`<button class="btn danger${S.armedAct?" armed":""}" data-act="actDel">${S.armedAct?"Wirklich löschen?":"Löschen"}</button>`:""}<button class="btn" data-act="back">Abbrechen</button></div>`;
 }
 
+/* ---------- Ernährung & Kalorienbilanz ---------- */
+// Zielbereiche: Abnehmen/Fettabbau 0,5–1 % Körpergewicht pro Woche (mit Muskelerhalt/-aufbau 0,25–0,5 %),
+// Aufbau 0,25–0,5 % pro Woche, sonst ausgeglichen ±200 kcal. 1 kg Körpergewicht ≈ 7.700 kcal (Näherung).
+function r50(v){ return Math.round(v/50)*50; }
+function balanceTarget(date){
+  const g=goal(), has=k=>goalHas(g,k), bw=bodyState(date).weight||75, k=7700/7;
+  if(has("fat")||has("lose")){
+    if(has("muscle")||has("hold")) return {lo:-r50(bw*0.005*k),hi:-r50(bw*0.0025*k),dir:-1,name:"leichtes Defizit",why:"Für Fettabbau bei gleichzeitigem Muskelerhalt oder -aufbau empfiehlt sich ein kleines Defizit (etwa 0,25–0,5 % Körpergewicht pro Woche)."};
+    return {lo:-r50(bw*0.01*k),hi:-r50(bw*0.005*k),dir:-1,name:"moderates Defizit",why:"Für Fettabbau gelten etwa 0,5–1 % Körpergewicht pro Woche als sinnvoll. Schneller kostet eher Muskeln und Leistung."};
+  }
+  if(has("gain")||has("muscle")) return {lo:r50(bw*0.0025*k),hi:r50(bw*0.005*k),dir:1,name:"leichter Überschuss",why:"Für Muskelaufbau reicht ein kleiner Überschuss (etwa 0,25–0,5 % Körpergewicht pro Woche). Mehr landet vor allem als Fett."};
+  return {lo:-200,hi:200,dir:0,name:"ausgeglichen",why:g?"Für dein Ziel passt eine etwa ausgeglichene Bilanz (±200 kcal).":"Ohne Ziel zeigt die App die Bilanz neutral an. Unter „Mehr“ → „Mein Ziel“ kannst du eins festlegen."};
+}
+function rangeTxt(T){ return T.dir<0?`Defizit von ${fmtNum(-T.hi)}–${fmtNum(-T.lo)} kcal`:T.dir>0?`Überschuss von ${fmtNum(T.lo)}–${fmtNum(T.hi)} kcal`:"ausgeglichen (±200 kcal)"; }
+function foodOf(date){ const d=dayDoc(date); return d&&d.food?d.food:{}; }
+function balanceInfo(date){
+  const F=foodOf(date), kcal=parseNum(F.kcal), E=dayEnergy(date); if(!(kcal>0)||!E) return null;
+  const T=balanceTarget(date), diff=kcal-E.day, isToday=date===todayStr(), evening=!isToday||new Date().getHours()>=20;
+  const bw=bodyState(date).weight, p=parseNum(F.p), pLo=bw?Math.round(bw*1.6):null, pHi=bw?Math.round(bw*2.2):null;
+  const items=[], add=(s,t)=>items.push({s,t}), fk=v=>fmtNum(Math.abs(Math.round(v)));
+  const roomLo=Math.round(E.day+T.lo-kcal), roomHi=Math.round(E.day+T.hi-kcal);
+  const g=goal(), goalTxt=g?goalNames(g):"";
+  const stepK=bw?Math.round(3000*stepLength(profile())/1000*0.5*bw):null;
+  const lessTips=["Eiweiß zu jeder Mahlzeit (Skyr, Quark, Eier, Fisch, Hähnchen, Hülsenfrüchte): Es sättigt am stärksten und schützt deine Muskeln.","Mehr Volumen mit wenig Kalorien: Gemüse, Salat, Obst und Kartoffeln statt Snacks.","Flüssige Kalorien wie Saft, Limo, Alkohol oder süße Kaffeegetränke zählen voll mit, machen aber kaum satt."].concat(stepK?[`Ein Spaziergang mit etwa 3.000 Schritten bringt dir rund ${fmtNum(stepK)} kcal zusätzlich.`]:[]);
+  const moreTips=["Kaloriendichte erhöhen: Nüsse, Haferflocken, Öl, Käse oder Trockenfrüchte.","Eine Zwischenmahlzeit oder ein Shake (Milch, Haferflocken, Banane, Erdnussbutter) hilft, wenn der Hunger fehlt."];
+  let state="good";
+  if(T.dir<0){
+    if(diff>T.hi){ if(!evening&&roomHi>0) { state="info"; add("info",`Du hast noch Spielraum: etwa ${fmtNum(Math.max(0,roomLo))}–${fmtNum(roomHi)} kcal bis zu deinem Ziel-Defizit.`); }
+      else { state="warn"; add("warn",diff>0?`Du liegst ${isToday?"heute":"an diesem Tag"} etwa ${fk(diff)} kcal über deinem Verbrauch, also im Überschuss. Damit wird dein Ziel ${goalTxt} schwierig.`:`Dein Defizit ist mit ${fk(diff)} kcal kleiner als die empfohlenen ${fk(T.hi)}–${fk(T.lo)} kcal. Fett baust du so nur langsam ab.`); lessTips.slice(0,3+(stepK?1:0)).forEach(t=>add("tip",t)); } }
+    else if(diff<T.lo){ const huge=diff<-Math.max(1000,E.day*0.3);
+      if(!evening) { state="info"; add("info",`Bisher ${fmtNum(kcal)} kcal gegessen. Für dein Ziel-Defizit kannst du heute noch etwa ${fmtNum(Math.max(0,roomLo))}–${fmtNum(roomHi)} kcal essen.`); }
+      else if(huge){ state="warn"; add("warn",`Dein Defizit ist mit ${fk(diff)} kcal sehr groß. Das kostet eher Muskeln, Leistung im Training und Erholung, und der Hunger rächt sich oft später. Iss lieber etwas mehr, vor allem Eiweiß.`); }
+      else { state="info"; add("info",`Defizit ${fk(diff)} kcal, etwas mehr als nötig (empfohlen ${fk(T.hi)}–${fk(T.lo)} kcal). Für einen Tag kein Problem, dauerhaft lieber etwas mehr essen.`); } }
+    else { add("good",`Defizit ${fk(diff)} kcal, genau im Zielbereich (${fk(T.hi)}–${fk(T.lo)} kcal). Sehr gut!`); if(!evening&&roomHi>0) add("info",`Du kannst heute noch bis zu etwa ${fmtNum(roomHi)} kcal essen und bleibst im Ziel.`); }
+  } else if(T.dir>0){
+    if(diff<T.lo){ if(!evening){ state="info"; add("info",`Für deinen Ziel-Überschuss fehlen heute noch etwa ${fmtNum(Math.max(0,roomLo))}–${fmtNum(roomHi)} kcal.`); }
+      else { state="warn"; add("warn",diff<0?`Du liegst ${isToday?"heute":"an diesem Tag"} ${fk(diff)} kcal unter deinem Verbrauch. Für ${goalTxt} braucht dein Körper einen leichten Überschuss.`:`Überschuss ${fk(diff)} kcal, etwas weniger als die empfohlenen ${fk(T.lo)}–${fk(T.hi)} kcal.`); moreTips.forEach(t=>add("tip",t)); } }
+    else if(diff>T.hi+250){ state="warn"; add("warn",`Überschuss ${fk(diff)} kcal. Das ist mehr als nötig (empfohlen ${fk(T.lo)}–${fk(T.hi)} kcal), der Rest landet eher als Fett.`); }
+    else add("good",`Überschuss ${fk(diff)} kcal, im Zielbereich (${fk(T.lo)}–${fk(T.hi)} kcal).`);
+  } else {
+    if(Math.abs(diff)<=200) add("good",`Bilanz ${diff>=0?"+":"−"}${fk(diff)} kcal, etwa ausgeglichen.`);
+    else if(!evening&&diff<0){ state="info"; add("info",`Bisher ${fmtNum(kcal)} kcal gegessen. Für eine ausgeglichene Bilanz bleiben dir heute etwa ${fmtNum(Math.max(0,roomLo))}–${fmtNum(roomHi)} kcal.`); }
+    else { state=g?"warn":"info"; add(g?"warn":"info",`${diff>0?"Überschuss":"Defizit"} ${fk(diff)} kcal.${g?" Für dein Ziel passt eher eine ausgeglichene Bilanz.":""}`); }
+  }
+  if(p!=null&&pLo){
+    const perKg=Math.round(p/bw*10)/10;
+    if(p<pLo){ if(!evening) add("info",`Eiweiß: ${fmtNum(p)} g bisher. Bis 1,6 g pro kg fehlen noch etwa ${fmtNum(pLo-p)} g.`); else { add("warn",`Eiweiß: ${fmtNum(p)} g (${fmtNum(perKg)} g pro kg). Für Muskelaufbau und -erhalt sind etwa ${fmtNum(pLo)}–${fmtNum(pHi)} g (1,6–2,2 g pro kg) sinnvoll.`); if(state==="good") state="info"; } }
+    else add("good",`Eiweiß: ${fmtNum(p)} g (${fmtNum(perKg)} g pro kg), gut versorgt.`);
+  }
+  return {kcal,E,diff,T,items,state,isToday,evening};
+}
+function foodResult(date){
+  const B=balanceInfo(date), F=foodOf(date);
+  if(!parseNum(F.kcal)) return `<p class="meta" style="margin:0">Trag ein, was du laut FDDB gegessen hast. Dann siehst du dein Defizit oder deinen Überschuss.</p>`;
+  if(!B) return `<p class="meta" style="margin:0">Für die Bilanz fehlen Angaben zu deinem Körper unter „Mehr“ → „Über mich“.</p>`;
+  const ic={good:"↗",warn:"!",info:"i",tip:"•"}, sign=B.diff>=0?"+":"−";
+  return `<div class="bal ${B.state}"><div class="bal-top"><span>${fmtNum(B.kcal)} gegessen − ${fmtNum(B.E.day)} ${B.isToday?"Verbrauch (Tag hochgerechnet)":"verbraucht"}</span><b class="num">${sign}${fmtNum(Math.abs(Math.round(B.diff)))} kcal</b><small>${B.diff>=0?"Überschuss":"Defizit"} · Ziel: ${esc(goal()?rangeTxt(B.T):"keins festgelegt")}</small></div>
+    <ul>${B.items.map(x=>`<li class="${x.s}"><span aria-hidden="true">${ic[x.s]}</span><p>${esc(x.t)}</p></li>`).join("")}</ul></div>`;
+}
+function foodBlock(date){
+  const F=foodOf(date);
+  return `<div class="food-day"><div class="daily-row">
+      <label class="dv"><span>Gegessen (FDDB)</span><span class="in"><input id="fk-${date}" data-field="food" data-k="kcal" data-date="${date}" inputmode="numeric" placeholder="0" value="${F.kcal?esc(String(F.kcal)):""}" aria-label="Gegessene Kalorien">kcal</span></label>
+      <label class="dv"><span>Eiweiß · optional</span><span class="in"><input id="fp-${date}" data-field="food" data-k="p" data-date="${date}" inputmode="numeric" placeholder="0" value="${F.p?esc(String(F.p)):""}" aria-label="Eiweiß in Gramm">g</span></label>
+    </div><div id="foodRes-${date}">${foodResult(date)}</div></div>`;
+}
+function refreshFood(date){ const el=document.getElementById("foodRes-"+date); if(el) el.innerHTML=foodResult(date); }
+// Wochenbilanz und Verbrauch laut Waage (Energiebilanz: Aufnahme − Gewichtsänderung × 7.700 kcal)
+function weekBalance(){
+  const t=todayStr(), days=[...Array(7)].map((_,i)=>addDays(t,i-7));
+  const rows=days.map(d=>{ const k=parseNum(foodOf(d).kcal), E=dayEnergy(d); return {d,k:k>0?k:null,E:E?E.day:null}; });
+  const withK=rows.filter(r=>r.k&&r.E);
+  const avgK=withK.length?withK.reduce((a,r)=>a+r.k,0)/withK.length:null, avgE=withK.length?withK.reduce((a,r)=>a+r.E,0)/withK.length:null;
+  // 28 Tage für den Abgleich mit der Waage
+  const L=[...Array(28)].map((_,i)=>addDays(t,i-28)).map(d=>parseNum(foodOf(d).kcal)).filter(v=>v>0);
+  const WT=weightTrend(); let real=null;
+  if(L.length>=14&&WT&&WT.days>=14){ const avg=L.reduce((a,b)=>a+b,0)/L.length; real={tdee:Math.round(avg-WT.perWeek*7700/7),avg:Math.round(avg),n:L.length,trend:WT.perWeek}; }
+  return {rows,n:withK.length,avgK,avgE,avgDiff:avgK!=null?avgK-avgE:null,real};
+}
+function viewFoodCard(){
+  const W=weekBalance(), max=Math.max(1,...W.rows.map(r=>Math.max(r.k||0,r.E||0)));
+  const wd=d=>new Intl.DateTimeFormat("de-DE",{weekday:"short"}).format(toDate(d));
+  const T=balanceTarget(todayStr());
+  return `<div class="card panel"><h3>Ernährung & Bilanz</h3>
+    <p class="muted">FDDB bietet keine Schnittstelle, über die eine andere App deine Einträge lesen darf. Trag deshalb im Reiter „Training“ einfach die Tagessumme aus FDDB ein (Kalorien, gern auch Eiweiß). Das dauert ein paar Sekunden. Die App vergleicht sie mit deinem Verbrauch und deinem Ziel.</p>
+    ${W.n?`<div class="field"><span>Letzte 7 Tage: gegessen (dunkel) und verbraucht (hell)</span><div class="bars bal-bars">${W.rows.map(r=>`<div class="b"><em>${r.k&&r.E?(r.k-r.E>=0?"+":"−")+fmtNum(Math.abs(Math.round((r.k-r.E)/10)*10)):""}</em><span class="pair"><i class="in" style="height:${Math.round((r.k||0)/max*70)}px"></i><i class="out" style="height:${Math.round((r.E||0)/max*70)}px"></i></span><small>${esc(wd(r.d))}</small></div>`).join("")}</div></div>
+    <p class="meta num" style="margin:0">Schnitt an ${W.n} ${W.n===1?"Tag":"Tagen"}: ${fmtNum(Math.round(W.avgK))} gegessen, ${fmtNum(Math.round(W.avgE))} verbraucht, also ${W.avgDiff>=0?"+":"−"}${fmtNum(Math.abs(Math.round(W.avgDiff)))} kcal pro Tag. Das entspräche etwa ${signed(W.avgDiff*7/7700,"kg",2)} pro Woche. Dein Zielbereich: ${esc(rangeTxt(T))} pro Tag.</p>`:`<p class="hint">Sobald du an ein paar Tagen eingetragen hast, was du gegessen hast, siehst du hier deine Wochenbilanz.</p>`}
+    ${W.real?`<div class="goal-box info"><b class="goal-head">Dein Verbrauch laut Waage</b><ul><li class="info"><span aria-hidden="true">i</span><p>${esc(`In den letzten 4 Wochen hast du im Schnitt ${fmtNum(W.real.avg)} kcal gegessen (${W.real.n} Tage eingetragen), dein Gewicht hat sich um ${signed(W.real.trend,"kg",2)} pro Woche verändert. Daraus ergibt sich ein tatsächlicher Verbrauch von etwa ${fmtNum(W.real.tdee)} kcal pro Tag.${W.avgE?` Die App schätzt ${fmtNum(Math.round(W.avgE))} kcal. ${Math.abs(W.real.tdee-W.avgE)>W.avgE*0.1?"Der Unterschied kommt meist von Bewegung, die nicht erfasst ist, oder von Essen, das in FDDB fehlt oder zu knapp geschätzt ist.":"Das passt gut zusammen."}`:""}`)}</p></li></ul></div>`:`<p class="hint" style="margin:0">Nach etwa 2 Wochen mit Essen und Gewicht berechnet die App außerdem deinen tatsächlichen Verbrauch aus der Waage. Das ist die zuverlässigste Kontrolle aller Schätzungen.</p>`}
+    <div class="btn-row"><button class="btn" data-act="foodImport">CSV importieren</button></div>
+    <p class="hint" style="margin:0">Falls du eine Tabelle mit Datum und Kalorien hast (aus FDDB oder einer anderen App), kann die App sie einlesen. Erkannt werden Spalten wie Datum, kcal/Energie und Eiweiß/Protein. Mehrere Zeilen pro Tag werden addiert.</p></div>`;
+}
+function parseFoodCsv(text){
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()); if(lines.length<2) return [];
+  const sep=[";","\t",","].map(c=>[c,lines[0].split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const split=l=>{ const out=[]; let cur="",q=false; for(const ch of l){ if(ch==='"') q=!q; else if(ch===sep&&!q){ out.push(cur); cur=""; } else cur+=ch; } out.push(cur); return out.map(x=>x.trim()); };
+  const head=split(lines[0]); let di=-1, ki=-1, pi=-1;
+  head.forEach((h,i)=>{ if(di<0&&/datum|date|tag/i.test(h)) di=i; else if(ki<0&&/kcal|kalorien|energie|calories|brennwert/i.test(h)&&!/kj/i.test(h)) ki=i; else if(pi<0&&/protein|eiwei/i.test(h)) pi=i; });
+  if(di<0||ki<0) return [];
+  const num=v=>{ const t=String(v||"").replace(/[^0-9,.-]/g,""); return t?parseNum(t.includes(",")&&t.includes(".")?t.replace(/\./g,""):t):null; };
+  const by=new Map();
+  for(const l of lines.slice(1)){ const c=split(l), d=parseDateAny(c[di]); if(!d) continue; const k=num(c[ki]), p=pi>=0?num(c[pi]):null; if(!(k>0)) continue;
+    const cur=by.get(d)||{kcal:0,p:0,hasP:false}; cur.kcal+=k; if(p>0){ cur.p+=p; cur.hasP=true; } by.set(d,cur); }
+  return [...by.entries()].map(([date,v])=>({date,kcal:Math.round(v.kcal),p:v.hasP?Math.round(v.p):null}));
+}
+
 /* ---------- Tagesverbrauch: Grundumsatz + Training + Schritte + Verdauung ---------- */
 // Schrittlänge nach Körpergröße (ca. 41,5 % bei Männern, 41,3 % bei Frauen), Netto-Kosten des Gehens etwa 0,5 kcal pro kg und km.
 function stepLength(p){ const h=parseNum(p.height); if(h>100&&h<230) return h/100*(p.sex==="w"?0.413:0.415); return p.sex==="w"?0.67:0.74; }
@@ -1967,7 +2097,7 @@ function kcalBlock(date){
       <p class="hint" style="margin:0">Grundumsatz: ${esc(E.src)}. Training und Aktivitäten: nur der Verbrauch über dem Ruhewert (MET-Methode nach dem Compendium of Physical Activities 2024 oder, wenn eingetragen, aus dem Puls), damit nichts doppelt zählt. Schritte: Schrittlänge aus deiner Größe, rund 0,5 kcal pro kg Körpergewicht und Kilometer zusätzlich zur Ruhe. Alltagsbewegung ohne Schritte (Stehen, Hausarbeit) ist nicht enthalten, der echte Wert liegt also eher etwas höher. Alles ist eine Schätzung.</p>
     </div></details>`;
 }
-function refreshKcal(date){ const el=document.getElementById("kcal-"+date); if(el){ const w=document.createElement("div"); w.innerHTML=kcalBlock(date); el.replaceWith(w.firstElementChild); } }
+function refreshKcal(date){ refreshFood(date); const el=document.getElementById("kcal-"+date); if(el){ const w=document.createElement("div"); w.innerHTML=kcalBlock(date); el.replaceWith(w.firstElementChild); } }
 function bodyState(onDate){
   // aktuellste Körpermessung bis zu diesem Tag (höchstens 180 Tage alt), sonst Profilangaben
   const p=profile(), d=onDate||todayStr();
@@ -2029,18 +2159,29 @@ function parseInbodyCsv(text){
 /* ---------- Ziele & Auswertung der Körpermessungen ---------- */
 const GOALS=[
   {k:"muscle",n:"Muskelaufbau",d:"Mehr Muskelmasse aufbauen.",t:"smm"},
-  {k:"fat",n:"Fettabbau",d:"Körperfett verlieren und dabei die Muskeln halten.",t:"pbf"},
-  {k:"recomp",n:"Body Recomposition",d:"Fett ab- und Muskeln aufbauen, das Gewicht bleibt etwa gleich.",t:"pbf"},
+  {k:"hold",n:"Muskeln erhalten",d:"Die vorhandene Muskelmasse halten, zum Beispiel während einer Diät.",t:null},
+  {k:"fat",n:"Fettabbau",d:"Körperfett verlieren.",t:"pbf"},
   {k:"lose",n:"Abnehmen",d:"Körpergewicht reduzieren.",t:"weight"},
   {k:"keep",n:"Gewicht halten",d:"Das aktuelle Gewicht halten.",t:"weight"},
   {k:"gain",n:"Zunehmen",d:"Körpergewicht aufbauen, zum Beispiel wenn du eher schmal bist.",t:"weight"},
   {k:"strength",n:"Kraft steigern",d:"Schwerere Gewichte bewegen. Bewertet wird dein geschätztes Maximalgewicht (1RM) je Übung.",t:null},
   {k:"fit",n:"Fit & gesund bleiben",d:"Regelmäßig trainieren und in Bewegung bleiben.",t:null}
 ];
+// Ziele, die sich gegenseitig ausschließen
+const GOAL_CONFLICT={lose:["gain","keep"],gain:["lose","keep","fat"],keep:["lose","gain"],fat:["gain"],muscle:["hold"],hold:["muscle"]};
 const GOAL_TARGET={smm:["Ziel-Muskelmasse","kg","z. B. 38"],pbf:["Ziel-Körperfett","%","z. B. 15"],weight:["Zielgewicht","kg","z. B. 75"]};
-function goal(){ const g=cfg().goal; return g&&GOALS.some(x=>x.k===g.type)?g:null; }
-function goalDef(g){ return g?GOALS.find(x=>x.k===g.type):null; }
-function saveGoal(patch){ const g=goal()||{}; saveCfg({goal:{...g,...patch}}); }
+const GOAL_BY=Object.fromEntries(GOALS.map(x=>[x.k,x]));
+function goal(){
+  const g=cfg().goal; if(!g) return null;
+  let types=Array.isArray(g.types)?g.types:g.type==="recomp"?["fat","muscle"]:g.type?[g.type]:[];
+  types=types.filter(k=>GOAL_BY[k]); if(!types.length) return null;
+  let targets=g.targets||{}; if(!g.targets&&g.target){ const legacy=g.type==="recomp"?"pbf":(GOAL_BY[g.type]||{}).t; if(legacy) targets={[legacy]:g.target}; }
+  return {types,date:g.date||"",targets};
+}
+function goalHas(g,k){ return !!(g&&g.types.includes(k)); }
+function goalTargetKeys(g){ const out=[]; if(!g) return out; for(const k of g.types){ const t=GOAL_BY[k].t; if(t&&!out.includes(t)) out.push(t); } return out; }
+function goalNames(g){ if(!g) return ""; const n=g.types.map(k=>GOAL_BY[k].n); return goalHas(g,"fat")&&goalHas(g,"muscle")?n.join(" + ")+" (Body Recomposition)":n.join(" + "); }
+function saveGoal(patch){ const g=goal()||{types:[],date:"",targets:{}}; saveCfg({goal:{types:g.types,date:g.date,targets:g.targets,...patch}}); }
 function fatKg(m){ return m.fatMass!=null?m.fatMass:(m.pbf!=null&&m.weight?m.weight*m.pbf/100:null); }
 function pbfOf(m){ return m.pbf!=null?m.pbf:(m.fatMass!=null&&m.weight?m.fatMass/m.weight*100:null); }
 function sgn(v,th){ return v==null?null:v>th?1:v<-th?-1:0; }
@@ -2079,117 +2220,124 @@ function strengthTrend(){
 function sessionsPerWeek(){ const t=todayStr(); const actD=[...S.docs.values()].filter(d=>d&&d.kind==="day"&&d.acts&&d.acts.length).map(d=>d.date); const days=[...new Set([...logsByDate().keys(),...actD])].filter(d=>{ const a=dayDiffBetween(d,t); return a>=0&&a<28; }); return days.length/4; }
 
 function goalReport(mid){
-  const g=goal(), G=goalDef(g), C=measureCompare(mid), WT=weightTrend(), items=[];
-  const add=(s,t)=>items.push({s,t});
+  const g=goal(), C=measureCompare(mid), WT=weightTrend(), items=[];
+  const add=(s,t)=>items.push({s,t}), has=k=>goalHas(g,k);
+  if(!g) return {g,C,items,pace:[],state:"none"};
+  const recomp=has("fat")&&has("muscle"), bodyGoal=has("muscle")||has("fat")||has("hold");
   const since=C&&C.P?` seit ${fmtShortY.format(toDate(C.P.date))}`:"";
   const sSmm=C&&C.P?sgn(C.dSmm,0.3):null, sFat=C&&C.P?sgn(C.dFat,0.5):null, sW=C&&C.P?sgn(C.dW,0.5):null;
   const smmTxt=()=>`Muskelmasse ${signed(C.dSmm,"kg")}`, fatTxt=()=>`Körperfett ${signed(C.dFat,"kg")}${C.dPbf!=null?` (${signed(C.dPbf,"Prozentpunkte")})`:""}`, wTxt=()=>`Gewicht ${signed(C.dW,"kg")}`;
-  if(G&&C&&C.P){
-    const k=G.k;
-    if(k==="muscle"){
-      if(sSmm===1) add("good",`${smmTxt()}${since}. Du baust Muskeln auf, weiter so!`);
-      else if(sSmm===-1) add("warn",`${smmTxt()}${since}. Du entfernst dich gerade von deinem Ziel Muskelaufbau. Achte auf genug Eiweiß (etwa 1,6–2,2 g pro kg Körpergewicht), einen leichten Kalorienüberschuss und steigere nach und nach die Gewichte.`);
-      else if(sSmm===0) add("info",`${smmTxt()}${since}, also etwa gleich. Muskelaufbau braucht Zeit, ein Abstand von 4–8 Wochen zwischen den Messungen ist aussagekräftiger.`);
-      if(sFat===1&&C.dFat>1&&(C.dSmm==null||C.dFat>C.dSmm)) add("warn",`${fatTxt()}. Das Fett steigt stärker als die Muskeln, dein Kalorienüberschuss ist vermutlich etwas zu groß.`);
-      if(C.dSmm==null&&sW!=null) add("info",`${wTxt()}${since}. Für eine echte Auswertung fehlt die Muskelmasse in einer der Messungen.`);
-    } else if(k==="fat"){
-      if(sFat===-1) add("good",`${fatTxt()}${since}. Du baust Fett ab, genau in die richtige Richtung!`);
-      else if(sFat===1) add("warn",`${fatTxt()}${since}. Du entfernst dich gerade von deinem Ziel Fettabbau. Hilfreich sind ein moderates Kaloriendefizit, viel Eiweiß und mehr Bewegung im Alltag, zum Beispiel mehr Schritte.`);
-      else if(sFat===0) add("info",`${fatTxt()}${since}, also etwa gleich. Noch kein klarer Fortschritt, bleib dran.`);
-      if(sSmm===-1&&C.dSmm<-0.5) add("warn",`${smmTxt()}. Damit du Fett und nicht Muskeln verlierst: Krafttraining beibehalten, Eiweiß hoch halten und das Defizit nicht zu groß wählen.`);
-      else if(sSmm===1) add("good",`${smmTxt()}. Du hast dabei sogar Muskeln aufgebaut.`);
-      if(C.dFat==null) add("info","Für die Auswertung braucht die App in beiden Messungen das Körperfett (kg oder %).");
-    } else if(k==="recomp"){
-      if(sFat===-1) add("good",`${fatTxt()}${since}.`); else if(sFat===1) add("warn",`${fatTxt()}${since}. Beim Fett bewegst du dich in die falsche Richtung.`); else if(sFat===0) add("info",`${fatTxt()}${since}, etwa gleich.`);
-      if(sSmm===1) add("good",`${smmTxt()}.`); else if(sSmm===-1) add("warn",`${smmTxt()}. Bei den Muskeln geht es gerade in die falsche Richtung: mehr Eiweiß und progressive Belastung helfen.`); else if(sSmm===0) add("info",`${smmTxt()}, etwa gleich.`);
-      if(sW!=null&&Math.abs(C.dW)>2) add("info",`${wTxt()}. Bei einer Rekomposition bleibt das Gewicht normalerweise ungefähr gleich.`);
-    } else if(k==="lose"||k==="gain"||k==="keep"){
+  if(C&&C.P){
+    if(recomp){
+      if(sFat===-1) add("good",`${fatTxt()}${since}. Beim Fett geht es in die richtige Richtung.`); else if(sFat===1) add("warn",`${fatTxt()}${since}. Du entfernst dich gerade von deinem Ziel Fettabbau. Ein leichtes Kaloriendefizit, viel Eiweiß und mehr Alltagsbewegung helfen.`); else if(sFat===0) add("info",`${fatTxt()}${since}, etwa gleich.`);
+      if(sSmm===1) add("good",`${smmTxt()}. Du baust dabei Muskeln auf, stark!`); else if(sSmm===-1) add("warn",`${smmTxt()}. Bei den Muskeln geht es in die falsche Richtung: Eiweiß hoch halten (etwa 1,6–2,2 g pro kg), schwer trainieren und das Defizit klein halten.`); else if(sSmm===0) add("info",`${smmTxt()}, etwa gleich. Bei gleichzeitigem Fettabbau ist schon das ein gutes Zeichen.`);
+      if(sW!=null&&Math.abs(C.dW)>2&&!has("lose")) add("info",`${wTxt()}. Bei einer Rekomposition bleibt das Gewicht normalerweise ungefähr gleich.`);
+    } else {
+      if(has("muscle")){
+        if(sSmm===1) add("good",`${smmTxt()}${since}. Du baust Muskeln auf, weiter so!`);
+        else if(sSmm===-1) add("warn",`${smmTxt()}${since}. Du entfernst dich gerade von deinem Ziel Muskelaufbau. Achte auf genug Eiweiß (etwa 1,6–2,2 g pro kg Körpergewicht), einen leichten Kalorienüberschuss und steigere nach und nach die Gewichte.`);
+        else if(sSmm===0) add("info",`${smmTxt()}${since}, also etwa gleich. Muskelaufbau braucht Zeit, ein Abstand von 4–8 Wochen zwischen den Messungen ist aussagekräftiger.`);
+        if(sFat===1&&C.dFat>1&&(C.dSmm==null||C.dFat>C.dSmm)) add("warn",`${fatTxt()}. Das Fett steigt stärker als die Muskeln, dein Kalorienüberschuss ist vermutlich etwas zu groß.`);
+      }
+      if(has("fat")){
+        if(sFat===-1) add("good",`${fatTxt()}${since}. Du baust Fett ab, genau in die richtige Richtung!`);
+        else if(sFat===1) add("warn",`${fatTxt()}${since}. Du entfernst dich gerade von deinem Ziel Fettabbau. Hilfreich sind ein moderates Kaloriendefizit, viel Eiweiß und mehr Bewegung im Alltag, zum Beispiel mehr Schritte.`);
+        else if(sFat===0) add("info",`${fatTxt()}${since}, also etwa gleich. Noch kein klarer Fortschritt, bleib dran.`);
+        if(C.dFat==null) add("info","Für die Auswertung braucht die App in beiden Messungen das Körperfett (kg oder %).");
+        if(!has("hold")){ if(sSmm===-1&&C.dSmm<-0.5) add("warn",`${smmTxt()}. Damit du Fett und nicht Muskeln verlierst: Krafttraining beibehalten, Eiweiß hoch halten und das Defizit nicht zu groß wählen.`); else if(sSmm===1) add("good",`${smmTxt()}. Du hast dabei sogar Muskeln aufgebaut.`); }
+      }
+      if(has("hold")){
+        if(sSmm===-1) add("warn",`${smmTxt()}${since}. Du verlierst gerade Muskeln. Schütze sie mit schwerem Krafttraining (2–3× pro Woche), etwa 1,6–2,2 g Eiweiß pro kg und einem nicht zu großen Defizit.`);
+        else if(sSmm!=null) add("good",`${smmTxt()}${since}. Du hältst deine Muskeln.`);
+        else if(C.dSmm==null) add("info","Für den Muskelerhalt braucht die App in beiden Messungen die Muskelmasse.");
+      }
+    }
+    if(has("lose")||has("gain")||has("keep")){
+      const k=has("lose")?"lose":has("gain")?"gain":"keep";
       if(sW!=null){
         if(k==="keep") add(Math.abs(C.dW)<=1?"good":"warn",Math.abs(C.dW)<=1?`${wTxt()}${since}. Du hältst dein Gewicht.`:`${wTxt()}${since}. Du entfernst dich von deinem Ziel, das Gewicht zu halten.`);
         else { const want=k==="lose"?-1:1;
           if(sW===want) add("good",`${wTxt()}${since}. Es geht in die richtige Richtung!`);
-          else if(sW===-want) add("warn",`${wTxt()}${since}. Du entfernst dich gerade von deinem Ziel ${G.n}.`);
+          else if(sW===-want) add("warn",`${wTxt()}${since}. Du entfernst dich gerade von deinem Ziel ${GOAL_BY[k].n}.`);
           else add("info",`${wTxt()}${since}, also etwa gleich.`); }
       }
-      if(k==="lose"&&C.dW<-1&&C.dSmm!=null&&C.dSmm<0&&-C.dSmm>-C.dW*0.4) add("warn",`${smmTxt()}: Ein großer Teil des Verlusts ist Muskelmasse. Mehr Eiweiß, weiter Krafttraining und ein kleineres Defizit schützen die Muskeln.`);
+      if(k==="lose"&&!has("hold")&&!recomp&&C.dW<-1&&C.dSmm!=null&&C.dSmm<0&&-C.dSmm>-C.dW*0.4) add("warn",`${smmTxt()}: Ein großer Teil des Verlusts ist Muskelmasse. Mehr Eiweiß, weiter Krafttraining und ein kleineres Defizit schützen die Muskeln.`);
       if(k==="gain"&&C.dW>1&&C.dFat!=null&&C.dFat>C.dW*0.6) add("warn",`${fatTxt()}: Ein großer Teil der Zunahme ist Fett. Ein etwas kleinerer Überschuss wäre besser.`);
     }
     if(C.mixed) add("info",`Die beiden Messungen stammen von verschiedenen Geräten (${MSRC[msrc(C.P)]} und ${MSRC[msrc(C.M)]}). Die Geräte rechnen unterschiedlich, deshalb sind Messungen vom selben Gerät besser vergleichbar.`);
-  } else if(G&&C&&!C.P&&["muscle","fat","recomp"].includes(G.k)) add("info",`Deine erste Messung ist gespeichert (${MSRC[msrc(C.M)]}, ${fmtShortY.format(toDate(C.M.date))}). Ab der nächsten Messung zeigt dir die App, ob du in die richtige Richtung gehst.`);
-  else if(G&&!C&&["muscle","fat","recomp"].includes(G.k)) add("info","Trag unten eine InBody- oder Fitnesshub-Messung ein. Ab der zweiten Messung siehst du hier, ob du in die richtige Richtung gehst.");
+  } else if(C&&!C.P&&bodyGoal) add("info",`Deine erste Messung ist gespeichert (${MSRC[msrc(C.M)]}, ${fmtShortY.format(toDate(C.M.date))}). Ab der nächsten Messung zeigt dir die App, ob du in die richtige Richtung gehst.`);
+  else if(!C&&bodyGoal) add("info","Trag unten eine InBody- oder Fitnesshub-Messung ein. Ab der zweiten Messung siehst du hier, ob du in die richtige Richtung gehst.");
   // Gewichtstrend aus den Tageswerten
-  if(G&&WT&&["lose","gain","keep","fat","recomp"].includes(G.k)){
+  if(WT&&(has("lose")||has("gain")||has("keep")||has("fat"))){
     const r=WT.perWeek, txt=`Gewichtstrend der letzten ${Math.round(WT.days/7)||1} Wochen: ${signed(r,"kg",2)} pro Woche`;
-    if(G.k==="lose") add(r<-0.1?"good":r>0.1?"warn":"info",txt+(r<-0.1?".":r>0.1?". Das Gewicht steigt gerade.":", also etwa stabil."));
-    else if(G.k==="gain") add(r>0.1?"good":r<-0.1?"warn":"info",txt+(r>0.1?".":r<-0.1?". Das Gewicht sinkt gerade.":", also etwa stabil."));
-    else if(G.k==="keep") add(Math.abs(r)<=0.25?"good":"warn",txt+(Math.abs(r)<=0.25?". Stabil.":"."));
+    if(has("lose")) add(r<-0.1?"good":r>0.1?"warn":"info",txt+(r<-0.1?".":r>0.1?". Das Gewicht steigt gerade.":", also etwa stabil."));
+    else if(has("gain")) add(r>0.1?"good":r<-0.1?"warn":"info",txt+(r>0.1?".":r<-0.1?". Das Gewicht sinkt gerade.":", also etwa stabil."));
+    else if(has("keep")) add(Math.abs(r)<=0.25?"good":"warn",txt+(Math.abs(r)<=0.25?". Stabil.":"."));
     else add("info",txt+".");
   }
-  if(G&&G.k==="strength"){
+  if(has("strength")){
     const T=strengthTrend();
     if(!T.n) add("info","Sobald du eine Übung über mehrere Wochen einträgst, vergleicht die App dein geschätztes 1RM der letzten 4 Wochen mit den 8 Wochen davor.");
     else { const st=T.up>T.down?"good":T.down>T.up?"warn":"info";
       add(st,`In den letzten 4 Wochen bist du bei ${T.up} von ${T.n} Übungen stärker geworden${T.down?`, bei ${T.down} schwächer`:""}.${T.best&&ex(T.best.exId)?` Größter Sprung: ${ex(T.best.exId).name} (+${fmtNum(Math.round(T.best.r*100))} %).`:""}${st==="warn"?" Du entfernst dich gerade von deinem Ziel. Prüfe Schlaf, Erholung und Ernährung oder plane eine leichtere Woche ein.":""}`); }
-    if(C&&C.P&&sSmm!=null) add(sSmm===-1?"warn":"info",`${smmTxt()}${since}.`);
   }
-  if(G&&G.k==="fit"){
+  if(has("fit")){
     const f=sessionsPerWeek();
     add(f>=2?"good":"warn",`${fmtNum(Math.round(f*10)/10)} Trainingstage pro Woche in den letzten 4 Wochen (Gym und Aktivitäten).${f>=2?" Weiter so, regelmäßig aktiv zu sein ist das Wichtigste.":" Empfohlen sind mindestens 2 Krafteinheiten pro Woche plus Ausdauer."}`);
     const sd=[...Array(7)].map((_,i)=>(dayDoc(addDays(todayStr(),-i))||{}).steps||0).filter(Boolean);
     if(sd.length>=3){ const avg=sd.reduce((a,b)=>a+b,0)/sd.length; add(avg>=7000?"good":"info",`Im Schnitt ${fmtNum(Math.round(avg))} Schritte an den Tagen mit Eintrag.${avg>=7000?"":" Mehr als etwa 7.000 Schritte am Tag gelten als gesundheitlich deutlich günstiger."}`); }
-    if(C&&C.P&&C.dPbf!=null) add("info",`${fatTxt()}${since}.`);
   }
-  // Zielwert und Zieldatum
-  const pace=goalPace(g,G,C,WT);
-  const warn=items.some(x=>x.s==="warn"), good=items.some(x=>x.s==="good");
-  const state=!items.length&&!pace?"none":warn&&good?"mixed":warn?"warn":good?"good":"info";
-  return {g,G,C,items,pace,state};
+  // Zielwerte und Zieldatum
+  const pace=[];
+  for(const key of goalTargetKeys(g)){ const mode=key==="weight"?(has("lose")?"down":has("gain")?"up":"hold"):key==="pbf"?"down":"up"; const p=goalPace(g,key,mode,C,WT); if(p) pace.push(p); }
+  if(!pace.length&&g.date&&/^\d{4}-\d{2}-\d{2}$/.test(g.date)){ const days=dayDiffBetween(todayStr(),g.date), dateTxt=fmtShortY.format(toDate(g.date)); pace.push(days<0?{s:"info",t:`Dein Zieldatum (${dateTxt}) ist vorbei. Setz dir gern ein neues.`}:{s:"info",t:`Noch ${days<14?days+" Tage":Math.round(days/7)+" Wochen"} bis zu deinem Zieldatum (${dateTxt}).`}); }
+  const all=[...items,...pace], warn=all.some(x=>x.s==="warn"), good=all.some(x=>x.s==="good");
+  const state=!all.length?"none":warn&&good?"mixed":warn?"warn":good?"good":"info";
+  return {g,C,items,pace,state};
 }
-function goalPace(g,G,C,WT){
-  if(!G) return null;
+function goalPace(g,key,mode,C,WT){
+  const target=parseNum(g.targets[key]); if(target==null) return null;
   const days=g.date&&/^\d{4}-\d{2}-\d{2}$/.test(g.date)?dayDiffBetween(todayStr(),g.date):null, weeks=days!=null?days/7:null;
-  const key=G.t, target=key?parseNum(g.target):null;
   const dateTxt=g.date?fmtShortY.format(toDate(g.date)):"";
-  if(target==null||!key){ if(days==null) return null; return days<0?{s:"info",t:`Dein Zieldatum (${dateTxt}) ist vorbei. Setz dir gern ein neues.`}:{s:"info",t:`Noch ${days<14?days+" Tage":Math.round(weeks)+" Wochen"} bis zu deinem Zieldatum (${dateTxt}).`}; }
   const L=inbodyList(), lm=L.find(m=>key==="pbf"?pbfOf(m)!=null:m[key]!=null);
   const cur=key==="weight"?((latestWeight()||{}).w||(lm&&lm.weight)||parseNum(profile().weight)):lm?(key==="pbf"?pbfOf(lm):lm[key]):null;
   const [lbl,unit]=GOAL_TARGET[key];
   if(cur==null) return {s:"info",t:`${lbl}: ${fmtNum(target)} ${unit}. Für den Fortschritt fehlt noch ein aktueller Wert${key==="weight"?"":" aus einer Messung"}.`};
   const rest=target-cur, dir=Math.sign(rest), unitW=key==="pbf"?"Prozentpunkte":unit;
-  const reached=(G.k==="keep")?Math.abs(rest)<=1:(Math.abs(rest)<(key==="pbf"?0.3:0.2)||(G.k==="lose"||G.k==="fat"||G.k==="recomp"?rest>=0:rest<=0));
-  if(reached&&G.k!=="keep") return {s:"good",t:`Ziel erreicht: ${lbl} ${fmtNum(target)} ${unit}, aktuell ${fmtNum(Math.round(cur*10)/10)} ${unit}. Stark! Setz dir gern ein neues Ziel.`};
-  if(G.k==="keep") return {s:reached?"good":"warn",t:`Zielgewicht ${fmtNum(target)} kg, aktuell ${fmtNum(Math.round(cur*10)/10)} kg (${signed(cur-target,"kg")}).`};
+  if(mode==="hold"){ const ok=Math.abs(rest)<=1; return {s:ok?"good":"warn",t:`Zielgewicht ${fmtNum(target)} kg, aktuell ${fmtNum(Math.round(cur*10)/10)} kg (${signed(cur-target,"kg")}).`}; }
+  const reached=Math.abs(rest)<(key==="pbf"?0.3:0.2)||(mode==="down"?rest>=0:rest<=0);
+  if(reached) return {s:"good",t:`Ziel erreicht: ${lbl} ${fmtNum(target)} ${unit}, aktuell ${fmtNum(Math.round(cur*10)/10)} ${unit}. Stark! Setz dir gern ein neues Ziel.`};
   let rate=null; // pro Woche
   if(key==="weight"&&WT) rate=WT.perWeek;
   else if(C&&C.P&&C.days>=7){ const dv=key==="pbf"?C.dPbf:C.dSmm; if(dv!=null) rate=dv/C.days*7; }
-  let t=`Noch ${fmtNum(Math.round(Math.abs(rest)*10)/10)} ${unitW} bis ${fmtNum(target)} ${unit}`, s="info";
+  let t=`${lbl}: noch ${fmtNum(Math.round(Math.abs(rest)*10)/10)} ${unitW} bis ${fmtNum(target)} ${unit}`, s="info";
+  const eta=r=>fmtShortY.format(toDate(addDays(todayStr(),Math.round(Math.abs(rest/r)*7))));
   if(weeks!=null&&weeks>0){
     const need=rest/weeks; t+=` in ${weeks<2?days+" Tagen":Math.round(weeks)+" Wochen"}, also etwa ${fmtNum(Math.round(Math.abs(need)*100)/100)} ${unitW} pro Woche.`;
     if(key==="weight"&&need<0&&-need>cur*0.01) t+=" Das ist sehr sportlich: Als gesund gelten etwa 0,5–1 % des Körpergewichts pro Woche.";
     if(key==="weight"&&need>0.5) t+=" Das ist sehr schnell: Sinnvoll sind etwa 0,25–0,5 kg pro Woche, sonst steigt vor allem das Fett.";
     if(key==="smm"&&need>0.25) t+=" Muskelaufbau ist langsam: Realistisch sind für Einsteiger grob 0,5–1 kg im Monat, später deutlich weniger.";
     if(rate!=null){ if(Math.sign(rate)===dir&&Math.abs(rate)>=Math.abs(need)*0.8){ s="good"; t+=" Mit deinem aktuellen Tempo schaffst du das."; }
-      else if(Math.sign(rate)===dir&&Math.abs(rate)>0.01){ const eta=addDays(t0(),Math.round(Math.abs(rest/rate)*7)); s="info"; t+=` Im aktuellen Tempo (${signed(rate,unitW,2)} pro Woche) erreichst du es etwa am ${fmtShortY.format(toDate(eta))}.`; }
+      else if(Math.sign(rate)===dir&&Math.abs(rate)>0.01){ t+=` Im aktuellen Tempo (${signed(rate,unitW,2)} pro Woche) erreichst du es etwa am ${eta(rate)}.`; }
       else { s="warn"; t+=" Im Moment bewegst du dich nicht in Richtung Ziel."; } }
   } else if(weeks!=null&&weeks<=0){ t+=`. Dein Zieldatum (${dateTxt}) ist vorbei. Setz dir gern ein neues.`; }
-  else { t+="."; if(rate!=null){ if(Math.sign(rate)===dir&&Math.abs(rate)>0.01){ const eta=addDays(t0(),Math.round(Math.abs(rest/rate)*7)); s="good"; t+=` Im aktuellen Tempo (${signed(rate,unitW,2)} pro Woche) etwa am ${fmtShortY.format(toDate(eta))}.`; } else { s="warn"; t+=" Im Moment bewegst du dich nicht in Richtung Ziel."; } } }
+  else { t+="."; if(rate!=null){ if(Math.sign(rate)===dir&&Math.abs(rate)>0.01){ s="good"; t+=` Im aktuellen Tempo (${signed(rate,unitW,2)} pro Woche) etwa am ${eta(rate)}.`; } else { s="warn"; t+=" Im Moment bewegst du dich nicht in Richtung Ziel."; } } }
   return {s,t};
 }
-function t0(){ return todayStr(); }
 const GOAL_HEAD={good:"Du bist auf dem richtigen Weg",warn:"Achtung: Du entfernst dich gerade von deinem Ziel",mixed:"Teils auf Kurs, teils nicht",info:"Zwischenstand",none:""};
 function goalBox(mid){
-  const R=goalReport(mid); if(!R.G) return "";
-  const list=[...R.items,...(R.pace?[R.pace]:[])];
+  const R=goalReport(mid); if(!R.g) return "";
+  const list=[...R.items,...R.pace];
   if(!list.length) return `<p class="hint">Noch keine Daten für eine Auswertung. Trag dein Gewicht im Reiter „Training“ ein oder eine Messung unter „Körpermessungen“.</p>`;
-  const st=R.state==="none"?"info":(R.pace&&R.pace.s==="warn"&&R.state==="good")?"mixed":(R.pace&&R.pace.s==="warn"&&R.state==="info")?"warn":(R.pace&&R.pace.s==="good"&&R.state==="info")?"good":R.state;
+  const st=R.state==="none"?"info":R.state;
   const ic={good:"↗",warn:"!",info:"i"};
   return `<div class="goal-box ${st}"><b class="goal-head">${esc(GOAL_HEAD[st]||"Zwischenstand")}</b>
     <ul>${list.map(x=>`<li class="${x.s}"><span aria-hidden="true">${ic[x.s]}</span><p>${esc(x.t)}</p></li>`).join("")}</ul></div>`;
 }
 function compareTable(mid){
   const C=measureCompare(mid); if(!C) return "";
-  const M=C.M, P=C.P, G=goalDef(goal());
-  const rows=[["Gewicht","kg",m=>m.weight,G?(G.k==="lose"?-1:G.k==="gain"?1:0):0],["Muskelmasse","kg",m=>m.smm,G?1:0],["Körperfett","kg",fatKg,G&&G.k!=="gain"&&G.k!=="muscle"?-1:0],["Körperfett","%",pbfOf,G&&G.k!=="gain"&&G.k!=="muscle"?-1:0],["Viszeralfett","",m=>m.visc,G?-1:0],["Grundumsatz","kcal",m=>m.bmr,0]]
+  const M=C.M, P=C.P, g=goal(), has=k=>goalHas(g,k), fatWant=g&&(has("fat")||has("lose")||has("keep")||has("fit")||has("hold")||has("strength"))?-1:0;
+  const rows=[["Gewicht","kg",m=>m.weight,has("lose")?-1:has("gain")?1:0],["Muskelmasse","kg",m=>m.smm,g?1:0],["Körperfett","kg",fatKg,fatWant],["Körperfett","%",pbfOf,fatWant],["Viszeralfett","",m=>m.visc,g?-1:0],["Grundumsatz","kcal",m=>m.bmr,0]]
     .filter(r=>r[2](M)!=null||(P&&r[2](P)!=null));
   const f=v=>v==null?"–":fmtNum(Math.round(v*10)/10);
   return `<div class="tbl-wrap"><table class="tbl cmp"><thead><tr><th></th>${P?`<th>${esc(fmtShortY.format(toDate(P.date)))}</th>`:""}<th>${esc(fmtShortY.format(toDate(M.date)))}</th>${P?"<th>Änderung</th>":""}</tr></thead><tbody>${rows.map(([n,u,fn,want])=>{ const a=P?fn(P):null, b=fn(M), dv=a!=null&&b!=null?b-a:null; const th=u==="%"?0.5:u==="kcal"?20:0.3; const cls=dv==null||!want||Math.abs(dv)<th?"":Math.sign(dv)===want?"up":"down"; return `<tr><td>${n}${u?` <small>${u}</small>`:""}</td>${P?`<td class="num">${f(a)}</td>`:""}<td class="num">${f(b)}</td>${P?`<td class="num ${cls}">${dv==null?"–":signed(dv,"",1)}</td>`:""}</tr>`; }).join("")}</tbody></table></div>`;
@@ -2198,10 +2346,10 @@ function openEvalSheet(id){ S.evalId=id; renderEvalSheet(); }
 function closeEvalSheet(){ S.evalId=null; $("#sheetRoot").innerHTML=""; }
 function renderEvalSheet(){
   const C=measureCompare(S.evalId); if(!C){ closeEvalSheet(); return; }
-  const G=goalDef(goal());
+  const G=goal();
   $("#sheetRoot").innerHTML=`<div class="sheet-bg" data-act="evalClose"><div class="sheet eval-sheet" role="dialog" aria-modal="true" aria-label="Auswertung der Messung" data-act="noop">
     <div class="sheet-head"><span></span><b>${MSRC[msrc(C.M)]} · ${esc(fmtShortY.format(toDate(C.M.date)))}</b><button class="btn ghost" data-act="evalClose" style="font-weight:700">Fertig</button></div>
-    <div class="eval-body">${G?`<p class="eyebrow">Dein Ziel: ${esc(G.n)}</p>${goalBox(S.evalId)}`:`<p class="hint">Leg unter „Mehr“ → „Mein Ziel“ fest, was du erreichen willst. Dann sagt dir die App bei jeder Messung, ob du in die richtige Richtung gehst.</p>`}
+    <div class="eval-body">${G?`<p class="eyebrow">Dein Ziel: ${esc(goalNames(G))}</p>${goalBox(S.evalId)}`:`<p class="hint">Leg unter „Mehr“ → „Mein Ziel“ fest, was du erreichen willst. Dann sagt dir die App bei jeder Messung, ob du in die richtige Richtung gehst.</p>`}
     ${C.P?compareTable(S.evalId):`<p class="hint">Das ist deine erste ${MSRC[msrc(C.M)]}-Messung. Ab der nächsten siehst du hier den Vergleich.</p>`}
     <p class="hint" style="margin:0">Körperanalyse-Geräte schwanken um etwa 1 bis 2 Prozentpunkte beim Körperfett. Am besten vergleichbar sind Messungen vom selben Gerät, zur gleichen Tageszeit, nüchtern und vor dem Training.</p></div>
   </div></div>`;
@@ -2553,6 +2701,15 @@ async function exportBackup(){
   setTimeout(()=>URL.revokeObjectURL(url),4000);
   toast("Backup heruntergeladen");
 }
+$("#foodFile").addEventListener("change",ev=>{
+  const file=ev.target.files&&ev.target.files[0]; ev.target.value=""; if(!file) return;
+  const fr=new FileReader();
+  fr.onload=()=>{ const rows=parseFoodCsv(String(fr.result||""));
+    if(!rows.length){ toast("Keine Einträge erkannt. Die Datei braucht eine Datums- und eine Kalorien-Spalte."); return; }
+    for(const r of rows){ const F={...foodOf(r.date),kcal:r.kcal}; if(r.p) F.p=r.p; saveDay(r.date,{food:F}); }
+    toast(`${rows.length} ${rows.length===1?"Tag":"Tage"} importiert`); render(); };
+  fr.readAsText(file);
+});
 $("#inbodyFile").addEventListener("change",ev=>{
   const file=ev.target.files&&ev.target.files[0]; ev.target.value=""; if(!file) return;
   const fr=new FileReader();
