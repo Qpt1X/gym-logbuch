@@ -361,7 +361,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.7";
+const APP_VERSION = "1.7.1";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1237,7 +1237,7 @@ function restCfg(){ const r=cfg().rest||{}; return {auto:r.auto!==false, def:r.d
 function saveRestCfg(patch){ saveCfg({rest:{...restCfg(),...patch}}); }
 function restFor(e){ if(e&&typeof e.rest==="number") return e.rest; return restCfg().def; }
 function fmtClock(sec){ sec=Math.max(0,Math.round(sec)); return pad(Math.floor(sec/60))+":"+pad(sec%60); }
-const REST_OPTIONS=(()=>{ const a=[0]; for(let v=15; v<=300; v+=15) a.push(v); for(let v=360; v<=600; v+=60) a.push(v); return a; })();
+const REST_OPTIONS=(()=>{ const a=[0]; for(let v=5; v<=600; v+=5) a.push(v); return a; })();
 function openRestSheet(exId){
   const e=exId?ex(exId):null;
   S.sheet={exId, val:e?restFor(e):restCfg().def};
