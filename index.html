@@ -553,7 +553,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.2";
+const APP_VERSION = "3.3";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1496,6 +1496,7 @@ document.addEventListener("click",ev=>{
       saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast(`${actName(a)} gespeichert`); break;
     }
     case "actDel": { const t=top(); if(!S.armedAct){ S.armedAct=true; render(); return; } S.armedAct=false; const L=dayActs(t.date).filter((_,i)=>i!==t.i); saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast("Aktivität gelöscht"); break; }
+    case "foodApp": { const v=b.dataset.v; saveCfg({foodApp:foodApp()===v?"":v}); render(); break; }
     case "foodImport": $("#foodFile").click(); break;
     case "kcalToggle": { const dEl=b.closest("details"); S.kcalOpen=dEl?!dEl.open:false; break; }
     case "bwSkip": saveCfg({bwSkip:todayStr()}); render(); break;
@@ -1701,6 +1702,7 @@ document.addEventListener("input",ev=>{
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
   else if(f==="ib"){ if(S.ibForm) S.ibForm[el.dataset.k]=el.value; }
+  else if(f==="foodApp"){ clearTimeout(S.faT); S.faT=setTimeout(()=>{ saveCfg({foodApp:el.value.trim()}); document.querySelectorAll('[data-act="foodApp"]').forEach(c=>c.setAttribute("aria-pressed","false")); },500); }
   else if(f==="food"){ const k=el.dataset.k, dt=el.dataset.date; S.foodT=S.foodT||{}; clearTimeout(S.foodT[k+dt]);
     S.foodT[k+dt]=setTimeout(()=>{ let v=parseNum(el.value); v=v!=null&&v>0?(k==="kcal"?Math.round(v):Math.round(v*10)/10):null; const F={...foodOf(dt)}; if(v==null) delete F[k]; else F[k]=v; saveDay(dt,{food:Object.keys(F).length?F:null}); refreshFood(dt);
       const ki=document.getElementById("fkcal-"+dt), mk=macroKcal(F); if(ki) ki.placeholder=mk?"≈ "+fmtNum(mk)+" aus Makros":"0"; },700); }
@@ -1982,6 +1984,9 @@ function balanceTarget(date){
   if(has("gain")||has("muscle")) return {lo:r50(bw*0.0025*k),hi:r50(bw*0.005*k),dir:1,name:"leichter Überschuss",why:"Für Muskelaufbau reicht ein kleiner Überschuss (etwa 0,25–0,5 % Körpergewicht pro Woche). Mehr landet vor allem als Fett."};
   return {lo:-200,hi:200,dir:0,name:"ausgeglichen",why:g?"Für dein Ziel passt eine etwa ausgeglichene Bilanz (±200 kcal).":"Ohne Ziel zeigt die App die Bilanz neutral an. Unter „Mehr“ → „Mein Ziel“ kannst du eins festlegen."};
 }
+const FOOD_APPS=["FDDB","Yazio","MyFitnessPal","Lifesum","MacroFactor","Cronometer","Samsung Health","FatSecret"];
+function foodApp(){ const a=(cfg().foodApp||"").trim(); return a.slice(0,24); }
+function fromApp(){ const a=foodApp(); return a?`aus ${a}`:"aus deiner Ernährungs-App"; }
 function rangeTxt(T){ return T.dir<0?`Defizit von ${fmtNum(-T.hi)}–${fmtNum(-T.lo)} kcal`:T.dir>0?`Überschuss von ${fmtNum(T.lo)}–${fmtNum(T.hi)} kcal`:"ausgeglichen (±200 kcal)"; }
 function foodOf(date){ const d=dayDoc(date); return d&&d.food?d.food:{}; }
 // Kalorien aus Makros nach Atwater: Eiweiß und Kohlenhydrate 4 kcal/g, Fett 9 kcal/g
@@ -2030,7 +2035,7 @@ function balanceInfo(date){
 }
 function foodResult(date){
   const B=balanceInfo(date), F=foodOf(date);
-  if(!foodKcal(F)) return `<p class="meta" style="margin:0">Trag die Tagessumme aus FDDB ein: Eiweiß, Kohlenhydrate und Fett. Die Kalorien rechnet die App daraus aus, oder du trägst sie direkt ein. Dann siehst du dein Defizit oder deinen Überschuss.</p>`;
+  if(!foodKcal(F)) return `<p class="meta" style="margin:0">Trag die Tagessumme ${esc(fromApp())} ein: Eiweiß, Kohlenhydrate und Fett. Die Kalorien rechnet die App daraus aus, oder du trägst sie direkt ein. Dann siehst du dein Defizit oder deinen Überschuss.</p>`;
   if(!B) return `<p class="meta" style="margin:0">Für die Bilanz fehlen Angaben zu deinem Körper unter „Mehr“ → „Über mich“.</p>`;
   const ic={good:"↗",warn:"!",info:"i",tip:"•"}, sign=B.diff>=0?"+":"−";
   const mk=macroKcal(F), P=parseNum(F.p)||0, Cc=parseNum(F.c)||0, Fa=parseNum(F.f)||0;
@@ -2043,7 +2048,7 @@ function foodResult(date){
 function foodBlock(date){
   const F=foodOf(date), mk=macroKcal(F);
   const mi=(k,label)=>`<label class="dv"><span>${label}</span><span class="in"><input id="f${k}-${date}" data-field="food" data-k="${k}" data-date="${date}" inputmode="decimal" placeholder="0" value="${F[k]!=null?esc(inputVal(F[k])):""}" aria-label="${label} in Gramm">g</span></label>`;
-  return `<div class="food-day"><div class="food-head"><b>Ernährung</b><span class="meta">Tagessumme aus FDDB</span></div>
+  return `<div class="food-day"><div class="food-head"><b>Ernährung</b><span class="meta">Tagessumme ${esc(fromApp())}</span></div>
     <div class="macro-row">${mi("p","Eiweiß")}${mi("c","Kohlenh.")}${mi("f","Fett")}</div>
     <label class="dv kcal-in"><span>Kalorien</span><span class="in"><input id="fkcal-${date}" data-field="food" data-k="kcal" data-date="${date}" inputmode="numeric" placeholder="${mk?"≈ "+fmtNum(mk)+" aus Makros":"0"}" value="${F.kcal?esc(String(F.kcal)):""}" aria-label="Gegessene Kalorien">kcal</span></label>
     <div id="foodRes-${date}">${foodResult(date)}</div></div>`;
@@ -2066,12 +2071,14 @@ function viewFoodCard(){
   const wd=d=>new Intl.DateTimeFormat("de-DE",{weekday:"short"}).format(toDate(d));
   const T=balanceTarget(todayStr());
   return `<div class="card panel"><h3>Ernährung & Bilanz</h3>
-    <p class="muted">FDDB bietet keine Schnittstelle, über die eine andere App deine Einträge lesen darf. Trag deshalb im Reiter „Training“ einfach die Tagessumme aus FDDB ein: Eiweiß, Kohlenhydrate und Fett. Die Kalorien rechnet die App daraus aus (oder du trägst sie direkt ein). Das dauert ein paar Sekunden. Die App vergleicht sie mit deinem Verbrauch und deinem Ziel.</p>
+    <div class="field"><span>Womit trackst du dein Essen?</span><div class="chips">${FOOD_APPS.map(a=>`<button class="chip" data-act="foodApp" data-v="${esc(a)}" aria-pressed="${foodApp()===a}">${esc(a)}</button>`).join("")}</div>
+      <input class="input" id="foodAppOther" data-field="foodApp" maxlength="24" placeholder="Andere App, z. B. Name eintippen" value="${FOOD_APPS.includes(foodApp())?"":esc(foodApp())}" autocomplete="off" style="margin-top:6px"></div>
+    <p class="muted">Ernährungs-Apps geben deine Einträge nicht an andere Apps wie diese weiter. Trag deshalb im Reiter „Training“ einfach die Tagessumme ${esc(fromApp())} ein: Eiweiß, Kohlenhydrate und Fett. Die Kalorien rechnet die App daraus aus (oder du trägst sie direkt ein). Das dauert ein paar Sekunden. Die App vergleicht sie mit deinem Verbrauch und deinem Ziel.</p>
     ${W.n?`<div class="field"><span>Letzte 7 Tage: gegessen (dunkel) und verbraucht (hell)</span><div class="bars bal-bars">${W.rows.map(r=>`<div class="b"><em>${r.k&&r.E?(r.k-r.E>=0?"+":"−")+fmtNum(Math.abs(Math.round((r.k-r.E)/10)*10)):""}</em><span class="pair"><i class="in" style="height:${Math.round((r.k||0)/max*70)}px"></i><i class="out" style="height:${Math.round((r.E||0)/max*70)}px"></i></span><small>${esc(wd(r.d))}</small></div>`).join("")}</div></div>
     <p class="meta num" style="margin:0">Schnitt an ${W.n} ${W.n===1?"Tag":"Tagen"}: ${fmtNum(Math.round(W.avgK))} gegessen, ${fmtNum(Math.round(W.avgE))} verbraucht, also ${W.avgDiff>=0?"+":"−"}${fmtNum(Math.abs(Math.round(W.avgDiff)))} kcal pro Tag. Das entspräche etwa ${signed(W.avgDiff*7/7700,"kg",2)} pro Woche. Dein Zielbereich: ${esc(rangeTxt(T))} pro Tag.</p>`:`<p class="hint">Sobald du an ein paar Tagen eingetragen hast, was du gegessen hast, siehst du hier deine Wochenbilanz.</p>`}
-    ${W.real?`<div class="goal-box info"><b class="goal-head">Dein Verbrauch laut Waage</b><ul><li class="info"><span aria-hidden="true">i</span><p>${esc(`In den letzten 4 Wochen hast du im Schnitt ${fmtNum(W.real.avg)} kcal gegessen (${W.real.n} Tage eingetragen), dein Gewicht hat sich um ${signed(W.real.trend,"kg",2)} pro Woche verändert. Daraus ergibt sich ein tatsächlicher Verbrauch von etwa ${fmtNum(W.real.tdee)} kcal pro Tag.${W.avgE?` Die App schätzt ${fmtNum(Math.round(W.avgE))} kcal. ${Math.abs(W.real.tdee-W.avgE)>W.avgE*0.1?"Der Unterschied kommt meist von Bewegung, die nicht erfasst ist, oder von Essen, das in FDDB fehlt oder zu knapp geschätzt ist.":"Das passt gut zusammen."}`:""}`)}</p></li></ul></div>`:`<p class="hint" style="margin:0">Nach etwa 2 Wochen mit Essen und Gewicht berechnet die App außerdem deinen tatsächlichen Verbrauch aus der Waage. Das ist die zuverlässigste Kontrolle aller Schätzungen.</p>`}
+    ${W.real?`<div class="goal-box info"><b class="goal-head">Dein Verbrauch laut Waage</b><ul><li class="info"><span aria-hidden="true">i</span><p>${esc(`In den letzten 4 Wochen hast du im Schnitt ${fmtNum(W.real.avg)} kcal gegessen (${W.real.n} Tage eingetragen), dein Gewicht hat sich um ${signed(W.real.trend,"kg",2)} pro Woche verändert. Daraus ergibt sich ein tatsächlicher Verbrauch von etwa ${fmtNum(W.real.tdee)} kcal pro Tag.${W.avgE?` Die App schätzt ${fmtNum(Math.round(W.avgE))} kcal. ${Math.abs(W.real.tdee-W.avgE)>W.avgE*0.1?"Der Unterschied kommt meist von Bewegung, die nicht erfasst ist, oder von Essen, das beim Tracken fehlt oder zu knapp geschätzt ist.":"Das passt gut zusammen."}`:""}`)}</p></li></ul></div>`:`<p class="hint" style="margin:0">Nach etwa 2 Wochen mit Essen und Gewicht berechnet die App außerdem deinen tatsächlichen Verbrauch aus der Waage. Das ist die zuverlässigste Kontrolle aller Schätzungen.</p>`}
     <div class="btn-row"><button class="btn" data-act="foodImport">CSV importieren</button></div>
-    <p class="hint" style="margin:0">Falls du eine Tabelle mit Datum und Kalorien hast (aus FDDB oder einer anderen App), kann die App sie einlesen. Erkannt werden Spalten wie Datum, kcal/Energie, Eiweiß, Kohlenhydrate und Fett. Mehrere Zeilen pro Tag werden addiert.</p></div>`;
+    <p class="hint" style="margin:0">Falls du eine Tabelle mit Datum und Kalorien hast (etwa als Export ${esc(fromApp())}), kann die App sie einlesen. Erkannt werden Spalten wie Datum, kcal/Energie, Eiweiß, Kohlenhydrate und Fett. Mehrere Zeilen pro Tag werden addiert.</p></div>`;
 }
 function parseFoodCsv(text){
   const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()); if(lines.length<2) return [];
