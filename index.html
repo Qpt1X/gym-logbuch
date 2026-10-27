@@ -291,6 +291,21 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .daily.ask{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .daily-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .daily-top b{font-weight:700}
+.acts{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.acts-head{display:flex;justify-content:space-between;align-items:center}
+.act-list{display:flex;flex-direction:column}
+.act-row{display:flex;align-items:center;gap:10px;padding:8px 0;border:0;border-top:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.act-row:first-child{border-top:0}
+.act-row .grow{flex:1;min-width:0}
+.act-k{font-weight:700;color:var(--pr);white-space:nowrap}
+.act-prev{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:12px;background:var(--pr-soft)}
+.act-prev b{font-size:1.4rem;color:var(--pr)}
+.act-prev span{font-size:.85rem;color:var(--muted)}
+.cal-day{position:relative}
+.act-dot{position:absolute;top:4px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 1.5px var(--surface)}
+.act-dot.inline{position:static;display:inline-block;margin-right:6px;box-shadow:none}
+.legend i.act-dot.inline{width:9px;height:9px;border-radius:50%;background:var(--ok);border:0}
+.chip:disabled{opacity:.45;cursor:default}
 .kcal-day{border-top:1px solid var(--line);padding-top:8px}
 .kcal-day>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer}
 .kcal-day>summary::-webkit-details-marker{display:none}
@@ -510,7 +525,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "2.9";
+const APP_VERSION = "3.0";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -783,6 +798,7 @@ function render(){
     else if(t.type==="planPick"){ title="Übungen planen"; html=viewPlanPick(t.date); }
     else if(t.type==="applyPick"){ title="Einheit übernehmen"; html=viewApplyPick(t.date); }
     else if(t.type==="finish"){ title=dayDoc(t.date)&&dayDoc(t.date).done?"Geschafft":"Übersicht"; html=viewFinish(t.date); }
+    else if(t.type==="act"){ title="Aktivität"; html=viewAct(t.date); }
     else if(t.type==="day"){ title=dayDiff(t.date)<2?relDay(t.date):fmtShortY.format(toDate(t.date)); html=viewDay(t.date); }
   } else {
     html={today:viewToday,exercises:viewExercises,history:viewHistory,more:viewMore}[S.tab]();
@@ -811,6 +827,7 @@ function viewToday(){
   let h=`<div class="date-head"><p class="eyebrow">${firstName()?esc(gr+", "+firstName()):"Heute"}</p><h2>${esc(fmtLong.format(new Date()))}</h2></div>`;
   if(!exs.length) return h+emptyStart();
   h+=dailyCard(date);
+  h+=actsCard(date);
   h+=typePicker(date);
   const doneIds0=new Set(today.map(l=>l.exId));
   h+=plannedList(date,doneIds0);
@@ -1106,7 +1123,8 @@ function saveDay(date,patch){
   else next.types=dayTypeKeys(next);
   delete next.type;
   if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order; if(!next.done) delete next.done; if(!next.dur) delete next.dur; if(!next.wx) delete next.wx; if(!(next.bw>0)) delete next.bw; if(!(next.steps>0)) delete next.steps;
-  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx||next.bw||next.steps)?next:null);
+  if(!next.acts||!next.acts.length) delete next.acts;
+  put("dy_"+date,(next.types||next.plan||next.note||next.order||next.done||next.dur||next.wx||next.bw||next.steps||next.acts)?next:null);
 }
 function sortDayLogs(date,ls){
   const d=dayDoc(date), ord=d&&d.order||[], plan=planIds(date);
@@ -1219,17 +1237,19 @@ function calendarCard(byDate){
   const atMax=(y*12+m)>=(now.getFullYear()*12+now.getMonth()+12);
   let cells="";
   for(let i=0;i<lead;i++) cells+=`<span class="cal-day out" aria-hidden="true"></span>`;
-  let trained=0, planned=0; const mode=calMode(), used=new Map(); let noType=0;
+  let trained=0, planned=0; const mode=calMode(), used=new Map(); let noType=0; S.calHasAct=false;
   for(let d=1; d<=days; d++){
     const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today, ts=dayTypes(ds), t=ts[0]||null, doc=dayDoc(ds);
-    if(!fut&&(ls||t)) trained++; if(fut&&doc) planned++;
+    const hasAct=!!(doc&&doc.acts&&doc.acts.length);
+    if(!fut&&(ls||t||hasAct)) trained++; if(fut&&doc) planned++;
     const cls=["cal-day"]; let inner=String(d);
     if(mode==="type"){
       if(t){ cls.push("ty","ty-"+t.c); inner=`${d}<small>${esc(ts.length>2?ts[0].a+"+"+(ts.length-1):ts.map(x=>x.a).join("+"))}</small>${ts.length>1?`<span class="cal-strip">${ts.slice(1).map(x=>`<i class="ty-${x.c}"></i>`).join("")}</span>`:""}`; for(const x of ts) used.set(x.k,(used.get(x.k)||0)+1); }
       else if(ls){ cls.push("none"); noType++; }
     } else if(ls) cls.push("l"+dayLevel(ls));
     if(ds===today) cls.push("today"); if(fut) cls.push(doc?"plan":"future");
-    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${ts.length?`, ${typesName(ts)}`:""}${fut?(doc?", geplant":", noch nichts geplant"):ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t?"":", kein Training"}`;
+    if(hasAct&&!fut){ S.calHasAct=true; cls.push("has-act"); inner+=`<i class="act-dot" aria-hidden="true"></i>`; }
+    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${ts.length?`, ${typesName(ts)}`:""}${fut?(doc?", geplant":", noch nichts geplant"):ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t||hasAct?"":", kein Training"}${hasAct&&!fut?", "+doc.acts.map(actName).join(", "):""}`;
     cells+=`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${inner}</button>`;
   }
   const legend=mode==="type"
@@ -1240,7 +1260,7 @@ function calendarCard(byDate){
     <div class="cal-grid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(w=>`<span class="wd">${w}</span>`).join("")}${cells}</div>
     <div class="cal-foot"><span class="num"><b>${trained}</b> ${trained===1?"Trainingstag":"Trainingstage"}</span>
       <div class="seg" role="group" aria-label="Farbe nach"><button data-act="calMode" data-v="type" aria-pressed="${mode==="type"}">Trainingsart</button><button data-act="calMode" data-v="sets" aria-pressed="${mode==="sets"}">Sätze</button></div></div>
-    <div class="cal-foot" style="margin-top:8px">${legend}</div>
+    <div class="cal-foot" style="margin-top:8px">${legend}</div>${S.calHasAct?`<div class="cal-foot" style="margin-top:4px"><span class="legend"><span class="legend"><i class="act-dot inline"></i>Aktivität außerhalb vom Gym</span></span></div>`:""}
   </div>`;
 }
 function dayList(date,ls){
@@ -1257,13 +1277,14 @@ function viewHistory(){
   const plans=[...S.docs.values()].filter(d=>d&&d.kind==="day"&&d.date>today&&d.date.startsWith(prefix)).sort((a,b)=>a.date.localeCompare(b.date));
   if(plans.length) h+=`<div class="group"><h3>Geplant</h3><div class="list">${plans.map(d=>{const names=planIds(d.date).map(id=>ex(id).name);
     return `<button class="item" data-act="day" data-date="${d.date}"><div class="grow"><div class="name" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(relDay(d.date))}${dayDiff(d.date)>-7?` · ${esc(fmtShort.format(toDate(d.date)))}`:""} ${typeBadge(d.date)}</div><div class="sub">${names.length?esc(names.join(", ")):esc(d.note||"Noch keine Übungen eingeplant")}</div></div>${ICON.chev}</button>`;}).join("")}</div></div>`;
-  const dates=[...byDate.keys()].filter(d=>d.startsWith(prefix)).sort().reverse();
+  const actDates=[...S.docs.values()].filter(d=>d&&d.kind==="day"&&d.acts&&d.acts.length&&d.date<=today&&d.date.startsWith(prefix)).map(d=>d.date);
+  const dates=[...new Set([...byDate.keys(),...actDates])].filter(d=>d.startsWith(prefix)).sort().reverse();
   if(!dates.length) return h+(plans.length?"":`<p class="hint">In diesem Monat gibt es keine Trainings. Tipp auf einen vergangenen Tag, um ein Training nachzutragen, oder auf einen kommenden Tag, um es zu planen.</p>`);
   return h+dates.map(date=>{
-    const ls=sortDayLogs(date,byDate.get(date));
+    const ls=sortDayLogs(date,byDate.get(date)||[]), AL=dayActs(date);
     const vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
     const label=dayDiff(date)<7?relDay(date):fmtLong.format(toDate(date));
-    return `<section class="day"><h3><span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="day" data-date="${date}" style="padding:0;min-height:0;font:inherit;color:inherit;text-transform:inherit">${esc(label)}</button>${typeBadge(date)}</span><small class="num">${ls.length} ${ls.length===1?"Übung":"Übungen"}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>${dayList(date,ls)}</section>`;
+    return `<section class="day"><h3><span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="day" data-date="${date}" style="padding:0;min-height:0;font:inherit;color:inherit;text-transform:inherit">${esc(label)}</button>${typeBadge(date)}</span><small class="num">${ls.length?`${ls.length} ${ls.length===1?"Übung":"Übungen"}`:""}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>${ls.length?dayList(date,ls):""}${AL.length?`<div class="list">${AL.map((a,i)=>`<button class="item" data-act="actEdit" data-date="${date}" data-i="${i}"><div class="grow"><div class="name">${esc(actName(a))}</div><div class="sub num">${fmtNum(+a.min)} min${parseNum(a.km)>0?" · "+fmtNum(parseNum(a.km))+" km":""}</div></div>${(()=>{const K=actKcal(a,date); return K&&K.net!=null?`<span class="meta num">+${fmtNum(K.net)} kcal</span>`:"";})()}</button>`).join("")}</div>`:""}</section>`;
   }).join("");
 }
 function viewDay(date){
@@ -1278,7 +1299,7 @@ function viewDay(date){
     else h+=`<p class="hint">Wähle eine Trainingsart und/oder Übungen. Der Tag erscheint dann im Kalender als geplant (gestrichelt).</p>`;
     return h;
   }
-  if(date!==todayStr()) h+=dailyCard(date);
+  if(date!==todayStr()) h+=dailyCard(date)+actsCard(date);
   const loggedIds=new Set(ls.map(l=>l.exId));
   const planned=plannedList(date,loggedIds);
   const editPlan=date===todayStr()?`<details class="plan-edit"${S.planOpen?" open":""}><summary>${planIds(date).length?"Plan bearbeiten":"Übungen für heute planen"}</summary><div class="stack">${planEditor(date)}</div></details>`:"";
@@ -1428,6 +1449,24 @@ document.addEventListener("click",ev=>{
     case "iconPick": saveCfg({icon:{...iconCfg(),pick:b.dataset.v,random:false}}); applyIcon(); render(); toast("App-Symbol gewählt"); break;
     case "iconRandom": saveCfg({icon:{...iconCfg(),random:!iconCfg().random}}); applyIcon(); render(); break;
     case "iconPeriod": saveCfg({icon:{...iconCfg(),period:b.dataset.v}}); applyIcon(); render(); break;
+    case "actNew": S.armedAct=false; openAct(b.dataset.date,null); break;
+    case "actEdit": S.armedAct=false; openAct(b.dataset.date,+b.dataset.i); break;
+    case "actPick": { const A=ACT_BY[b.dataset.k]; S.actDraft={...S.actDraft,k:b.dataset.k,v:A?A.d:0}; render(); setTimeout(()=>{ const i=$("#act-min")||$("#act-name"); if(i) i.focus(); },50); break; }
+    case "actChange": S.actDraft={...S.actDraft,k:null}; render(); break;
+    case "actVar": S.actDraft.v=+b.dataset.v; render(); break;
+    case "actPhone": S.actDraft.phone=S.actDraft.phone===false; render(); break;
+    case "actSave": {
+      const t=top(), D=S.actDraft; if(!t||!D||!D.k) return;
+      const min=Math.round(parseNum(D.min)||0); if(!(min>0&&min<=1440)){ toast("Bitte die Dauer in Minuten eintragen"); return; }
+      const a={id:D.id||Date.now().toString(36),k:D.k,v:D.v|0,min};
+      const km=parseNum(D.km); if(km>0) a.km=Math.round(km*100)/100;
+      const hr=parseNum(D.hr); if(hr>=40&&hr<=230) a.hr=Math.round(hr);
+      if(D.k==="other"&&D.name&&D.name.trim()) a.name=D.name.trim().slice(0,30);
+      if(ACT_BY[D.k].spm&&D.phone===false) a.phone=false;
+      const L=[...dayActs(t.date)]; if(t.i!=null&&L[t.i]) L[t.i]=a; else L.push(a);
+      saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast(`${actName(a)} gespeichert`); break;
+    }
+    case "actDel": { const t=top(); if(!S.armedAct){ S.armedAct=true; render(); return; } S.armedAct=false; const L=dayActs(t.date).filter((_,i)=>i!==t.i); saveDay(t.date,{acts:L}); S.actDraft=null; pop(); toast("Aktivität gelöscht"); break; }
     case "kcalToggle": { const dEl=b.closest("details"); S.kcalOpen=dEl?!dEl.open:false; break; }
     case "bwSkip": saveCfg({bwSkip:todayStr()}); render(); break;
     case "stepsStart": Steps.start().then(ok=>{ if(ok){ toast("Schritte werden gezählt, solange die App offen ist"); render(); } }); break;
@@ -1629,6 +1668,8 @@ document.addEventListener("input",ev=>{
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
   else if(f==="ib"){ if(S.ibForm) S.ibForm[el.dataset.k]=el.value; }
+  else if(f==="act"){ if(S.actDraft){ S.actDraft[el.dataset.k]=el.value; const t=top(), pv=$("#actPreview"); if(pv&&t) pv.innerHTML=actPreview(t.date);
+      if(el.dataset.k==="km"||el.dataset.k==="min"){ const A=ACT_BY[S.actDraft.k], on=A&&A.sp&&parseNum(S.actDraft.km)>0&&parseNum(S.actDraft.min)>0; document.querySelectorAll('[data-act="actVar"]').forEach(c=>{ c.disabled=!!on; c.setAttribute("aria-pressed",String(!on&&+c.dataset.v===(S.actDraft.v|0))); }); } } }
   else if(f==="goal"){ const k=el.dataset.k; S.goalT=S.goalT||{}; clearTimeout(S.goalT[k]); S.goalT[k]=setTimeout(()=>{ saveGoal({[k]:el.value.trim()}); const gb=$("#goalBox"); if(gb) gb.innerHTML=goalBox(); },450); }
   else if(f==="dur"){ const v=parseNum(el.value); clearTimeout(S.durT); S.durT=setTimeout(()=>{ saveDay(el.dataset.date,{dur:v&&v>0?Math.round(v):null}); render(); const i=$("#durEdit"); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },900); }
   else if(f==="bw"||f==="steps"){
@@ -1773,6 +1814,124 @@ function dailyCard(date){
     ${date===todayStr()&&motion?(live?`<div class="steps-live"><span class="dot"></span><b class="num" id="stLive">${fmtNum(Steps.count())}</b> Schritte gezählt <button class="btn" data-act="stepsStop">Stopp</button></div>`:`<button class="btn ghost" data-act="stepsStart" style="align-self:flex-start;min-height:34px;padding:0 4px">Schritte jetzt live zählen</button>`):""}
   </div>`;
 }
+/* ---------- Aktivitäten außerhalb vom Gym ---------- */
+// MET-Werte aus dem 2024 Adult Compendium of Physical Activities (Herrmann et al., 2024).
+// v: Varianten [Bezeichnung, MET], sp: Tempo-Tabelle (km/h), spm: Schritte pro Minute, wenn das Handy dabei ist
+const ACT_GROUPS=[["out","Draußen & Ausdauer"],["fit","Kurse, Yoga & Geräte"],["sport","Sport & Spiel"],["winter","Winter & Rollen"],["misc","Sonstiges"]];
+const ACTS=[
+  {k:"walk",n:"Spazieren / Gehen",g:"out",v:[["Schlendern",2.3],["Langsam",2.8],["Normal",3.8],["Zügig",4.8],["Sehr zügig",5.5]],d:2,sp:"walk",spm:105},
+  {k:"hike",n:"Wandern",g:"out",v:[["Normal, Felder & Hügel",5.3],["Querfeldein",6.0]],d:0,sp:null,spm:100},
+  {k:"nordic",n:"Nordic Walking",g:"out",v:[["Moderat",4.3],["Zügig",5.3],["Schnell",8.5],["Bergauf",8.8]],d:0,sp:"nordic",spm:110},
+  {k:"dog",n:"Gassi gehen",g:"out",v:[["Normal",3.0]],d:0,spm:90},
+  {k:"jog",n:"Joggen / Laufen",g:"out",v:[["Locker",6.5],["Mittel",7.5],["Zügig",9.3],["Schnell",11.0]],d:1,sp:"run",spm:160},
+  {k:"bike",n:"Radfahren",g:"out",v:[["Gemütlich",4.0],["Normal",6.8],["Zügig",8.0],["Schnell",10.0]],d:1,sp:"bike"},
+  {k:"ebike",n:"E-Bike",g:"out",v:[["Viel Unterstützung",4.0],["Wenig Unterstützung",6.0],["Ohne Unterstützung",6.8]],d:1},
+  {k:"mtb",n:"Mountainbike",g:"out",v:[["Allgemein",8.5],["Bergauf, intensiv",14.0]],d:0},
+  {k:"swim",n:"Schwimmen",g:"out",v:[["Gemütlich planschen",6.0],["Brust, locker",5.3],["Rücken, locker",4.8],["Kraul, locker",5.8],["Kraul, zügig",8.0],["Kraul, schnell",9.8]],d:1},
+  {k:"yoga",n:"Yoga",g:"fit",v:[["Hatha",2.3],["Vinyasa",2.7],["Hot Yoga",3.0],["Sonnengruß-Flow",3.5],["Power Yoga",4.0]],d:0},
+  {k:"pilates",n:"Pilates",g:"fit",v:[["Matte, klassisch",1.8],["Allgemein",2.8]],d:1},
+  {k:"stretch",n:"Dehnen / Mobility",g:"fit",v:[["Leicht",2.3]],d:0},
+  {k:"hiit",n:"HIIT / Zirkeltraining",g:"fit",v:[["Zirkel, leicht",3.5],["Zirkel, mittel",5.0],["Körpergewicht-Zirkel",6.0],["HIIT, mittel",7.0],["Kettlebells, wenig Pause",7.5],["Tabata, Burpees",11.0]],d:3},
+  {k:"aerobic",n:"Zumba / Aerobic",g:"fit",v:[["Aerobic, sanft",4.8],["Zumba-Kurs",6.5],["Step-Aerobic",7.3],["Aerobic, intensiv",8.0]],d:1},
+  {k:"spin",n:"Indoor-Cycling / Ergometer",g:"fit",v:[["Leicht (ca. 50 W)",4.0],["Mittel (ca. 100 W)",6.0],["Spinning-Kurs",9.0],["Intensiv (ca. 200 W)",10.8]],d:1},
+  {k:"cross",n:"Crosstrainer",g:"fit",v:[["Mittel",5.0],["Intensiv",9.0]],d:0},
+  {k:"row",n:"Rudergerät",g:"fit",v:[["Mittel (unter 100 W)",5.0],["Zügig (100–149 W)",7.5],["Intensiv (150–199 W)",11.0]],d:0},
+  {k:"aqua",n:"Aquafitness",g:"fit",v:[["Normal",5.5],["Intensiv",7.5]],d:0},
+  {k:"dance",n:"Tanzen",g:"sport",v:[["Allgemein",3.8],["Gesellschaftstanz",6.0]],d:0},
+  {k:"soccer",n:"Fußball",g:"sport",v:[["Locker",7.0],["Spiel",9.5]],d:0},
+  {k:"tennis",n:"Tennis",g:"sport",v:[["Doppel",6.0],["Locker",6.8],["Einzel",8.0]],d:1},
+  {k:"badminton",n:"Badminton",g:"sport",v:[["Locker",5.5],["Wettkampf",7.0]],d:0},
+  {k:"basket",n:"Basketball",g:"sport",v:[["Werfen & Spielen",7.5],["Spiel",8.0]],d:0},
+  {k:"volley",n:"Volleyball",g:"sport",v:[["Locker",3.0],["Halle",6.0],["Beach",8.0]],d:1},
+  {k:"tt",n:"Tischtennis",g:"sport",v:[["Normal",4.0]],d:0},
+  {k:"squash",n:"Squash",g:"sport",v:[["Normal",7.3]],d:0},
+  {k:"box",n:"Boxen / Sandsack",g:"sport",v:[["Locker",5.8],["Mittel",8.5],["Intensiv",10.8]],d:1},
+  {k:"martial",n:"Kampfsport",g:"sport",v:[["Langsam, Technik",5.3],["Training (Judo, Karate …)",10.3]],d:1},
+  {k:"climb",n:"Klettern / Bouldern",g:"sport",v:[["Klettern, leicht",5.8],["Klettern, schwer",7.3],["Bouldern",8.8]],d:2},
+  {k:"golf",n:"Golf",g:"sport",v:[["Mit Cart",3.5],["Zu Fuß, Schläger tragen",4.3]],d:1,spm:70},
+  {k:"ski",n:"Ski alpin",g:"winter",v:[["Locker",4.3],["Mittel",6.3],["Intensiv",8.0]],d:1},
+  {k:"xc",n:"Langlauf",g:"winter",v:[["Locker",6.8],["Mittel",8.5],["Zügig",11.3]],d:1},
+  {k:"inline",n:"Inlineskaten",g:"winter",v:[["Gemütlich",7.5],["Mittel",9.8],["Schnell",12.3]],d:0},
+  {k:"other",n:"Sonstiges",g:"misc",v:[["Leicht",3.0],["Mittel",5.0],["Anstrengend",7.0]],d:1,custom:true}
+];
+const ACT_BY=Object.fromEntries(ACTS.map(a=>[a.k,a]));
+// Tempo-Tabellen [ab km/h, MET] aus dem Compendium (mph umgerechnet)
+const SPEED={
+  walk:[[0,2.3],[3.2,2.8],[4.2,3.3],[4.5,3.8],[5.6,4.8],[6.4,5.5],[7.2,7.0],[8.0,8.5]],
+  nordic:[[0,4.3],[5.8,5.3],[7.2,8.5]],
+  run:[[6.4,6.5],[6.9,7.8],[8.0,8.5],[8.8,9.0],[9.6,9.3],[10.8,10.5],[11.3,11.0],[12.1,11.8],[12.9,12.0],[13.8,12.5],[14.5,13.0],[16.1,14.8],[17.7,16.8],[19.3,18.5],[20.9,19.8],[22.5,23.0]],
+  bike:[[0,4.0],[14.5,5.8],[16.1,6.8],[19.3,8.0],[22.5,10.0],[25.7,12.0],[32.2,16.8]]
+};
+function speedMet(table,kmh){ const T=SPEED[table]; if(!T||!(kmh>0)) return null; if(table==="run"&&kmh<6.4) return speedMet("walk",kmh); let m=T[0][1]; for(const [v,x] of T) if(kmh>=v) m=x; return m; }
+function actName(a){ const A=ACT_BY[a.k]; return a.k==="other"&&a.name?a.name:A?A.n:"Aktivität"; }
+function actMet(a){ const A=ACT_BY[a.k]; if(!A) return 3; const km=parseNum(a.km), min=parseNum(a.min);
+  if(A.sp&&km>0&&min>0){ const s=speedMet(A.sp,km/(min/60)); if(s) return s; }
+  const v=A.v[Math.min(A.v.length-1,Math.max(0,a.v|0))]; return v[1]; }
+// Kalorien einer Aktivität: zusätzlich zum Grundumsatz (netto)
+function actKcal(a,date){
+  const b=bodyState(date), A=ACT_BY[a.k], min=parseNum(a.min)||0, p=profile();
+  if(!A||!(min>0)) return null;
+  const met=actMet(a), km=parseNum(a.km);
+  const kmh=A.sp&&km>0?km/(min/60):null;
+  let net=null, method="met";
+  const hr=parseNum(a.hr), ag=age(p), w=b.weight;
+  if(hr>=90&&hr<=210&&ag&&w&&b.bmr){
+    // Keytel et al. 2005: Energieverbrauch aus Herzfrequenz, Gewicht, Alter und Geschlecht
+    const m=(-55.0969+0.6309*hr+0.1988*w+0.2017*ag)/4.184, f=(-20.4022+0.4472*hr-0.1263*w+0.074*ag)/4.184;
+    const perMin=p.sex==="m"?m:p.sex==="w"?f:(m+f)/2;
+    net=Math.max(0,(perMin-b.bmr/1440)*min); method="hr";
+  } else if(b.bmr) net=(met-1)*(b.bmr/24)*(min/60);
+  let steps=0;
+  if(A.spm&&a.phone!==false){ const sl=stepLength(p)*(a.k==="jog"?1.35:1); steps=Math.round(km>0?km*1000/sl:min*A.spm); }
+  return {net:net==null?null:Math.round(net),met,kmh,method,steps};
+}
+function dayActs(date){ const d=dayDoc(date); return d&&Array.isArray(d.acts)?d.acts:[]; }
+function actsCard(date){
+  if(date>todayStr()) return "";
+  const L=dayActs(date);
+  const row=(a,i)=>{ const K=actKcal(a,date), A=ACT_BY[a.k]; const v=A&&!(A.sp&&parseNum(a.km)>0)&&A.v.length>1?A.v[Math.min(A.v.length-1,a.v|0)][0]:"";
+    return `<button class="act-row" data-act="actEdit" data-date="${date}" data-i="${i}"><div class="grow"><b>${esc(actName(a))}</b><div class="meta num">${[fmtNum(+a.min)+" min",v,parseNum(a.km)>0?fmtNum(parseNum(a.km))+" km":"",parseNum(a.hr)?"Ø "+fmtNum(parseNum(a.hr))+" Puls":""].filter(Boolean).map(esc).join(" · ")}</div></div><span class="num act-k">${K&&K.net!=null?"+"+fmtNum(K.net)+" kcal":""}</span></button>`; };
+  return `<div class="card acts"><div class="acts-head"><b>Aktivitäten</b><button class="btn ghost" data-act="actNew" data-date="${date}" style="min-height:34px;padding:0 4px">${ICON.plus}Aktivität</button></div>
+    ${L.length?`<div class="act-list">${L.map(row).join("")}</div>`:`<p class="meta" style="margin:0">Yoga, Joggen, Radfahren, Schwimmen … zählen zu deinem Tagesverbrauch dazu.</p>`}</div>`;
+}
+function actRecent(){ const c=new Map(); for(const d of S.docs.values()) if(d&&d.kind==="day"&&Array.isArray(d.acts)) for(const a of d.acts) c.set(a.k,(c.get(a.k)||"")>d.date?c.get(a.k):d.date); return [...c.entries()].sort((a,b)=>b[1].localeCompare(a[1])).map(x=>x[0]).filter(k=>ACT_BY[k]).slice(0,6); }
+function openAct(date,i){
+  const L=dayActs(date), a=i!=null?L[i]:null;
+  S.actDraft=a?{...a,min:a.min!=null?String(a.min):"",km:a.km!=null?inputVal(a.km):"",hr:a.hr!=null?String(a.hr):""}:{k:null,v:0,min:"",km:"",hr:"",name:"",phone:true};
+  push({type:"act",date,i:i==null?null:i});
+}
+function actPreview(date){
+  const D=S.actDraft; if(!D||!D.k) return "";
+  const K=actKcal(D,date), A=ACT_BY[D.k];
+  if(!parseNum(D.min)) return `<p class="hint" style="margin:0">Trag die Dauer ein, dann siehst du hier die Kalorien.</p>`;
+  if(!K||K.net==null) return `<p class="hint" style="margin:0">Für die Kalorien fehlen noch Angaben unter „Mehr“ → „Über mich“ (Gewicht, Größe, Geburtstag, Geschlecht) oder eine Körpermessung.</p>`;
+  const how=K.method==="hr"?`aus deinem Puls berechnet (Formel nach Keytel 2005)`:`${fmtNum(K.met)} MET${K.kmh?` bei ${fmtNum(Math.round(K.kmh*10)/10)} km/h`:""}, Werte aus dem Compendium of Physical Activities 2024`;
+  return `<div class="act-prev"><b class="num">+${fmtNum(K.net)} kcal</b><span>zusätzlich zu deinem Grundumsatz · ${esc(how)}</span>${K.steps?`<span>Etwa ${fmtNum(K.steps)} Schritte davon zählt dein Schrittzähler schon mit. Die zieht die App ab, damit nichts doppelt zählt.</span>`:""}</div>`;
+}
+function viewAct(date){
+  const D=S.actDraft; if(!D) return "";
+  if(!D.k){
+    const rec=actRecent();
+    return `<div class="date-head"><p class="eyebrow">${esc(relDay(date))}</p><h2>Was hast du gemacht?</h2></div>
+      ${rec.length?`<div class="group"><h3>Zuletzt</h3><div class="chips">${rec.map(k=>`<button class="chip" data-act="actPick" data-k="${k}">${esc(ACT_BY[k].n)}</button>`).join("")}</div></div>`:""}
+      ${ACT_GROUPS.map(([g,n])=>`<div class="group"><h3>${n}</h3><div class="chips">${ACTS.filter(a=>a.g===g).map(a=>`<button class="chip" data-act="actPick" data-k="${a.k}">${esc(a.n)}</button>`).join("")}</div></div>`).join("")}`;
+  }
+  const A=ACT_BY[D.k], top0=top(), edit=top0&&top0.i!=null;
+  const inp=(k,label,ph,mode,extra)=>`<label class="field"><span>${label}</span><input class="input" id="act-${k}" data-field="act" data-k="${k}" inputmode="${mode}" placeholder="${ph}" value="${esc(D[k]||"")}" autocomplete="off"${extra||""}></label>`;
+  const speedOn=A.sp&&parseNum(D.km)>0&&parseNum(D.min)>0;
+  return `<div class="date-head"><p class="eyebrow">${esc(relDay(date))}</p><h2>${esc(A.n)}</h2></div>
+    ${edit?"":`<button class="btn ghost" data-act="actChange" style="align-self:flex-start;min-height:32px;padding:0 4px">Andere Aktivität wählen</button>`}
+    <div class="card panel">
+      ${A.custom?inp("name","Was genau?","z. B. Gartenarbeit","text",' maxlength="30"'):""}
+      ${A.v.length>1?`<div class="field"><span>${A.sp?"Intensität (oder unten Strecke eintragen)":"Art & Intensität"}</span><div class="chips">${A.v.map(([l,m],i)=>`<button class="chip" data-act="actVar" data-v="${i}" aria-pressed="${(D.v|0)===i&&!speedOn}"${speedOn?" disabled":""}>${esc(l)}</button>`).join("")}</div></div>`:""}
+      <div class="form-grid">${inp("min","Dauer (Minuten)","z. B. 45","numeric")}${A.sp?inp("km","Strecke (km) · optional","z. B. 5,2","decimal"):""}${inp("hr","Ø Puls · optional","z. B. 128","numeric")}</div>
+      ${A.spm?`<div class="switch-row"><span>Handy war dabei (Schritte wurden schon gezählt)</span><button class="switch" role="switch" data-act="actPhone" aria-checked="${D.phone!==false}" aria-label="Handy war dabei"></button></div>`:""}
+      <div id="actPreview">${actPreview(date)}</div>
+      <p class="hint" style="margin:0">Den Durchschnittspuls zeigt dir deine Smartwatch nach der Aktivität. Mit Puls rechnet die App persönlicher, bei Yoga und Dehnen sagt der Puls aber wenig aus.</p>
+    </div>
+    <div class="btn-row"><button class="btn primary" data-act="actSave">Speichern</button>${edit?`<button class="btn danger${S.armedAct?" armed":""}" data-act="actDel">${S.armedAct?"Wirklich löschen?":"Löschen"}</button>`:""}<button class="btn" data-act="back">Abbrechen</button></div>`;
+}
+
 /* ---------- Tagesverbrauch: Grundumsatz + Training + Schritte + Verdauung ---------- */
 // Schrittlänge nach Körpergröße (ca. 41,5 % bei Männern, 41,3 % bei Frauen), Netto-Kosten des Gehens etwa 0,5 kcal pro kg und km.
 function stepLength(p){ const h=parseNum(p.height); if(h>100&&h<230) return h/100*(p.sex==="w"?0.413:0.415); return p.sex==="w"?0.67:0.74; }
@@ -1782,11 +1941,13 @@ function dayEnergy(date){
   let train=0, trainMin=0, met=null;
   const S0=daySummary(date);
   if(S0.ls.length){ const TM=trainingMinutes(date,S0); met=metFor(S0,TM); trainMin=TM.min; train=Math.max(0,(met-1)*(b.bmr/24)*(TM.min/60)); }
-  const steps=d.steps||0, km=steps*stepLength(p)/1000, stepK=b.weight?0.5*b.weight*km:0;
+  const AL=dayActs(date).map(a=>({a,K:actKcal(a,date)})).filter(x=>x.K);
+  const actK=AL.reduce((s,x)=>s+(x.K.net||0),0), overlap=AL.reduce((s,x)=>s+(x.K.steps||0),0);
+  const stepsAll=d.steps||0, steps=Math.max(0,stepsAll-overlap), km=steps*stepLength(p)/1000, stepK=b.weight?0.5*b.weight*km:0;
   const now=new Date(), frac=isToday?Math.min(1,(now-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000):1;
-  const restNow=b.bmr*frac, activity=train+stepK;
+  const restNow=b.bmr*frac, activity=train+stepK+actK;
   const tefNow=0.1*(restNow+activity), tefDay=0.1*(b.bmr+activity);
-  return {bmr:b.bmr,src:b.src,frac,restNow,train,trainMin,met,steps,km,stepK,tefNow,tefDay,
+  return {bmr:b.bmr,src:b.src,frac,restNow,train,trainMin,met,steps,stepsAll,overlap,km,stepK,actK,acts:AL,tefNow,tefDay,
     now:Math.round(restNow+activity+tefNow), day:Math.round(b.bmr+activity+tefDay), isToday};
 }
 function kcalBlock(date){
@@ -1799,10 +1960,11 @@ function kcalBlock(date){
     <div class="kcal-rows">
       <div><span>Grundumsatz${E.isToday?` bis ${timeTxt}`:""}</span><b class="num">${r(E.isToday?E.restNow:E.bmr)}</b></div>
       <div><span>Training${E.trainMin?` · ${E.trainMin} min, ${fmtNum(E.met)} MET`:""}</span><b class="num">${E.train?"+"+r(E.train):"–"}</b></div>
-      <div><span>Schritte${E.steps?` · ${fmtNum(E.steps)} ≈ ${fmtNum(Math.round(E.km*10)/10)} km`:""}</span><b class="num">${E.stepK?"+"+r(E.stepK):"–"}</b></div>
+      ${E.acts.length?`<div><span>Aktivitäten · ${esc(E.acts.map(x=>actName(x.a)+" "+fmtNum(+x.a.min)+" min").join(", "))}</span><b class="num">+${r(E.actK)}</b></div>`:""}
+      <div><span>Schritte${E.steps?` · ${fmtNum(E.steps)} ≈ ${fmtNum(Math.round(E.km*10)/10)} km`:""}${E.overlap&&E.stepsAll?` (ohne ${fmtNum(Math.min(E.overlap,E.stepsAll))} Schritte der Aktivitäten)`:""}</span><b class="num">${E.stepK?"+"+r(E.stepK):"–"}</b></div>
       <div><span>Verdauung · etwa 10 %</span><b class="num">+${r(E.isToday?E.tefNow:E.tefDay)}</b></div>
       <div class="sum"><span>${E.isToday?"Bisher":"Gesamt"}</span><b class="num">${r(E.isToday?E.now:E.day)} kcal</b></div>
-      <p class="hint" style="margin:0">Grundumsatz: ${esc(E.src)}. Training: nur der Verbrauch über dem Ruhewert (MET-Methode), damit nichts doppelt zählt. Schritte: Schrittlänge aus deiner Größe, rund 0,5 kcal pro kg Körpergewicht und Kilometer zusätzlich zur Ruhe. Alltagsbewegung ohne Schritte (Stehen, Hausarbeit) ist nicht enthalten, der echte Wert liegt also eher etwas höher. Alles ist eine Schätzung.</p>
+      <p class="hint" style="margin:0">Grundumsatz: ${esc(E.src)}. Training und Aktivitäten: nur der Verbrauch über dem Ruhewert (MET-Methode nach dem Compendium of Physical Activities 2024 oder, wenn eingetragen, aus dem Puls), damit nichts doppelt zählt. Schritte: Schrittlänge aus deiner Größe, rund 0,5 kcal pro kg Körpergewicht und Kilometer zusätzlich zur Ruhe. Alltagsbewegung ohne Schritte (Stehen, Hausarbeit) ist nicht enthalten, der echte Wert liegt also eher etwas höher. Alles ist eine Schätzung.</p>
     </div></details>`;
 }
 function refreshKcal(date){ const el=document.getElementById("kcal-"+date); if(el){ const w=document.createElement("div"); w.innerHTML=kcalBlock(date); el.replaceWith(w.firstElementChild); } }
@@ -1914,7 +2076,7 @@ function strengthTrend(){
     if(r>0.01){ up++; if(!best||r>best.r) best={r,exId:k}; } else if(r<-0.01) down++; else same++; }
   return {up,down,same,n:up+down+same,best};
 }
-function sessionsPerWeek(){ const t=todayStr(); const days=[...logsByDate().keys()].filter(d=>{ const a=dayDiffBetween(d,t); return a>=0&&a<28; }); return days.length/4; }
+function sessionsPerWeek(){ const t=todayStr(); const actD=[...S.docs.values()].filter(d=>d&&d.kind==="day"&&d.acts&&d.acts.length).map(d=>d.date); const days=[...new Set([...logsByDate().keys(),...actD])].filter(d=>{ const a=dayDiffBetween(d,t); return a>=0&&a<28; }); return days.length/4; }
 
 function goalReport(mid){
   const g=goal(), G=goalDef(g), C=measureCompare(mid), WT=weightTrend(), items=[];
@@ -1972,7 +2134,7 @@ function goalReport(mid){
   }
   if(G&&G.k==="fit"){
     const f=sessionsPerWeek();
-    add(f>=2?"good":"warn",`${fmtNum(Math.round(f*10)/10)} Trainings pro Woche in den letzten 4 Wochen.${f>=2?" Damit erfüllst du die Empfehlung von mindestens 2 Krafteinheiten pro Woche.":" Empfohlen sind mindestens 2 Krafteinheiten pro Woche."}`);
+    add(f>=2?"good":"warn",`${fmtNum(Math.round(f*10)/10)} Trainingstage pro Woche in den letzten 4 Wochen (Gym und Aktivitäten).${f>=2?" Weiter so, regelmäßig aktiv zu sein ist das Wichtigste.":" Empfohlen sind mindestens 2 Krafteinheiten pro Woche plus Ausdauer."}`);
     const sd=[...Array(7)].map((_,i)=>(dayDoc(addDays(todayStr(),-i))||{}).steps||0).filter(Boolean);
     if(sd.length>=3){ const avg=sd.reduce((a,b)=>a+b,0)/sd.length; add(avg>=7000?"good":"info",`Im Schnitt ${fmtNum(Math.round(avg))} Schritte an den Tagen mit Eintrag.${avg>=7000?"":" Mehr als etwa 7.000 Schritte am Tag gelten als gesundheitlich deutlich günstiger."}`); }
     if(C&&C.P&&C.dPbf!=null) add("info",`${fatTxt()}${since}.`);
