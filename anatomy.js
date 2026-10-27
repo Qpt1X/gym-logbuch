@@ -9,7 +9,7 @@ const REG=["bg","none","chest","shoulders","arms","abs","back","glutes","hip","l
   // ab Nummer 17: Schultern, Rücken, Bauch und Adduktoren genauer aufgeteilt
   "front_delts","side_delts","rear_delts","traps","upper_back","lats","lower_back","obliques","adductors"];
 // Ältere Sammelbegriffe auf die einzelnen Regionen verteilen
-const ALIAS={shoulders:["front_delts","side_delts","rear_delts"],back:["traps","upper_back","lats","lower_back"],arms:["biceps","triceps","forearms"],legs:["quads","hamstrings","calves","adductors"]};
+const ALIAS={shoulders:["front_delts","side_delts","rear_delts"],back:["upper_back","lats","lower_back"],arms:["biceps","triceps","forearms"],legs:["quads","hamstrings","calves","adductors"]};
 const cache={};
 
 function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }

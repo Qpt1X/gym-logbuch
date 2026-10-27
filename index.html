@@ -608,7 +608,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.7";
+const APP_VERSION = "3.8";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -2515,7 +2515,7 @@ function renderEvalSheet(){
 /* ---------- Trainingsabschluss ---------- */
 const ARMS=["biceps","triceps","forearms"], LEGS=["quads","hamstrings","calves","adductors"], DELTS=["front_delts","side_delts","rear_delts"], BACK=["traps","upper_back","lats","lower_back"];
 const GROUP_REGIONS={"Brust":["chest"],"Schultern":DELTS,"Vordere Schulter":["front_delts"],"Seitliche Schulter":["side_delts"],"Hintere Schulter":["rear_delts"],
-  "Rücken":BACK,"Nacken & Trapez":["traps","neck"],"Oberer Rücken":["upper_back"],"Latissimus":["lats"],"Unterer Rücken":["lower_back"],
+  "Rücken":BACK.filter(r=>r!=="traps"),"Nacken & Trapez":["traps","neck"],"Oberer Rücken":["upper_back"],"Latissimus":["lats"],"Unterer Rücken":["lower_back"],
   "Bizeps":["biceps"],"Trizeps":["triceps"],"Unterarme":["forearms"],"Arme":ARMS,"Bauch":["abs"],"Seitliche Bauchmuskeln":["obliques"],
   "Po":["glutes"],"Abduktoren":["hip"],"Adduktoren":["adductors"],"Oberschenkel vorne":["quads"],"Oberschenkel hinten":["hamstrings"],"Waden":["calves"],"Beine":[...LEGS,"hip"],
   "Ganzkörper":["chest",...DELTS,...BACK,...ARMS,"abs","obliques","glutes",...LEGS],"Cardio":[],"Sonstiges":[]};
@@ -2525,7 +2525,7 @@ const REGION_WORDS=[[/abduk|hüfte außen|hip/i,["hip"]],[/adduk|innenschenkel|o
   [/wade|calf/i,["calves"]],[/beinbeug|hamstring|oberschenkel hinten|oberschenkel-rück|beinrück/i,["hamstrings"]],[/beinstreck|quad|oberschenkel vorne|oberschenkel/i,["quads"]],[/bein|knie/i,LEGS],
   [/vordere schulter|front.?delt/i,["front_delts"]],[/seitliche schulter|side.?delt|lateral/i,["side_delts"]],[/hintere schulter|rear.?delt/i,["rear_delts"]],[/schulter|delt/i,DELTS],
   [/brust|pec/i,["chest"]],[/seitlich.*bauch|schräg|oblique/i,["obliques"]],[/bauch|core|rumpf|abs/i,["abs","obliques"]],
-  [/nacken|trapez|traps/i,["traps","neck"]],[/latissimus|\blat\b/i,["lats"]],[/unterer rücken|rückenstrecker|lenden/i,["lower_back"]],[/oberer rücken|rhomb|mittlerer rücken/i,["upper_back"]],[/rücken/i,BACK]];
+  [/nacken|trapez|traps/i,["traps","neck"]],[/latissimus|\blat\b/i,["lats"]],[/unterer rücken|rückenstrecker|lenden/i,["lower_back"]],[/oberer rücken|rhomb|mittlerer rücken/i,["upper_back"]],[/rücken/i,BACK.filter(r=>r!=="traps")]];
 const REGION_NAMES={chest:"Brust",front_delts:"Vordere Schulter",side_delts:"Seitliche Schulter",rear_delts:"Hintere Schulter",traps:"Nacken & Trapez",upper_back:"Oberer Rücken",lats:"Latissimus",lower_back:"Unterer Rücken",
   biceps:"Bizeps",triceps:"Trizeps",forearms:"Unterarme",abs:"Bauch",obliques:"Seitliche Bauchmuskeln",glutes:"Po",hip:"Abduktoren",adductors:"Adduktoren",quads:"Oberschenkel vorne",hamstrings:"Oberschenkel hinten",calves:"Waden",neck:"Nacken",
   shoulders:"Schultern",back:"Rücken",arms:"Arme",legs:"Beine"};
