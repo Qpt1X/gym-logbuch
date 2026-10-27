@@ -185,6 +185,14 @@ details.plan-edit{border:1px solid var(--line);border-radius:var(--radius);backg
 details.plan-edit summary{font-weight:600;cursor:pointer}
 details.plan-edit[open] summary{margin-bottom:12px}
 .plan-next{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border:1px dashed var(--line);border-radius:var(--radius);background:var(--surface)}
+.sortable>[data-sort-id]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sortable.stack>[data-sort-id]{position:relative}
+.drag-handle{width:34px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);touch-action:none;cursor:grab;margin-right:-6px}
+.drag-handle svg{width:20px;height:20px}
+.sort-anim{transition:transform .16s ease}
+.dragging{position:relative;z-index:15;box-shadow:0 10px 28px rgba(0,0,0,.22);background:var(--surface)!important;border-radius:var(--radius);transition:none!important}
+.sorting{touch-action:none}
+.sort-hint{font-size:.78rem;color:var(--muted);margin:-4px 0 0 2px}
 .plan-next .chev{width:18px;height:18px;color:var(--muted);flex:none}
 .plan-row{padding:12px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .plan-row:first-child{border-top:0}
@@ -361,7 +369,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.7.1";
+const APP_VERSION = "1.8";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -377,6 +385,7 @@ const TAB_TITLES = {today:"Training", exercises:"Übungen", history:"Verlauf", m
 const ICON = {
   chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  grip:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg>',
   doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
   plusItem:'<svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
@@ -538,7 +547,7 @@ function saveDraft(final){
   const id=logId(d.date,d.exId), sets=draftSets(), note=d.note.trim();
   const cur=S.docs.get(id);
   if(!sets.length&&!note){ if(cur){ put(id,null); d.existed=false; } return; }
-  const body={kind:"log",exId:d.exId,date:d.date,sets,note,updatedAt:Date.now()};
+  const body={kind:"log",exId:d.exId,date:d.date,sets,note,createdAt:(cur&&(cur.createdAt||cur.updatedAt))||Date.now(),updatedAt:Date.now()};
   if(cur&&JSON.stringify({s:cur.sets,n:cur.note||""})===JSON.stringify({s:sets,n:note})) return;
   put(id,body); d.existed=true;
 }
@@ -597,7 +606,7 @@ function emptyStart(){
 
 function viewToday(){
   const date=todayStr();
-  const today=logs().filter(l=>l.date===date).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+  const today=sortDayLogs(date,logs().filter(l=>l.date===date));
   const exs=exercises();
   let h=`<div class="date-head"><p class="eyebrow">Heute</p><h2>${esc(fmtLong.format(new Date()))}</h2></div>`;
   if(!exs.length) return h+emptyStart();
@@ -608,8 +617,8 @@ function viewToday(){
     const vol=today.reduce((a,l)=>a+volume(l.sets||[]),0);
     const setCount=today.reduce((a,l)=>a+(l.sets||[]).length,0);
     h+=`<p class="meta num">${today.length} ${today.length===1?"Übung":"Übungen"} · ${setCount} ${setCount===1?"Satz":"Sätze"}${vol?` · ${fmtNum(Math.round(vol))} kg Volumen`:""}</p>`;
-    h+=`<div class="stack">${today.map(l=>{const e=ex(l.exId); if(!e) return "";
-      return `<button class="log-card" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${l.date}">
+    h+=`<div class="stack${today.length>1?" sortable":""}" data-sort="day" data-date="${date}">${today.map(l=>{const e=ex(l.exId); if(!e) return "";
+      return `<button class="log-card" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${l.date}" data-sort-id="${esc(l.exId)}">
         <div class="top"><h3>${esc(e.name)}</h3>${isPR(l)?'<span class="pr">Rekord</span>':""}</div>
         ${setsLine(l.sets||[])}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}
       </button>`;}).join("")}</div>`;
@@ -875,8 +884,24 @@ function dayDoc(date){ const d=S.docs.get("dy_"+date); return d&&d.kind==="day"?
 function dayType(date){ const d=dayDoc(date); return d?typeOf(d.type):null; }
 function saveDay(date,patch){
   const next={...(dayDoc(date)||{}),...patch,kind:"day",date,updatedAt:Date.now()};
-  if(!next.type) delete next.type; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note;
-  put("dy_"+date,(next.type||next.plan||next.note)?next:null);
+  if(!next.type) delete next.type; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order;
+  put("dy_"+date,(next.type||next.plan||next.note||next.order)?next:null);
+}
+function sortDayLogs(date,ls){
+  const d=dayDoc(date), ord=d&&d.order||[], plan=planIds(date);
+  const rank=l=>{ const i=ord.indexOf(l.exId); if(i>=0) return i; const j=plan.indexOf(l.exId); return j>=0?1000+j:1e9; };
+  return [...ls].sort((a,b)=>rank(a)-rank(b)||((a.createdAt||a.updatedAt||0)-(b.createdAt||b.updatedAt||0)));
+}
+function applyOrder(kind,date,ids){
+  if(kind==="plan"||kind==="planopen"){
+    const items=planItems(date), byId=new Map(items.map(x=>[x.id,x]));
+    let next;
+    if(kind==="plan") next=ids.map(id=>byId.get(id)).filter(Boolean);
+    else { const sub=new Set(ids), slots=items.map((x,i)=>sub.has(x.id)?i:-1).filter(i=>i>=0); next=[...items]; slots.forEach((slot,k)=>{ next[slot]=byId.get(ids[k]); }); }
+    savePlan(date,next); saveDay(date,{order:null});
+  } else {
+    saveDay(date,{order:ids});
+  }
 }
 function setDayType(date,k){ const cur=dayType(date); saveDay(date,{type:cur&&cur.k===k?null:k}); }
 function planItems(date){ const d=dayDoc(date); return (d&&d.plan||[]).map(x=>typeof x==="string"?{id:x}:x).filter(x=>x&&ex(x.id)); }
@@ -889,10 +914,11 @@ function addDays(date,n){ const d=toDate(date); d.setDate(d.getDate()+n); return
 function planEditor(date){
   const items=planItems(date), doc=dayDoc(date);
   return `<div class="field"><span>Übungen für diesen Tag</span>
-    ${items.length?`<div class="list">${items.map((it,i)=>{const e=ex(it.id), l=lastBefore(it.id,date), ls=l?l.sets||[]:[], f=ls[0]||{};
-      return `<div class="plan-row"><div class="plan-top"><div class="grow"><div class="name" style="font-weight:600">${esc(e.name)}</div><div class="sub meta num">${l?`Zuletzt: ${ls.map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert"}</div></div><button class="icon-btn" data-act="planRm" data-date="${date}" data-i="${i}" aria-label="${esc(e.name)} aus dem Plan entfernen">${ICON.x}</button></div>
+    ${items.length?`<div class="list sortable" data-sort="plan" data-date="${date}">${items.map((it,i)=>{const e=ex(it.id), l=lastBefore(it.id,date), ls=l?l.sets||[]:[], f=ls[0]||{};
+      return `<div class="plan-row" data-sort-id="${esc(it.id)}"><div class="plan-top">${items.length>1?`<span class="drag-handle" aria-hidden="true">${ICON.grip}</span>`:""}<div class="grow"><div class="name" style="font-weight:600">${esc(e.name)}</div><div class="sub meta num">${l?`Zuletzt: ${ls.map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert"}</div></div><button class="icon-btn" data-act="planRm" data-date="${date}" data-i="${i}" aria-label="${esc(e.name)} aus dem Plan entfernen">${ICON.x}</button></div>
         <div class="plan-tg"><span>Ziel</span><label><input id="pt-${date}-${i}-s" data-field="pt" data-k="s" data-date="${date}" data-i="${i}" inputmode="numeric" placeholder="${ls.length||3}" value="${it.s??""}" aria-label="Sätze">Sätze</label><label><input id="pt-${date}-${i}-r" data-field="pt" data-k="r" data-date="${date}" data-i="${i}" inputmode="numeric" placeholder="${f.r??10}" value="${it.r??""}" aria-label="Wiederholungen">Wdh.</label><label><input id="pt-${date}-${i}-w" data-field="pt" data-k="w" data-date="${date}" data-i="${i}" inputmode="decimal" placeholder="${f.w!=null?esc(inputVal(f.w)):"–"}" value="${it.w!=null?esc(inputVal(it.w)):""}" aria-label="Gewicht in kg">kg</label></div></div>`;}).join("")}</div>`
       :`<p class="hint">Noch keine Übungen eingeplant. Stell dir dein Training zusammen und leg auf Wunsch Sätze, Wiederholungen und Gewicht als Ziel fest.</p>`}
+    ${items.length>1?`<p class="sort-hint">Gedrückt halten und ziehen, um die Reihenfolge zu ändern.</p>`:""}
     <button class="btn" data-act="planAdd" data-date="${date}">${ICON.plus}Übungen hinzufügen</button></div>
   <label class="field"><span>Notiz zum Plan</span><textarea class="input" id="plannote-${date}" data-field="plannote" data-date="${date}" placeholder="z. B. schwerer Tag, 5er-Wiederholungen">${esc(doc&&doc.note||"")}</textarea></label>`;
 }
@@ -909,8 +935,8 @@ function viewPlanPick(date){
 function plannedList(date,loggedIds){
   const rest=planItems(date).filter(x=>!loggedIds.has(x.id));
   if(!rest.length) return "";
-  return `<div class="group"><h3>Geplant${loggedIds.size?", noch offen":""}</h3><div class="list">${rest.map(it=>{const id=it.id, e=ex(id), l=lastBefore(id,date), tg=targetText(it);
-    return `<button class="item" data-act="openLog" data-ex="${esc(id)}" data-date="${date}"><div class="grow"><div class="name">${esc(e.name)}</div>${tg?`<div class="sub num" style="color:var(--ink)">Ziel: ${esc(tg)}</div>`:""}<div class="sub num">${l?`Zuletzt ${relDay(l.date)}: ${(l.sets||[]).map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert"}</div></div>${ICON.plusItem}</button>`;}).join("")}</div></div>`;
+  return `<div class="group"><h3>Geplant${loggedIds.size?", noch offen":""}</h3><div class="list${rest.length>1?" sortable":""}" data-sort="planopen" data-date="${date}">${rest.map(it=>{const id=it.id, e=ex(id), l=lastBefore(id,date), tg=targetText(it);
+    return `<button class="item" data-act="openLog" data-ex="${esc(id)}" data-date="${date}" data-sort-id="${esc(id)}"><div class="grow"><div class="name">${esc(e.name)}</div>${tg?`<div class="sub num" style="color:var(--ink)">Ziel: ${esc(tg)}</div>`:""}<div class="sub num">${l?`Zuletzt ${relDay(l.date)}: ${(l.sets||[]).map(s=>setText(s).replace(/<[^>]+>/g,"")).join(", ")}`:"Noch nicht trainiert"}</div></div>${ICON.plusItem}</button>`;}).join("")}</div></div>`;
 }
 function nextPlanned(){
   const today=todayStr(); let best=null;
@@ -960,7 +986,7 @@ function calendarCard(byDate){
   </div>`;
 }
 function dayList(date,ls){
-  return `<div class="list">${ls.map(l=>{const e=ex(l.exId); return `<button class="item" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${date}" style="flex-direction:column;align-items:stretch;gap:4px">
+  return `<div class="list${ls.length>1?" sortable":""}" data-sort="day" data-date="${date}">${ls.map(l=>{const e=ex(l.exId); return `<button class="item" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${date}" data-sort-id="${esc(l.exId)}" style="flex-direction:column;align-items:stretch;gap:4px">
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="name">${esc(e?e.name:"Gelöschte Übung")}</span>${isPR(l)?'<span class="pr">Rekord</span>':`<span class="meta num">${volume(l.sets||[])?fmtNum(Math.round(volume(l.sets)))+" kg":""}</span>`}</div>${setsLine(l.sets||[])}${l.note?`<div class="meta">${esc(l.note)}</div>`:""}</button>`;}).join("")}</div>`;
 }
 function viewHistory(){
@@ -976,14 +1002,14 @@ function viewHistory(){
   const dates=[...byDate.keys()].filter(d=>d.startsWith(prefix)).sort().reverse();
   if(!dates.length) return h+(plans.length?"":`<p class="hint">In diesem Monat gibt es keine Trainings. Tipp auf einen vergangenen Tag, um ein Training nachzutragen, oder auf einen kommenden Tag, um es zu planen.</p>`);
   return h+dates.map(date=>{
-    const ls=byDate.get(date).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+    const ls=sortDayLogs(date,byDate.get(date));
     const vol=ls.reduce((a,l)=>a+volume(l.sets||[]),0);
     const label=dayDiff(date)<7?relDay(date):fmtLong.format(toDate(date));
     return `<section class="day"><h3><span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="day" data-date="${date}" style="padding:0;min-height:0;font:inherit;color:inherit;text-transform:inherit">${esc(label)}</button>${typeBadge(date)}</span><small class="num">${ls.length} ${ls.length===1?"Übung":"Übungen"}${vol?` · ${fmtNum(Math.round(vol))} kg`:""}</small></h3>${dayList(date,ls)}</section>`;
   }).join("");
 }
 function viewDay(date){
-  const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+  const ls=sortDayLogs(date,logsByDate().get(date)||[]);
   const fut=date>todayStr(), doc=dayDoc(date);
   let h=`<div class="date-head"><p class="eyebrow">${esc(fut?"Planen · "+relDay(date):relDay(date))}</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>`+typePicker(date);
   if(fut){
@@ -1005,7 +1031,7 @@ function viewDay(date){
   return h;
 }
 function makeDayPdf(date){
-  const ls=(logsByDate().get(date)||[]).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+  const ls=sortDayLogs(date,logsByDate().get(date)||[]);
   const t=dayType(date);
   const model={date,typeName:t?t.n:"",dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
     exercises:ls.map(l=>{const e=ex(l.exId)||{name:"Gelöschte Übung"}; return {name:e.name,group:e.kind?groupsText(e):"",settingsLine:(e.settings||[]).filter(x=>x.k||x.v).map(x=>`${x.k} ${x.v}`.trim()).join(" · "),note:l.note||"",sets:l.sets||[]};})};
@@ -1231,6 +1257,78 @@ document.addEventListener("keydown",ev=>{
 
 window.addEventListener("scroll",()=>$("#bar").classList.toggle("scrolled",window.scrollY>4),{passive:true});
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"&&top()&&top().type==="log") saveDraft(false); });
+
+/* ---------- Reihenfolge per Gedrückthalten & Ziehen ---------- */
+const Sorter=(()=>{
+  let st=null, holdT=null, suppressUntil=0;
+  const HOLD=380, SLOP=8;
+  function begin(e,item,list,immediate){
+    const items=[...list.querySelectorAll(":scope>[data-sort-id]")];
+    if(items.length<2) return;
+    const r=item.getBoundingClientRect();
+    const gap=items.length>1?(items[1].getBoundingClientRect().top-items[0].getBoundingClientRect().bottom):0;
+    const sy=window.scrollY, boxes=items.map(x=>x.getBoundingClientRect());
+    st={list,item,items,startY:e.clientY,startX:e.clientX,startScroll:sy,lastY:e.clientY,pid:e.pointerId,from:items.indexOf(item),to:items.indexOf(item),h:r.height+Math.max(0,gap),
+      mids:boxes.map(b=>b.top+sy+b.height/2),top:r.top+sy,bottom:r.bottom+sy,active:false,immediate};
+    if(immediate) activate(); else holdT=setTimeout(activate,HOLD);
+  }
+  function activate(){
+    if(!st) return;
+    st.active=true; clearTimeout(holdT);
+    document.body.classList.add("sorting");
+    st.items.forEach(x=>{ if(x!==st.item) x.classList.add("sort-anim"); });
+    st.item.classList.add("dragging");
+    if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){}
+    try{ window.getSelection().removeAllRanges(); }catch(e){}
+  }
+  function move(e){
+    if(!st||e.pointerId!==st.pid) return;
+    st.lastY=e.clientY;
+    if(!st.active){ if(Math.abs(e.clientY-st.startY)>SLOP||Math.abs(e.clientX-st.startX)>SLOP) cancel(); return; }
+    e.preventDefault();
+    layout();
+    // am Rand automatisch scrollen
+    const vh=window.innerHeight; if(e.clientY<90) window.scrollBy(0,-10); else if(e.clientY>vh-150) window.scrollBy(0,10);
+  }
+  function layout(){
+    if(!st||!st.active) return;
+    const dy=(st.lastY+window.scrollY)-(st.startY+st.startScroll);
+    st.item.style.transform=`translateY(${dy}px)`;
+    // nach oben: Oberkante des gezogenen Elements entscheidet, nach unten: Unterkante
+    const topY=st.top+dy, botY=st.bottom+dy;
+    let t=st.from;
+    for(let i=0;i<st.from;i++){ if(topY<st.mids[i]){ t=i; break; } }
+    for(let i=st.mids.length-1;i>st.from;i--){ if(botY>st.mids[i]){ t=i; break; } }
+    st.to=t;
+    st.items.forEach((x,i)=>{ if(x===st.item) return; let off=0; if(st.from<st.to&&i>st.from&&i<=st.to) off=-st.h; if(st.from>st.to&&i<st.from&&i>=st.to) off=st.h; x.style.transform=off?`translateY(${off}px)`:""; });
+  }
+  function end(e){
+    if(!st||(e&&e.pointerId!==st.pid)) return;
+    clearTimeout(holdT);
+    const s0=st; st=null; document.body.classList.remove("sorting");
+    if(!s0.active) return;
+    suppressUntil=Date.now()+350;
+    const ids=s0.items.map(x=>x.dataset.sortId); const [m]=ids.splice(s0.from,1); ids.splice(s0.to,0,m);
+    s0.items.forEach(x=>{ x.style.transform=""; x.classList.remove("sort-anim","dragging"); });
+    if(s0.to!==s0.from){ applyOrder(s0.list.dataset.sort,s0.list.dataset.date,ids); const open=!!document.querySelector("details.plan-edit[open]"); render(); if(open){ const dt=document.querySelector("details.plan-edit"); if(dt) dt.open=true; } }
+  }
+  function cancel(){ clearTimeout(holdT); if(st&&st.active){ st.items.forEach(x=>{ x.style.transform=""; x.classList.remove("sort-anim","dragging"); }); } st=null; document.body.classList.remove("sorting"); }
+  document.addEventListener("pointerdown",e=>{
+    if(e.button>0) return;
+    const item=e.target.closest(".sortable>[data-sort-id]"); if(!item) return;
+    const handle=e.target.closest(".drag-handle");
+    if(!handle&&e.target.closest("input,textarea,select,.icon-btn")) return;
+    begin(e,item,item.parentElement,!!handle);
+  });
+  document.addEventListener("pointermove",move,{passive:false});
+  document.addEventListener("pointerup",end);
+  document.addEventListener("pointercancel",e=>{ if(st&&st.active){ end(e); } else cancel(); });
+  document.addEventListener("touchmove",e=>{ if(st&&st.active) e.preventDefault(); },{passive:false});
+  document.addEventListener("contextmenu",e=>{ if(e.target.closest(".sortable>[data-sort-id]")) e.preventDefault(); });
+  document.addEventListener("click",e=>{ if(Date.now()<suppressUntil){ e.stopPropagation(); e.preventDefault(); } },true);
+  window.addEventListener("scroll",()=>{ if(st&&!st.active) cancel(); else if(st) layout(); },{passive:true});
+  return {};
+})();
 
 /* ---------- Pausentimer ---------- */
 function restCfg(){ const r=cfg().rest||{}; return {auto:r.auto!==false, def:r.def>0?r.def:90, sound:r.sound!==false, vib:r.vib!==false}; }
