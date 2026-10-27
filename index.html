@@ -256,6 +256,28 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .ib-row:first-child{border-top:0}
 .ib-row .grow{flex:1;min-width:0}
 .ib-row .meta{white-space:normal}
+.src-tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--sunk);color:var(--muted);vertical-align:1px}
+.src-tag.fh{background:var(--accent-soft);color:var(--accent)}
+.goal-chips{flex-wrap:wrap}
+.goal-box{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.goal-box.good{border-left-color:var(--ok)} .goal-box.warn{border-left-color:var(--pr);background:var(--pr-soft)} .goal-box.mixed{border-left-color:#d98a1c}
+.goal-head{font-weight:700}
+.goal-box.good .goal-head{color:var(--ok)} .goal-box.warn .goal-head{color:var(--pr)}
+.goal-box ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.goal-box li{display:flex;gap:10px;align-items:flex-start}
+.goal-box li p{margin:0;font-size:.9rem;line-height:1.4}
+.goal-box li>span{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:.75rem;font-weight:800;background:var(--sunk);color:var(--muted);margin-top:1px}
+.goal-box li.good>span{background:var(--ok);color:#fff} .goal-box li.warn>span{background:var(--pr);color:#fff}
+.tbl.cmp td.up{color:var(--ok);font-weight:700} .tbl.cmp td.down{color:var(--pr);font-weight:700}
+.tbl.cmp small{color:var(--muted)}
+.eval-sheet{max-height:88vh;display:flex;flex-direction:column}
+.eval-body{overflow:auto;padding:4px 16px 8px;display:flex;flex-direction:column;gap:12px}
+.eval-body .eyebrow{margin:0}
+.eval-body>*{flex:none}
+.eval-sheet .sheet-head b{font-size:1.05rem;text-align:center;padding:0 4px}
+.ib-open{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.ib-open .more{color:var(--accent);font-weight:600;font-size:.85rem}
+.ib-row .btn.danger{min-height:36px;padding:0 10px;font-size:.85rem}
 .wx-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--sunk);font-weight:600;font-size:.88rem}
 .wx-chip svg{width:18px;height:18px}
 .daily{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -467,7 +489,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "2.7";
+const APP_VERSION = "2.8";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1302,20 +1324,28 @@ function viewMore(){
     <div class="field"><span>Geschlecht</span><div class="chips">${[["m","Männlich"],["w","Weiblich"],["d","Divers"]].map(([v,l])=>`<button class="chip" data-act="pfSex" data-v="${v}" aria-pressed="${P.sex===v}">${l}</button>`).join("")}</div></div>
     <div class="field"><span>Körpermodell im Abschluss-Screen</span><div class="chips">${[["m","Mann"],["f","Frau"]].map(([v,l])=>`<button class="chip" data-act="pfModel" data-v="${v}" aria-pressed="${bodyModel()===v}">${l}</button>`).join("")}</div></div>
     <div class="form-grid"><label class="field"><span>Geburtstag</span><input class="input" type="date" id="pf-birthDate" data-field="pf" data-k="birthDate" max="${todayStr()}" min="1900-01-01" value="${esc(P.birthDate||(P.birthYear?P.birthYear+"-01-01":""))}"></label>${pin("height","Größe (cm)","z. B. 178","numeric")}${pin("weight","Gewicht (kg)","z. B. 78,5")}${pin("bodyFat","Körperfett (%) · optional","z. B. 18")}</div>
-    <div class="field"><span>Wie intensiv trainierst du meistens?</span><div class="chips"><button class="chip" data-act="pfMet" data-v="3.5" aria-pressed="${metValue()===3.5}">Moderat · viele Übungen, 8–15 Wdh.</button><button class="chip" data-act="pfMet" data-v="6" aria-pressed="${metValue()===6}">Intensiv · schwer, kaum Pausen</button></div></div>
     <p class="hint" id="bmrInfo">${bmrInfo()}</p></div>`;
   const IB=inbodyList(), F2=S.ibForm;
   const ibin=(k,label,ph)=>`<label class="field"><span>${label}</span><input class="input" id="ib-${k}" data-field="ib" data-k="${k}" inputmode="${k==="date"?"text":"decimal"}" placeholder="${ph}" value="${esc(F2[k]||"")}" autocomplete="off"></label>`;
-  const ibCard=`<div class="card panel"><h3>InBody-Messungen</h3><p class="muted">Deine aktuellste Messung (bis 180 Tage alt) wird für die Kalorienschätzung verwendet, am genauesten mit dem Grundumsatz von deinem Ergebnisblatt.</p>
-    ${IB.length?`<div class="list">${IB.slice(0,8).map(m=>`<div class="ib-row"><div class="grow"><b>${esc(fmtShortY.format(toDate(m.date)))}</b><div class="meta num">${[m.weight?fmtNum(m.weight)+" kg":"",m.smm?"SMM "+fmtNum(m.smm)+" kg":"",m.pbf!=null?"KFA "+fmtNum(m.pbf)+" %":"",m.bmr?"GU "+fmtNum(m.bmr)+" kcal":""].filter(Boolean).join(" · ")}</div></div><button class="btn danger${S.armedIb===m.id?" armed":""}" data-act="ibDel" data-id="${esc(m.id)}">${S.armedIb===m.id?"Wirklich?":"Löschen"}</button></div>`).join("")}</div>`:""}
-    ${F2?`<div class="card type-form"><div class="form-grid">${ibin("date","Datum","TT.MM.JJJJ")}${ibin("weight","Gewicht (kg)","78,5")}${ibin("smm","Skelettmuskelmasse (kg)","35,2")}${ibin("fatMass","Körperfettmasse (kg)","14,1")}${ibin("pbf","Körperfettanteil (%)","18,0")}${ibin("bmr","Grundumsatz (kcal)","1720")}</div>
-      <div class="btn-row"><button class="btn primary" data-act="ibSave">Speichern</button><button class="btn" data-act="ibCancel">Abbrechen</button></div></div>`:""}
-    <div class="btn-row">${F2?"":`<button class="btn" data-act="ibNew">${ICON.plus}Messung eintragen</button>`}<button class="btn" data-act="ibImport">CSV importieren</button></div>
-    <p class="hint">CSV-Export aus der InBody- bzw. LookinBody-App: Die App erkennt Spalten wie Datum, Gewicht, Skelettmuskelmasse, Körperfett und Grundumsatz (deutsch oder englisch). Ein PDF-Ergebnisblatt kann sie nicht auslesen, die Werte kannst du aber oben eintragen.</p></div>`;
+  const fh=F2&&F2.src==="fh";
+  const ibCard=`<div class="card panel"><h3>Körpermessungen</h3><p class="muted">Messungen von InBody oder vom EGYM Fitness Hub. Die App vergleicht jede neue Messung mit der vorherigen und sagt dir, ob du Richtung Ziel gehst. Die aktuellste Messung (bis 180 Tage alt) verbessert außerdem die Kalorienschätzung.</p>
+    ${IB.length?`<div class="list">${IB.slice(0,10).map(m=>`<div class="ib-row"><button class="ib-open" data-act="evalOpen" data-id="${esc(m.id)}"><b>${esc(fmtShortY.format(toDate(m.date)))}</b> <span class="src-tag ${msrc(m)}">${MSRC[msrc(m)]}</span><div class="meta num">${[m.weight?fmtNum(m.weight)+" kg":"",m.smm?"Muskeln "+fmtNum(m.smm)+" kg":"",pbfOf(m)!=null?"KFA "+fmtNum(Math.round(pbfOf(m)*10)/10)+" %":"",m.bmr?"GU "+fmtNum(m.bmr)+" kcal":""].filter(Boolean).join(" · ")}</div><span class="more">Auswertung ›</span></button><button class="btn danger${S.armedIb===m.id?" armed":""}" data-act="ibDel" data-id="${esc(m.id)}">${S.armedIb===m.id?"Wirklich?":"Löschen"}</button></div>`).join("")}</div>`:""}
+    ${F2?`<div class="card type-form"><b>${fh?"Fitnesshub-Messung":"InBody-Messung"}</b><div class="form-grid">${ibin("date","Datum","TT.MM.JJJJ")}${ibin("weight","Gewicht (kg)","78,5")}${ibin("smm",fh?"Muskelmasse (kg)":"Skelettmuskelmasse (kg)","35,2")}${ibin("fatMass","Körperfettmasse (kg)","14,1")}${ibin("pbf","Körperfettanteil (%)","18,0")}${ibin("ffm","Fettfreie Masse (kg) · optional","64,4")}${ibin("visc",fh?"Viszeralfett (l) · optional":"Viszeralfett-Level · optional",fh?"1,8":"6")}${ibin("bmr","Grundumsatz (kcal) · optional","1720")}</div>
+      ${fh?`<p class="hint" style="margin:0">Die Werte findest du nach der Messung in der EGYM-App bzw. Fitness-Hub-Auswertung. Trag ein, was du hast, mindestens einen Wert.</p>`:""}
+      <div class="btn-row"><button class="btn primary" data-act="ibSave">Speichern & auswerten</button><button class="btn" data-act="ibCancel">Abbrechen</button></div></div>`:""}
+    ${S.csvPending?`<div class="card type-form"><b>${S.csvPending.length} ${S.csvPending.length===1?"Messung":"Messungen"} erkannt. Von welchem Gerät?</b><div class="btn-row"><button class="btn primary" data-act="csvSrc" data-v="ib">InBody</button><button class="btn primary" data-act="csvSrc" data-v="fh">Fitnesshub</button><button class="btn" data-act="csvCancel">Abbrechen</button></div></div>`:""}
+    <div class="btn-row">${F2?"":`<button class="btn" data-act="ibNew" data-src="ib">${ICON.plus}InBody</button><button class="btn" data-act="ibNew" data-src="fh">${ICON.plus}Fitnesshub</button>`}<button class="btn" data-act="ibImport">CSV importieren</button></div>
+    <p class="hint">CSV-Export, zum Beispiel aus der InBody- bzw. LookinBody-App: Die App erkennt Spalten wie Datum, Gewicht, Muskelmasse, Körperfett, Viszeralfett und Grundumsatz (deutsch oder englisch). Ein PDF-Ergebnisblatt kann sie nicht auslesen, die Werte kannst du aber oben eintragen.</p></div>`;
+  const G0=goal(), GD=goalDef(G0), GT=GD&&GD.t?GOAL_TARGET[GD.t]:null;
+  const goalCard=`<div class="card panel"><h3>Mein Ziel</h3><p class="muted">Woran arbeitest du gerade? Die App bewertet danach deine Messungen und dein Gewicht.</p>
+    <div class="chips goal-chips">${GOALS.map(x=>`<button class="chip" data-act="goalPick" data-v="${x.k}" aria-pressed="${!!(GD&&GD.k===x.k)}">${esc(x.n)}</button>`).join("")}</div>
+    ${GD?`<p class="hint" style="margin:0">${esc(GD.d)}</p>
+    <div class="form-grid">${GT?`<label class="field"><span>${GT[0]} (${GT[1]}) · optional</span><input class="input" id="goal-target" data-field="goal" data-k="target" inputmode="decimal" placeholder="${GT[2]}" value="${esc(G0.target||"")}" autocomplete="off"></label>`:""}<label class="field"><span>Zieldatum · optional</span><input class="input" type="date" id="goal-date" data-field="goal" data-k="date" min="${todayStr()}" value="${esc(G0.date||"")}"></label></div>
+    <div id="goalBox">${goalBox()}</div>`:""}</div>`;
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${bodyCard}${ibCard}${wxCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${goalCard}${ibCard}${bodyCard}${wxCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1410,15 +1440,21 @@ document.addEventListener("click",ev=>{
     case "unfinish": { const d=b.dataset.date; saveDay(d,{done:null}); toast("Training läuft weiter"); const t=top(); if(t&&t.type==="finish"&&d===todayStr()) setTab("today"); else render(); break; }
     case "pfSex": { const v=b.dataset.v, p=profile(); saveProfile({sex:p.sex===v?null:v}); render(); break; }
     case "pfModel": saveProfile({model:b.dataset.v}); render(); break;
-    case "pfMet": saveProfile({met:+b.dataset.v}); render(); break;
-    case "ibNew": S.ibForm={date:todayStr(),weight:"",smm:"",fatMass:"",pbf:"",bmr:"",ffm:""}; render(); break;
+    case "ibNew": S.ibForm={src:b.dataset.src==="fh"?"fh":"ib",date:todayStr(),weight:"",smm:"",fatMass:"",pbf:"",bmr:"",ffm:"",visc:""}; render(); break;
+    case "evalOpen": openEvalSheet(b.dataset.id); break;
+    case "evalClose": closeEvalSheet(); break;
+    case "goalPick": { const v=b.dataset.v, g=goal(); if(g&&g.type===v) saveCfg({goal:null}); else saveCfg({goal:{type:v,date:g&&g.date||"",target:g&&goalDef(g).t===GOALS.find(x=>x.k===v).t?g.target||"":"",set:todayStr()}}); render(); break; }
+    case "csvCancel": S.csvPending=null; render(); break;
+    case "csvSrc": { const src=b.dataset.v, rows=S.csvPending||[]; S.csvPending=null; let last=null;
+      for(const m of rows){ const id=(src==="fh"?"fh_":"ib_")+m.date, cur=S.docs.get(id); put(id,{...(cur||{}),...m,src,kind:"inbody",updatedAt:Date.now()}); if(!last||m.date>last.date) last={id,date:m.date}; }
+      toast(`${rows.length} ${rows.length===1?"Messung":"Messungen"} importiert`); render(); if(last) openEvalSheet(last.id); break; }
     case "ibCancel": S.ibForm=null; render(); break;
     case "ibSave": {
       const F=S.ibForm, d=parseDateAny(F.date)||F.date;
       if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast("Datum bitte als TT.MM.JJJJ eingeben"); return; }
-      const m={kind:"inbody",date:d,updatedAt:Date.now()}; for(const k of ["weight","smm","fatMass","pbf","bmr","ffm"]){ const v=parseNum(F[k]); if(v!=null&&v>0) m[k]=v; }
-      if(Object.keys(m).length<=3){ toast("Trag mindestens einen Messwert ein"); return; }
-      put("ib_"+d,m); S.ibForm=null; toast("Messung gespeichert"); render(); break;
+      const src=F.src==="fh"?"fh":"ib", m={kind:"inbody",src,date:d,updatedAt:Date.now()}; for(const k of ["weight","smm","fatMass","pbf","bmr","ffm","visc"]){ const v=parseNum(F[k]); if(v!=null&&v>0) m[k]=v; }
+      if(Object.keys(m).length<=4){ toast("Trag mindestens einen Messwert ein"); return; }
+      const id=(src==="fh"?"fh_":"ib_")+d; put(id,m); S.ibForm=null; toast("Messung gespeichert"); render(); openEvalSheet(id); break;
     }
     case "ibDel": { if(S.armedIb!==b.dataset.id){ S.armedIb=b.dataset.id; render(); return; } S.armedIb=null; put(b.dataset.id,null); toast("Messung gelöscht"); render(); break; }
     case "ibImport": $("#inbodyFile").click(); break;
@@ -1567,6 +1603,7 @@ document.addEventListener("input",ev=>{
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
   else if(f==="ib"){ if(S.ibForm) S.ibForm[el.dataset.k]=el.value; }
+  else if(f==="goal"){ const k=el.dataset.k; S.goalT=S.goalT||{}; clearTimeout(S.goalT[k]); S.goalT[k]=setTimeout(()=>{ saveGoal({[k]:el.value.trim()}); const gb=$("#goalBox"); if(gb) gb.innerHTML=goalBox(); },450); }
   else if(f==="dur"){ const v=parseNum(el.value); clearTimeout(S.durT); S.durT=setTimeout(()=>{ saveDay(el.dataset.date,{dur:v&&v>0?Math.round(v):null}); render(); const i=$("#durEdit"); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },900); }
   else if(f==="bw"||f==="steps"){
     const k=f, dt=el.dataset.date; S.dvT=S.dvT||{}; clearTimeout(S.dvT[k+dt]);
@@ -1677,7 +1714,9 @@ const Sorter=(()=>{
   return {};
 })();
 
-/* ---------- Profil, InBody & Energie ---------- */
+/* ---------- Profil, Körpermessungen & Energie ---------- */
+const MSRC={ib:"InBody",fh:"Fitnesshub"};
+function msrc(m){ return m&&m.src==="fh"?"fh":"ib"; }
 function profile(){ return cfg().profile||{}; }
 function saveProfile(patch){ saveCfg({profile:{...profile(),...patch}}); }
 function inbodyList(){ const out=[]; for(const [id,d] of S.docs) if(d&&d.kind==="inbody") out.push({id,...d}); return out.sort((a,b)=>b.date.localeCompare(a.date)); }
@@ -1707,7 +1746,7 @@ function dailyCard(date){
   </div>`;
 }
 function bodyState(onDate){
-  // aktuellste InBody-Messung bis zu diesem Tag (höchstens 180 Tage alt), sonst Profilangaben
+  // aktuellste Körpermessung bis zu diesem Tag (höchstens 180 Tage alt), sonst Profilangaben
   const p=profile(), d=onDate||todayStr();
   const ib=inbodyList().find(m=>m.date<=d&&dayDiffBetween(m.date,d)<=180)||null;
   const lw=latestWeight(d), ibW=ib&&ib.weight?{w:ib.weight,date:ib.date}:null;
@@ -1715,13 +1754,15 @@ function bodyState(onDate){
   const pbf=ib&&ib.pbf!=null?ib.pbf:(ib&&ib.fatMass&&ib.weight?ib.fatMass/ib.weight*100:parseNum(p.bodyFat));
   const ffm=ib&&ib.ffm?ib.ffm:(weight&&pbf!=null?weight*(1-pbf/100):null);
   let bmr=null, src="";
-  if(ib&&ib.bmr){ bmr=ib.bmr; src=`InBody-Grundumsatz vom ${fmtShortY.format(toDate(ib.date))}`; }
+  if(ib&&ib.bmr){ bmr=ib.bmr; src=`${MSRC[msrc(ib)]}-Grundumsatz vom ${fmtShortY.format(toDate(ib.date))}`; }
   else if(ffm){ bmr=370+21.6*ffm; src="Katch-McArdle (aus fettfreier Masse)"; }
   else if(weight&&parseNum(p.height)&&age(p)){ const base=10*weight+6.25*parseNum(p.height)-5*age(p); bmr=base+(p.sex==="m"?5:p.sex==="w"?-161:-78); src="Mifflin-St Jeor (aus Gewicht, Größe, Alter, Geschlecht)"; }
   return {weight,pbf,ffm,bmr,src,ib};
 }
 function dayDiffBetween(a,b){ return Math.round((toDate(b)-toDate(a))/86400000); }
-function metValue(){ const m=+profile().met; return m===6?6:3.5; }
+// MET-Wert wird automatisch aus der Trainingsdichte bestimmt: gemessene Dauer und Sätze pro Minute.
+// Ab etwa einem Satz alle 2 Minuten (inkl. Pause) gilt das Training als intensiv (6,0 MET), sonst moderat (3,5 MET).
+function metFor(S0,TM){ return TM&&!TM.est&&TM.min>0&&S0&&S0.sets/TM.min>=0.5?6:3.5; }
 function trainingMinutes(date,S0){
   const dd=dayDoc(date);
   if(dd&&dd.dur>0) return {min:dd.dur,est:false,manual:true};
@@ -1729,9 +1770,9 @@ function trainingMinutes(date,S0){
   const rest=restCfg().def;
   return {min:Math.max(5,Math.round(S0.sets*(0.75+rest/60))),est:true};
 }
-function kcalFor(date,minutes){
+function kcalFor(date,minutes,met){
   const b=bodyState(date); if(!b.bmr) return null;
-  return {kcal:Math.round(metValue()*(b.bmr/24)*(minutes/60)),src:b.src};
+  return {kcal:Math.round((met||3.5)*(b.bmr/24)*(minutes/60)),src:b.src};
 }
 function weekIndex(date){
   const d=toDate(date), wd=(d.getDay()+6)%7, mon=addDays(date,-wd);
@@ -1745,7 +1786,7 @@ function parseDateAny(v){
   m=t.match(/^(\d{4})(\d{2})(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
   return null;
 }
-const IB_COLS=[["date",/datum|date|messung|test/i],["weight",/^(körper)?gewicht|^weight|^body ?weight/i],["smm",/skelettmuskel|smm|skeletal/i],["fatMass",/körperfettmasse|fettmasse|body fat mass|bfm/i],["pbf",/körperfettanteil|fettanteil|pbf|percent body fat|körperfett ?\(?%|fett ?%/i],["bmr",/grundumsatz|bmr|basal/i],["ffm",/fettfreie|ffm|fat ?free|lean body/i]];
+const IB_COLS=[["date",/datum|date|messung|test/i],["visc",/viszeral|visceral/i],["weight",/^(körper)?gewicht|^weight|^body ?weight/i],["smm",/skelettmuskel|smm|skeletal|^muskelmasse|^muscle mass/i],["fatMass",/körperfettmasse|fettmasse|body fat mass|bfm/i],["pbf",/körperfettanteil|fettanteil|pbf|percent body fat|körperfett ?\(?%|fett ?%/i],["bmr",/grundumsatz|bmr|basal/i],["ffm",/fettfreie|ffm|fat ?free|lean body/i]];
 function parseInbodyCsv(text){
   const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim());
   if(lines.length<2) return [];
@@ -1757,9 +1798,190 @@ function parseInbodyCsv(text){
   const num=v=>{ if(v==null) return null; const t=String(v).replace(/[^0-9,.-]/g,""); return t?parseNum(t.includes(",")&&t.includes(".")?t.replace(/\./g,""):t):null; };
   const out=[];
   for(const l of lines.slice(1)){ const c=split(l), d=parseDateAny(c[map.date]); if(!d) continue;
-    const m={date:d}; for(const k of ["weight","smm","fatMass","pbf","bmr","ffm"]) if(map[k]!=null){ const v=num(c[map[k]]); if(v!=null&&v>0) m[k]=v; }
+    const m={date:d}; for(const k of ["weight","smm","fatMass","pbf","bmr","ffm","visc"]) if(map[k]!=null){ const v=num(c[map[k]]); if(v!=null&&v>0) m[k]=v; }
     if(Object.keys(m).length>1) out.push(m); }
   return out;
+}
+
+/* ---------- Ziele & Auswertung der Körpermessungen ---------- */
+const GOALS=[
+  {k:"muscle",n:"Muskelaufbau",d:"Mehr Muskelmasse aufbauen.",t:"smm"},
+  {k:"fat",n:"Fettabbau",d:"Körperfett verlieren und dabei die Muskeln halten.",t:"pbf"},
+  {k:"recomp",n:"Body Recomposition",d:"Fett ab- und Muskeln aufbauen, das Gewicht bleibt etwa gleich.",t:"pbf"},
+  {k:"lose",n:"Abnehmen",d:"Körpergewicht reduzieren.",t:"weight"},
+  {k:"keep",n:"Gewicht halten",d:"Das aktuelle Gewicht halten.",t:"weight"},
+  {k:"gain",n:"Zunehmen",d:"Körpergewicht aufbauen, zum Beispiel wenn du eher schmal bist.",t:"weight"},
+  {k:"strength",n:"Kraft steigern",d:"Schwerere Gewichte bewegen. Bewertet wird dein geschätztes Maximalgewicht (1RM) je Übung.",t:null},
+  {k:"fit",n:"Fit & gesund bleiben",d:"Regelmäßig trainieren und in Bewegung bleiben.",t:null}
+];
+const GOAL_TARGET={smm:["Ziel-Muskelmasse","kg","z. B. 38"],pbf:["Ziel-Körperfett","%","z. B. 15"],weight:["Zielgewicht","kg","z. B. 75"]};
+function goal(){ const g=cfg().goal; return g&&GOALS.some(x=>x.k===g.type)?g:null; }
+function goalDef(g){ return g?GOALS.find(x=>x.k===g.type):null; }
+function saveGoal(patch){ const g=goal()||{}; saveCfg({goal:{...g,...patch}}); }
+function fatKg(m){ return m.fatMass!=null?m.fatMass:(m.pbf!=null&&m.weight?m.weight*m.pbf/100:null); }
+function pbfOf(m){ return m.pbf!=null?m.pbf:(m.fatMass!=null&&m.weight?m.fatMass/m.weight*100:null); }
+function sgn(v,th){ return v==null?null:v>th?1:v<-th?-1:0; }
+function signed(v,unit,dec){ const r=Math.round(Math.abs(v)*(dec==null?10:Math.pow(10,dec)))/(dec==null?10:Math.pow(10,dec)); return (v>0.0001?"+":v<-0.0001?"−":"±")+fmtNum(r)+(unit?" "+unit:""); }
+// Vergleich der neuesten Messung mit der vorherigen, bevorzugt vom selben Gerät
+function measureCompare(id){
+  const L=inbodyList(); if(!L.length) return null;
+  const i=id?Math.max(0,L.findIndex(m=>m.id===id)):0, M=L[i];
+  const older=L.slice(i+1), P=older.find(m=>msrc(m)===msrc(M))||older[0]||null;
+  if(!P) return {M,P:null};
+  const d=k=>M[k]!=null&&P[k]!=null?M[k]-P[k]:null;
+  const fM=fatKg(M), fP=fatKg(P), pM=pbfOf(M), pP=pbfOf(P);
+  return {M,P,mixed:msrc(M)!==msrc(P),days:dayDiffBetween(P.date,M.date),
+    dW:d("weight"), dSmm:d("smm"), dFat:fM!=null&&fP!=null?fM-fP:null, dPbf:pM!=null&&pP!=null?pM-pP:null};
+}
+// Gewichtstrend der letzten 5 Wochen als kg pro Woche (lineare Regression)
+function weightTrend(){
+  const t=todayStr(), E=weightEntries().filter(e=>dayDiffBetween(e.date,t)<=35);
+  if(E.length<3||dayDiffBetween(E[0].date,E[E.length-1].date)<10) return null;
+  const xs=E.map(e=>dayDiffBetween(E[0].date,e.date)), ys=E.map(e=>e.w), n=E.length;
+  const mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0; xs.forEach((x,j)=>{ num+=(x-mx)*(ys[j]-my); den+=(x-mx)*(x-mx); });
+  return den?{perWeek:num/den*7,days:xs[n-1],n}:null;
+}
+// Kraft: bestes geschätztes 1RM je Übung, letzte 4 Wochen gegen die 8 Wochen davor
+function strengthTrend(){
+  const t=todayStr(), now={}, before={};
+  for(const l of logs()){ const age=dayDiffBetween(l.date,t); if(age<0||age>84) continue;
+    let b=null; for(const s of l.sets||[]){ const v=e1rm(s.w,s.r); if(v!=null&&(b==null||v>b)) b=v; }
+    if(b==null) continue; const T=age<=28?now:before; T[l.exId]=Math.max(T[l.exId]||0,b); }
+  let up=0, down=0, same=0, best=null;
+  for(const k of Object.keys(now)){ if(!before[k]) continue; const r=now[k]/before[k]-1;
+    if(r>0.01){ up++; if(!best||r>best.r) best={r,exId:k}; } else if(r<-0.01) down++; else same++; }
+  return {up,down,same,n:up+down+same,best};
+}
+function sessionsPerWeek(){ const t=todayStr(); const days=[...logsByDate().keys()].filter(d=>{ const a=dayDiffBetween(d,t); return a>=0&&a<28; }); return days.length/4; }
+
+function goalReport(mid){
+  const g=goal(), G=goalDef(g), C=measureCompare(mid), WT=weightTrend(), items=[];
+  const add=(s,t)=>items.push({s,t});
+  const since=C&&C.P?` seit ${fmtShortY.format(toDate(C.P.date))}`:"";
+  const sSmm=C&&C.P?sgn(C.dSmm,0.3):null, sFat=C&&C.P?sgn(C.dFat,0.5):null, sW=C&&C.P?sgn(C.dW,0.5):null;
+  const smmTxt=()=>`Muskelmasse ${signed(C.dSmm,"kg")}`, fatTxt=()=>`Körperfett ${signed(C.dFat,"kg")}${C.dPbf!=null?` (${signed(C.dPbf,"Prozentpunkte")})`:""}`, wTxt=()=>`Gewicht ${signed(C.dW,"kg")}`;
+  if(G&&C&&C.P){
+    const k=G.k;
+    if(k==="muscle"){
+      if(sSmm===1) add("good",`${smmTxt()}${since}. Du baust Muskeln auf, weiter so!`);
+      else if(sSmm===-1) add("warn",`${smmTxt()}${since}. Du entfernst dich gerade von deinem Ziel Muskelaufbau. Achte auf genug Eiweiß (etwa 1,6–2,2 g pro kg Körpergewicht), einen leichten Kalorienüberschuss und steigere nach und nach die Gewichte.`);
+      else if(sSmm===0) add("info",`${smmTxt()}${since}, also etwa gleich. Muskelaufbau braucht Zeit, ein Abstand von 4–8 Wochen zwischen den Messungen ist aussagekräftiger.`);
+      if(sFat===1&&C.dFat>1&&(C.dSmm==null||C.dFat>C.dSmm)) add("warn",`${fatTxt()}. Das Fett steigt stärker als die Muskeln, dein Kalorienüberschuss ist vermutlich etwas zu groß.`);
+      if(C.dSmm==null&&sW!=null) add("info",`${wTxt()}${since}. Für eine echte Auswertung fehlt die Muskelmasse in einer der Messungen.`);
+    } else if(k==="fat"){
+      if(sFat===-1) add("good",`${fatTxt()}${since}. Du baust Fett ab, genau in die richtige Richtung!`);
+      else if(sFat===1) add("warn",`${fatTxt()}${since}. Du entfernst dich gerade von deinem Ziel Fettabbau. Hilfreich sind ein moderates Kaloriendefizit, viel Eiweiß und mehr Bewegung im Alltag, zum Beispiel mehr Schritte.`);
+      else if(sFat===0) add("info",`${fatTxt()}${since}, also etwa gleich. Noch kein klarer Fortschritt, bleib dran.`);
+      if(sSmm===-1&&C.dSmm<-0.5) add("warn",`${smmTxt()}. Damit du Fett und nicht Muskeln verlierst: Krafttraining beibehalten, Eiweiß hoch halten und das Defizit nicht zu groß wählen.`);
+      else if(sSmm===1) add("good",`${smmTxt()}. Du hast dabei sogar Muskeln aufgebaut.`);
+      if(C.dFat==null) add("info","Für die Auswertung braucht die App in beiden Messungen das Körperfett (kg oder %).");
+    } else if(k==="recomp"){
+      if(sFat===-1) add("good",`${fatTxt()}${since}.`); else if(sFat===1) add("warn",`${fatTxt()}${since}. Beim Fett bewegst du dich in die falsche Richtung.`); else if(sFat===0) add("info",`${fatTxt()}${since}, etwa gleich.`);
+      if(sSmm===1) add("good",`${smmTxt()}.`); else if(sSmm===-1) add("warn",`${smmTxt()}. Bei den Muskeln geht es gerade in die falsche Richtung: mehr Eiweiß und progressive Belastung helfen.`); else if(sSmm===0) add("info",`${smmTxt()}, etwa gleich.`);
+      if(sW!=null&&Math.abs(C.dW)>2) add("info",`${wTxt()}. Bei einer Rekomposition bleibt das Gewicht normalerweise ungefähr gleich.`);
+    } else if(k==="lose"||k==="gain"||k==="keep"){
+      if(sW!=null){
+        if(k==="keep") add(Math.abs(C.dW)<=1?"good":"warn",Math.abs(C.dW)<=1?`${wTxt()}${since}. Du hältst dein Gewicht.`:`${wTxt()}${since}. Du entfernst dich von deinem Ziel, das Gewicht zu halten.`);
+        else { const want=k==="lose"?-1:1;
+          if(sW===want) add("good",`${wTxt()}${since}. Es geht in die richtige Richtung!`);
+          else if(sW===-want) add("warn",`${wTxt()}${since}. Du entfernst dich gerade von deinem Ziel ${G.n}.`);
+          else add("info",`${wTxt()}${since}, also etwa gleich.`); }
+      }
+      if(k==="lose"&&C.dW<-1&&C.dSmm!=null&&C.dSmm<0&&-C.dSmm>-C.dW*0.4) add("warn",`${smmTxt()}: Ein großer Teil des Verlusts ist Muskelmasse. Mehr Eiweiß, weiter Krafttraining und ein kleineres Defizit schützen die Muskeln.`);
+      if(k==="gain"&&C.dW>1&&C.dFat!=null&&C.dFat>C.dW*0.6) add("warn",`${fatTxt()}: Ein großer Teil der Zunahme ist Fett. Ein etwas kleinerer Überschuss wäre besser.`);
+    }
+    if(C.mixed) add("info",`Die beiden Messungen stammen von verschiedenen Geräten (${MSRC[msrc(C.P)]} und ${MSRC[msrc(C.M)]}). Die Geräte rechnen unterschiedlich, deshalb sind Messungen vom selben Gerät besser vergleichbar.`);
+  } else if(G&&C&&!C.P&&["muscle","fat","recomp"].includes(G.k)) add("info",`Deine erste Messung ist gespeichert (${MSRC[msrc(C.M)]}, ${fmtShortY.format(toDate(C.M.date))}). Ab der nächsten Messung zeigt dir die App, ob du in die richtige Richtung gehst.`);
+  else if(G&&!C&&["muscle","fat","recomp"].includes(G.k)) add("info","Trag unten eine InBody- oder Fitnesshub-Messung ein. Ab der zweiten Messung siehst du hier, ob du in die richtige Richtung gehst.");
+  // Gewichtstrend aus den Tageswerten
+  if(G&&WT&&["lose","gain","keep","fat","recomp"].includes(G.k)){
+    const r=WT.perWeek, txt=`Gewichtstrend der letzten ${Math.round(WT.days/7)||1} Wochen: ${signed(r,"kg",2)} pro Woche`;
+    if(G.k==="lose") add(r<-0.1?"good":r>0.1?"warn":"info",txt+(r<-0.1?".":r>0.1?". Das Gewicht steigt gerade.":", also etwa stabil."));
+    else if(G.k==="gain") add(r>0.1?"good":r<-0.1?"warn":"info",txt+(r>0.1?".":r<-0.1?". Das Gewicht sinkt gerade.":", also etwa stabil."));
+    else if(G.k==="keep") add(Math.abs(r)<=0.25?"good":"warn",txt+(Math.abs(r)<=0.25?". Stabil.":"."));
+    else add("info",txt+".");
+  }
+  if(G&&G.k==="strength"){
+    const T=strengthTrend();
+    if(!T.n) add("info","Sobald du eine Übung über mehrere Wochen einträgst, vergleicht die App dein geschätztes 1RM der letzten 4 Wochen mit den 8 Wochen davor.");
+    else { const st=T.up>T.down?"good":T.down>T.up?"warn":"info";
+      add(st,`In den letzten 4 Wochen bist du bei ${T.up} von ${T.n} Übungen stärker geworden${T.down?`, bei ${T.down} schwächer`:""}.${T.best&&ex(T.best.exId)?` Größter Sprung: ${ex(T.best.exId).name} (+${fmtNum(Math.round(T.best.r*100))} %).`:""}${st==="warn"?" Du entfernst dich gerade von deinem Ziel. Prüfe Schlaf, Erholung und Ernährung oder plane eine leichtere Woche ein.":""}`); }
+    if(C&&C.P&&sSmm!=null) add(sSmm===-1?"warn":"info",`${smmTxt()}${since}.`);
+  }
+  if(G&&G.k==="fit"){
+    const f=sessionsPerWeek();
+    add(f>=2?"good":"warn",`${fmtNum(Math.round(f*10)/10)} Trainings pro Woche in den letzten 4 Wochen.${f>=2?" Damit erfüllst du die Empfehlung von mindestens 2 Krafteinheiten pro Woche.":" Empfohlen sind mindestens 2 Krafteinheiten pro Woche."}`);
+    const sd=[...Array(7)].map((_,i)=>(dayDoc(addDays(todayStr(),-i))||{}).steps||0).filter(Boolean);
+    if(sd.length>=3){ const avg=sd.reduce((a,b)=>a+b,0)/sd.length; add(avg>=7000?"good":"info",`Im Schnitt ${fmtNum(Math.round(avg))} Schritte an den Tagen mit Eintrag.${avg>=7000?"":" Mehr als etwa 7.000 Schritte am Tag gelten als gesundheitlich deutlich günstiger."}`); }
+    if(C&&C.P&&C.dPbf!=null) add("info",`${fatTxt()}${since}.`);
+  }
+  // Zielwert und Zieldatum
+  const pace=goalPace(g,G,C,WT);
+  const warn=items.some(x=>x.s==="warn"), good=items.some(x=>x.s==="good");
+  const state=!items.length&&!pace?"none":warn&&good?"mixed":warn?"warn":good?"good":"info";
+  return {g,G,C,items,pace,state};
+}
+function goalPace(g,G,C,WT){
+  if(!G) return null;
+  const days=g.date&&/^\d{4}-\d{2}-\d{2}$/.test(g.date)?dayDiffBetween(todayStr(),g.date):null, weeks=days!=null?days/7:null;
+  const key=G.t, target=key?parseNum(g.target):null;
+  const dateTxt=g.date?fmtShortY.format(toDate(g.date)):"";
+  if(target==null||!key){ if(days==null) return null; return days<0?{s:"info",t:`Dein Zieldatum (${dateTxt}) ist vorbei. Setz dir gern ein neues.`}:{s:"info",t:`Noch ${days<14?days+" Tage":Math.round(weeks)+" Wochen"} bis zu deinem Zieldatum (${dateTxt}).`}; }
+  const L=inbodyList(), lm=L.find(m=>key==="pbf"?pbfOf(m)!=null:m[key]!=null);
+  const cur=key==="weight"?((latestWeight()||{}).w||(lm&&lm.weight)||parseNum(profile().weight)):lm?(key==="pbf"?pbfOf(lm):lm[key]):null;
+  const [lbl,unit]=GOAL_TARGET[key];
+  if(cur==null) return {s:"info",t:`${lbl}: ${fmtNum(target)} ${unit}. Für den Fortschritt fehlt noch ein aktueller Wert${key==="weight"?"":" aus einer Messung"}.`};
+  const rest=target-cur, dir=Math.sign(rest), unitW=key==="pbf"?"Prozentpunkte":unit;
+  const reached=(G.k==="keep")?Math.abs(rest)<=1:(Math.abs(rest)<(key==="pbf"?0.3:0.2)||(G.k==="lose"||G.k==="fat"||G.k==="recomp"?rest>=0:rest<=0));
+  if(reached&&G.k!=="keep") return {s:"good",t:`Ziel erreicht: ${lbl} ${fmtNum(target)} ${unit}, aktuell ${fmtNum(Math.round(cur*10)/10)} ${unit}. Stark! Setz dir gern ein neues Ziel.`};
+  if(G.k==="keep") return {s:reached?"good":"warn",t:`Zielgewicht ${fmtNum(target)} kg, aktuell ${fmtNum(Math.round(cur*10)/10)} kg (${signed(cur-target,"kg")}).`};
+  let rate=null; // pro Woche
+  if(key==="weight"&&WT) rate=WT.perWeek;
+  else if(C&&C.P&&C.days>=7){ const dv=key==="pbf"?C.dPbf:C.dSmm; if(dv!=null) rate=dv/C.days*7; }
+  let t=`Noch ${fmtNum(Math.round(Math.abs(rest)*10)/10)} ${unitW} bis ${fmtNum(target)} ${unit}`, s="info";
+  if(weeks!=null&&weeks>0){
+    const need=rest/weeks; t+=` in ${weeks<2?days+" Tagen":Math.round(weeks)+" Wochen"}, also etwa ${fmtNum(Math.round(Math.abs(need)*100)/100)} ${unitW} pro Woche.`;
+    if(key==="weight"&&need<0&&-need>cur*0.01) t+=" Das ist sehr sportlich: Als gesund gelten etwa 0,5–1 % des Körpergewichts pro Woche.";
+    if(key==="weight"&&need>0.5) t+=" Das ist sehr schnell: Sinnvoll sind etwa 0,25–0,5 kg pro Woche, sonst steigt vor allem das Fett.";
+    if(key==="smm"&&need>0.25) t+=" Muskelaufbau ist langsam: Realistisch sind für Einsteiger grob 0,5–1 kg im Monat, später deutlich weniger.";
+    if(rate!=null){ if(Math.sign(rate)===dir&&Math.abs(rate)>=Math.abs(need)*0.8){ s="good"; t+=" Mit deinem aktuellen Tempo schaffst du das."; }
+      else if(Math.sign(rate)===dir&&Math.abs(rate)>0.01){ const eta=addDays(t0(),Math.round(Math.abs(rest/rate)*7)); s="info"; t+=` Im aktuellen Tempo (${signed(rate,unitW,2)} pro Woche) erreichst du es etwa am ${fmtShortY.format(toDate(eta))}.`; }
+      else { s="warn"; t+=" Im Moment bewegst du dich nicht in Richtung Ziel."; } }
+  } else if(weeks!=null&&weeks<=0){ t+=`. Dein Zieldatum (${dateTxt}) ist vorbei. Setz dir gern ein neues.`; }
+  else { t+="."; if(rate!=null){ if(Math.sign(rate)===dir&&Math.abs(rate)>0.01){ const eta=addDays(t0(),Math.round(Math.abs(rest/rate)*7)); s="good"; t+=` Im aktuellen Tempo (${signed(rate,unitW,2)} pro Woche) etwa am ${fmtShortY.format(toDate(eta))}.`; } else { s="warn"; t+=" Im Moment bewegst du dich nicht in Richtung Ziel."; } } }
+  return {s,t};
+}
+function t0(){ return todayStr(); }
+const GOAL_HEAD={good:"Du bist auf dem richtigen Weg",warn:"Achtung: Du entfernst dich gerade von deinem Ziel",mixed:"Teils auf Kurs, teils nicht",info:"Zwischenstand",none:""};
+function goalBox(mid){
+  const R=goalReport(mid); if(!R.G) return "";
+  const list=[...R.items,...(R.pace?[R.pace]:[])];
+  if(!list.length) return `<p class="hint">Noch keine Daten für eine Auswertung. Trag dein Gewicht im Reiter „Training“ ein oder eine Messung unter „Körpermessungen“.</p>`;
+  const st=R.state==="none"?"info":(R.pace&&R.pace.s==="warn"&&R.state==="good")?"mixed":(R.pace&&R.pace.s==="warn"&&R.state==="info")?"warn":(R.pace&&R.pace.s==="good"&&R.state==="info")?"good":R.state;
+  const ic={good:"↗",warn:"!",info:"i"};
+  return `<div class="goal-box ${st}"><b class="goal-head">${esc(GOAL_HEAD[st]||"Zwischenstand")}</b>
+    <ul>${list.map(x=>`<li class="${x.s}"><span aria-hidden="true">${ic[x.s]}</span><p>${esc(x.t)}</p></li>`).join("")}</ul></div>`;
+}
+function compareTable(mid){
+  const C=measureCompare(mid); if(!C) return "";
+  const M=C.M, P=C.P, G=goalDef(goal());
+  const rows=[["Gewicht","kg",m=>m.weight,G?(G.k==="lose"?-1:G.k==="gain"?1:0):0],["Muskelmasse","kg",m=>m.smm,G?1:0],["Körperfett","kg",fatKg,G&&G.k!=="gain"&&G.k!=="muscle"?-1:0],["Körperfett","%",pbfOf,G&&G.k!=="gain"&&G.k!=="muscle"?-1:0],["Viszeralfett","",m=>m.visc,G?-1:0],["Grundumsatz","kcal",m=>m.bmr,0]]
+    .filter(r=>r[2](M)!=null||(P&&r[2](P)!=null));
+  const f=v=>v==null?"–":fmtNum(Math.round(v*10)/10);
+  return `<div class="tbl-wrap"><table class="tbl cmp"><thead><tr><th></th>${P?`<th>${esc(fmtShortY.format(toDate(P.date)))}</th>`:""}<th>${esc(fmtShortY.format(toDate(M.date)))}</th>${P?"<th>Änderung</th>":""}</tr></thead><tbody>${rows.map(([n,u,fn,want])=>{ const a=P?fn(P):null, b=fn(M), dv=a!=null&&b!=null?b-a:null; const th=u==="%"?0.5:u==="kcal"?20:0.3; const cls=dv==null||!want||Math.abs(dv)<th?"":Math.sign(dv)===want?"up":"down"; return `<tr><td>${n}${u?` <small>${u}</small>`:""}</td>${P?`<td class="num">${f(a)}</td>`:""}<td class="num">${f(b)}</td>${P?`<td class="num ${cls}">${dv==null?"–":signed(dv,"",1)}</td>`:""}</tr>`; }).join("")}</tbody></table></div>`;
+}
+function openEvalSheet(id){ S.evalId=id; renderEvalSheet(); }
+function closeEvalSheet(){ S.evalId=null; $("#sheetRoot").innerHTML=""; }
+function renderEvalSheet(){
+  const C=measureCompare(S.evalId); if(!C){ closeEvalSheet(); return; }
+  const G=goalDef(goal());
+  $("#sheetRoot").innerHTML=`<div class="sheet-bg" data-act="evalClose"><div class="sheet eval-sheet" role="dialog" aria-modal="true" aria-label="Auswertung der Messung" data-act="noop">
+    <div class="sheet-head"><span></span><b>${MSRC[msrc(C.M)]} · ${esc(fmtShortY.format(toDate(C.M.date)))}</b><button class="btn ghost" data-act="evalClose" style="font-weight:700">Fertig</button></div>
+    <div class="eval-body">${G?`<p class="eyebrow">Dein Ziel: ${esc(G.n)}</p>${goalBox(S.evalId)}`:`<p class="hint">Leg unter „Mehr“ → „Mein Ziel“ fest, was du erreichen willst. Dann sagt dir die App bei jeder Messung, ob du in die richtige Richtung gehst.</p>`}
+    ${C.P?compareTable(S.evalId):`<p class="hint">Das ist deine erste ${MSRC[msrc(C.M)]}-Messung. Ab der nächsten siehst du hier den Vergleich.</p>`}
+    <p class="hint" style="margin:0">Körperanalyse-Geräte schwanken um etwa 1 bis 2 Prozentpunkte beim Körperfett. Am besten vergleichbar sind Messungen vom selben Gerät, zur gleichen Tageszeit, nüchtern und vor dem Training.</p></div>
+  </div></div>`;
 }
 
 /* ---------- Trainingsabschluss ---------- */
@@ -1895,7 +2117,7 @@ function viewFinish(date){
   let h=done?`<div class="finish-hero"><span class="finish-badge">${ICON.check}</span><h2>${esc(cheer[0])}</h2><p>${esc(cheer[1])}</p><p class="meta">${esc(fmtLong.format(toDate(date)))} ${typeBadge(date)}</p>${wxChip(date)}</div>`
     :`<div class="date-head"><p class="eyebrow">Trainingsübersicht</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>${typeBadge(date)?`<div>${typeBadge(date)}</div>`:""}`;
   if(!S0.ls.length) return h+`<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>`;
-  const TM=trainingMinutes(date,S0), KC=kcalFor(date,TM.min), wi=weekIndex(date);
+  const TM=trainingMinutes(date,S0), MET=metFor(S0,TM), KC=kcalFor(date,TM.min,MET), wi=weekIndex(date);
   if(wi) h+=`<div class="week-pill">${wi}. Training der Woche</div>`;
   h+=`<div class="three-stats">
     <div class="card"><span>Gewicht</span><b>${anyVol?fmtNum(Math.round(S0.vol)):"–"}</b><small>kg bewegt</small></div>
@@ -1903,8 +2125,8 @@ function viewFinish(date){
     <div class="card"><span>Kalorien</span><b>${KC?"~"+fmtNum(KC.kcal):"–"}</b><small>kcal</small></div>
   </div>
   <div class="dur-edit"><label for="durEdit">Dauer anpassen:</label><input id="durEdit" data-field="dur" data-date="${date}" inputmode="numeric" value="${TM.min}" aria-label="Trainingsdauer in Minuten"> min${TM.est?" · geschätzt aus Sätzen und Pausenzeit":TM.manual?" · von dir eingetragen":" · vom ersten Satz bis zum Beenden"}</div>
-  ${KC?`<p class="hint" style="margin:0">Kalorien sind eine Schätzung nach der MET-Methode (Compendium of Physical Activities, Krafttraining ${metValue()===6?"intensiv, 6,0":"moderat, 3,5"} MET) mit deinem Grundumsatz: ${esc(KC.src)}. Enthalten ist auch der Ruheverbrauch während des Trainings. Der tatsächliche Verbrauch kann deutlich abweichen.</p>`
-     :`<p class="hint" style="margin:0">Für eine Kalorienschätzung trag unter „Mehr“ → „Über mich“ dein Gewicht, deine Größe, dein Alter und dein Geschlecht ein oder eine InBody-Messung.</p>`}
+  ${KC?`<p class="hint" style="margin:0">Kalorien sind eine Schätzung nach der MET-Methode (Compendium of Physical Activities, Krafttraining ${MET===6?"intensiv, 6,0":"moderat, 3,5"} MET, ${TM.est?"Standardwert, weil die Dauer nur geschätzt ist":`automatisch aus ${S0.sets} Sätzen in ${TM.min} Minuten bestimmt`}) mit deinem Grundumsatz: ${esc(KC.src)}. Enthalten ist auch der Ruheverbrauch während des Trainings. Der tatsächliche Verbrauch kann deutlich abweichen.</p>`
+     :`<p class="hint" style="margin:0">Für eine Kalorienschätzung trag unter „Mehr“ → „Über mich“ dein Gewicht, deine Größe, dein Alter und dein Geschlecht ein oder eine Körpermessung (InBody/Fitnesshub).</p>`}
   <div class="mini-stats">
     <div class="card stat"><b>${S0.ls.length}</b><span>${S0.ls.length===1?"Übung":"Übungen"}</span></div>
     <div class="card stat"><b>${S0.sets}</b><span>Sätze</span></div>
@@ -2114,8 +2336,7 @@ $("#inbodyFile").addEventListener("change",ev=>{
   fr.onload=()=>{
     const rows=parseInbodyCsv(String(fr.result||""));
     if(!rows.length){ toast("Keine Messungen erkannt. Die Datei braucht mindestens eine Datums-Spalte."); return; }
-    for(const m of rows){ const id="ib_"+m.date, cur=S.docs.get(id); put(id,{...(cur||{}),...m,kind:"inbody",updatedAt:Date.now()}); }
-    toast(`${rows.length} ${rows.length===1?"Messung":"Messungen"} importiert`); render();
+    S.csvPending=rows; render(); const c=document.querySelector('[data-act="csvSrc"]'); if(c) c.scrollIntoView({block:"center",behavior:"smooth"});
   };
   fr.readAsText(file);
 });
