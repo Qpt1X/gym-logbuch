@@ -195,7 +195,7 @@ function buildDay(model){
   newPage();
   pdf.text(M,y+8,"GYM-LOGBUCH",{size:8.5,bold:true,color:C.accent});
   pdf.text(PW-M,y+8,`Erstellt am ${dLong(model.created)}`,{size:8.5,color:C.muted,align:"right"});
-  pdf.text(M,y+36,model.typeName?`Trainingstag: ${model.typeName}`:"Trainingstag",{size:24,bold:true});
+  { const ttl=model.typeName?`Trainingstag: ${model.typeName}`:"Trainingstag"; let sz=24; while(sz>14&&pdf.width(ttl,sz,true)>CW) sz-=1; pdf.text(M,y+36,ttl,{size:sz,bold:true}); }
   pdf.text(M,y+56,model.dateLong,{size:11,color:C.muted});
   y+=76;
   let sets=0, reps=0, vol=0;

@@ -232,7 +232,12 @@ details.plan-edit[open] summary{margin-bottom:12px}
 .ty-ganz{--tc:var(--t-ganz);--tci:var(--t-ganz-ink)}
 .ty-cardio{--tc:var(--t-cardio);--tci:var(--t-cardio-ink)}
 .ty-sonst{--tc:var(--t-sonst);--tci:var(--t-sonst-ink)}
-.cal-day.ty{background:var(--tc);color:var(--tci);flex-direction:column;gap:0;line-height:1}
+.cal-day.ty{background:var(--tc);color:var(--tci);flex-direction:column;gap:0;line-height:1;overflow:hidden}
+.cal-strip{position:absolute;left:0;right:0;bottom:0;height:22%;display:flex;border-top:2px solid var(--surface)}
+.cal-strip i{flex:1;background:var(--tc)}
+.cal-strip i+i{border-left:2px solid var(--surface)}
+.cal-day.ty small{position:relative;z-index:1}
+.cal-day.ty:has(.cal-strip){padding-bottom:16%}
 .cal-day small{font-family:var(--f-body);font-size:.6rem;font-weight:700;letter-spacing:.03em;opacity:.9;margin-top:2px}
 .cal-day.none{background:var(--sunk);box-shadow:inset 0 0 0 1.5px var(--muted)}
 .cal-day.today.ty,.cal-day.today.none{box-shadow:inset 0 0 0 2px var(--ink),inset 0 0 0 4px var(--surface)}
@@ -369,7 +374,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "1.8";
+const APP_VERSION = "1.9";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -625,8 +630,8 @@ function viewToday(){
   }
   h+=`<button class="btn primary big" data-act="pick">${ICON.plus}Übung eintragen</button>`;
   const np=nextPlanned();
-  if(np){ const t=typeOf(np.type), n=planItems(np.date).length;
-    h+=`<button class="plan-next" data-act="day" data-date="${np.date}"><div class="grow" style="flex:1;min-width:0"><p class="eyebrow">Als Nächstes geplant</p><div class="name" style="font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(relDay(np.date))}, ${esc(fmtShort.format(toDate(np.date)))} ${t?`<span class="tbadge ty-${t.c}">${esc(t.n)}</span>`:""}</div>${n?`<div class="meta">${n} ${n===1?"Übung":"Übungen"} eingeplant</div>`:""}</div>${ICON.chev}</button>`; }
+  if(np){ const n=planItems(np.date).length;
+    h+=`<button class="plan-next" data-act="day" data-date="${np.date}"><div class="grow" style="flex:1;min-width:0"><p class="eyebrow">Als Nächstes geplant</p><div class="name" style="font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(relDay(np.date))}, ${esc(fmtShort.format(toDate(np.date)))} ${typeBadge(np.date)}</div>${n?`<div class="meta">${n} ${n===1?"Übung":"Übungen"} eingeplant</div>`:""}</div>${ICON.chev}</button>`; }
   else h+=`<button class="btn ghost" data-act="tab" data-tab="history" style="align-self:flex-start">Training im Kalender planen</button>`;
   const doneIds=new Set(today.map(l=>l.exId));
   const recent=exs.filter(e=>!doneIds.has(e.id)).map(e=>({e,d:lastUsed(e.id)})).filter(x=>x.d).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,5);
@@ -881,11 +886,17 @@ const fmtMonth=new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"});
 const ICON_L='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
 const ICON_R='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 function dayDoc(date){ const d=S.docs.get("dy_"+date); return d&&d.kind==="day"?d:null; }
-function dayType(date){ const d=dayDoc(date); return d?typeOf(d.type):null; }
+function dayTypeKeys(d){ if(!d) return []; const a=Array.isArray(d.types)?d.types:(d.type?[d.type]:[]); return [...new Set(a)]; }
+function dayTypes(date){ return dayTypeKeys(dayDoc(date)).map(typeOf).filter(Boolean); }
+function dayType(date){ return dayTypes(date)[0]||null; }
+function typesName(ts){ return ts.map(t=>t.n).join(" + "); }
 function saveDay(date,patch){
   const next={...(dayDoc(date)||{}),...patch,kind:"day",date,updatedAt:Date.now()};
-  if(!next.type) delete next.type; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order;
-  put("dy_"+date,(next.type||next.plan||next.note||next.order)?next:null);
+  if("types" in patch||"type" in patch){ const t=patch.types!==undefined?patch.types:(patch.type?[patch.type]:[]); next.types=t||[]; }
+  else next.types=dayTypeKeys(next);
+  delete next.type;
+  if(!next.types.length) delete next.types; if(!next.plan||!next.plan.length) delete next.plan; if(!next.note) delete next.note; if(!next.order||!next.order.length) delete next.order;
+  put("dy_"+date,(next.types||next.plan||next.note||next.order)?next:null);
 }
 function sortDayLogs(date,ls){
   const d=dayDoc(date), ord=d&&d.order||[], plan=planIds(date);
@@ -903,7 +914,7 @@ function applyOrder(kind,date,ids){
     saveDay(date,{order:ids});
   }
 }
-function setDayType(date,k){ const cur=dayType(date); saveDay(date,{type:cur&&cur.k===k?null:k}); }
+function setDayType(date,k){ const cur=dayTypeKeys(dayDoc(date)); saveDay(date,{types:cur.includes(k)?cur.filter(x=>x!==k):[...cur,k]}); }
 function planItems(date){ const d=dayDoc(date); return (d&&d.plan||[]).map(x=>typeof x==="string"?{id:x}:x).filter(x=>x&&ex(x.id)); }
 function planIds(date){ return planItems(date).map(x=>x.id); }
 function planTarget(date,exId){ return planItems(date).find(x=>x.id===exId)||null; }
@@ -944,10 +955,10 @@ function nextPlanned(){
   return best;
 }
 function calMode(){ const c=S.docs.get("cfg"); return c&&c.calMode==="sets"?"sets":"type"; }
-function typeBadge(date){ const t=dayType(date); return t?`<span class="tbadge ty-${t.c}">${esc(t.n)}</span>`:""; }
+function typeBadge(date){ return dayTypes(date).map(t=>`<span class="tbadge ty-${t.c}">${esc(t.n)}</span>`).join(""); }
 function typePicker(date){
-  const cur=dayType(date), F=S.typeForm&&S.typeForm.date===date?S.typeForm:null;
-  let h=`<div class="field"><span>Trainingsart${cur?"":" (optional)"}</span><div class="type-row">${allTypes().map(t=>`<button class="tchip ty-${t.c}" data-act="setType" data-date="${date}" data-k="${esc(t.k)}" aria-pressed="${!!cur&&cur.k===t.k}"><i></i>${esc(t.n)}</button>`).join("")}${F?"":`<button class="chip" data-act="typeNew" data-date="${date}">+ Eigene Art</button>`}</div></div>`;
+  const cur=new Set(dayTypeKeys(dayDoc(date))), F=S.typeForm&&S.typeForm.date===date?S.typeForm:null;
+  let h=`<div class="field"><span>Trainingsart <span style="font-weight:400">· ${cur.size?"mehrere möglich":"optional, mehrere möglich"}</span></span><div class="type-row">${allTypes().map(t=>`<button class="tchip ty-${t.c}" data-act="setType" data-date="${date}" data-k="${esc(t.k)}" aria-pressed="${cur.has(t.k)}"><i></i>${esc(t.n)}</button>`).join("")}${F?"":`<button class="chip" data-act="typeNew" data-date="${date}">+ Eigene Art</button>`}</div></div>`;
   if(F) h+=`<div class="card type-form"><label class="field"><span>Name der Trainingsart</span><input class="input" id="tf-name" data-field="tfname" maxlength="24" placeholder="z. B. Po, Arme, Rücken & Bizeps" value="${esc(F.name)}" autocomplete="off"></label>
     <div class="field"><span>Farbe</span><div class="swatches">${DAY_TYPES.map(t=>`<button class="swatch ty-${t.c}" data-act="tfColor" data-c="${t.c}" aria-pressed="${F.c===t.c}" aria-label="${COLOR_NAMES[t.c]}"></button>`).join("")}</div></div>
     <div class="btn-row"><button class="btn primary" data-act="tfSave" data-date="${date}">Speichern</button><button class="btn" data-act="tfCancel">Abbrechen</button></div></div>`;
@@ -963,15 +974,15 @@ function calendarCard(byDate){
   for(let i=0;i<lead;i++) cells+=`<span class="cal-day out" aria-hidden="true"></span>`;
   let trained=0, planned=0; const mode=calMode(), used=new Map(); let noType=0;
   for(let d=1; d<=days; d++){
-    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today, t=dayType(ds), doc=dayDoc(ds);
+    const ds=y+"-"+pad(m+1)+"-"+pad(d), ls=byDate.get(ds), fut=ds>today, ts=dayTypes(ds), t=ts[0]||null, doc=dayDoc(ds);
     if(!fut&&(ls||t)) trained++; if(fut&&doc) planned++;
     const cls=["cal-day"]; let inner=String(d);
     if(mode==="type"){
-      if(t){ cls.push("ty","ty-"+t.c); inner=`${d}<small>${esc(t.a)}</small>`; used.set(t.k,(used.get(t.k)||0)+1); }
+      if(t){ cls.push("ty","ty-"+t.c); inner=`${d}<small>${esc(ts.length>2?ts[0].a+"+"+(ts.length-1):ts.map(x=>x.a).join("+"))}</small>${ts.length>1?`<span class="cal-strip">${ts.slice(1).map(x=>`<i class="ty-${x.c}"></i>`).join("")}</span>`:""}`; for(const x of ts) used.set(x.k,(used.get(x.k)||0)+1); }
       else if(ls){ cls.push("none"); noType++; }
     } else if(ls) cls.push("l"+dayLevel(ls));
     if(ds===today) cls.push("today"); if(fut) cls.push(doc?"plan":"future");
-    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${t?`, ${t.n}`:""}${fut?(doc?", geplant":", noch nichts geplant"):ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t?"":", kein Training"}`;
+    const label=`${d}. ${fmtMonth.format(first).split(" ")[0]}${ts.length?`, ${typesName(ts)}`:""}${fut?(doc?", geplant":", noch nichts geplant"):ls?`, ${ls.length} ${ls.length===1?"Übung":"Übungen"}`:t?"":", kein Training"}`;
     cells+=`<button class="${cls.join(" ")}" data-act="day" data-date="${ds}" aria-label="${esc(label)}">${inner}</button>`;
   }
   const legend=mode==="type"
@@ -1032,8 +1043,8 @@ function viewDay(date){
 }
 function makeDayPdf(date){
   const ls=sortDayLogs(date,logsByDate().get(date)||[]);
-  const t=dayType(date);
-  const model={date,typeName:t?t.n:"",dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
+  const ts=dayTypes(date);
+  const model={date,typeName:typesName(ts),dateLong:new Intl.DateTimeFormat("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(toDate(date)),created:todayStr(),
     exercises:ls.map(l=>{const e=ex(l.exId)||{name:"Gelöschte Übung"}; return {name:e.name,group:e.kind?groupsText(e):"",settingsLine:(e.settings||[]).filter(x=>x.k||x.v).map(x=>`${x.k} ${x.v}`.trim()).join(" · "),note:l.note||"",sets:l.sets||[]};})};
   const bytes=window.GymReport.buildDay(model);
   return {blob:new Blob([bytes],{type:"application/pdf"}),name:`gym-logbuch-training-${date}.pdf`};
@@ -1170,14 +1181,14 @@ document.addEventListener("click",ev=>{
       const existing=allTypes().find(t=>t.n.toLowerCase()===name.toLowerCase());
       let k=existing?existing.k:"c_"+Date.now().toString(36);
       if(!existing) saveCfg({types:[...customTypes(),{k,n:name,a:abbr(name),c:F.c}]});
-      S.typeForm=null; saveDay(b.dataset.date,{type:k}); toast(existing?`„${existing.n}“ gibt es schon – ausgewählt`:`„${name}“ angelegt`); render(); break;
+      S.typeForm=null; { const cur=dayTypeKeys(dayDoc(b.dataset.date)); if(!cur.includes(k)) saveDay(b.dataset.date,{types:[...cur,k]}); } toast(existing?`„${existing.n}“ gibt es schon – ausgewählt`:`„${name}“ angelegt`); render(); break;
     }
     case "ctColor": { const types=customTypes().map(t=>t.k===b.dataset.k?{...t,c:b.dataset.c}:t); saveCfg({types}); render(); break; }
     case "ctDel": {
       if(S.armedCt!==b.dataset.k){ S.armedCt=b.dataset.k; render(); return; }
       S.armedCt=null; saveCfg({types:customTypes().filter(t=>t.k!==b.dataset.k)}); toast("Trainingsart gelöscht"); render(); break;
     }
-    case "copyPlan": { const d=b.dataset.date, src=dayDoc(d); if(!src) return; const n=addDays(d,7); saveDay(n,{type:src.type||null,note:src.note||""}); savePlan(n,planItems(d)); toast(`Für ${fmtWeekday.format(toDate(n))}, ${fmtShort.format(toDate(n))} übernommen`); break; }
+    case "copyPlan": { const d=b.dataset.date, src=dayDoc(d); if(!src) return; const n=addDays(d,7); saveDay(n,{types:dayTypeKeys(src),note:src.note||""}); savePlan(n,planItems(d)); toast(`Für ${fmtWeekday.format(toDate(n))}, ${fmtShort.format(toDate(n))} übernommen`); break; }
     case "clearPlan": put("dy_"+b.dataset.date,null); toast("Plan gelöscht"); render(); break;
     case "calMode": { const c=S.docs.get("cfg")||{kind:"settings"}; put("cfg",{...c,kind:"settings",calMode:b.dataset.v,updatedAt:Date.now()}); render(); break; }
     case "calMove": { const c=S.cal, d=new Date(c.y,c.m+(+b.dataset.d),1); S.cal={y:d.getFullYear(),m:d.getMonth()}; render(); break; }
