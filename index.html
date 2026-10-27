@@ -510,6 +510,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 @media (max-width:360px){.stats{grid-template-columns:1fr 1fr}.date-head h2,.ex-head h2{font-size:2rem}}
 .update-bar{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 14px;background:var(--accent-soft);border-radius:10px;font-weight:600;font-size:.92rem}
 .in-unit{display:flex;align-items:center;gap:8px;color:var(--muted)}.in-unit .input{flex:1}
+.grp-pick{display:flex;flex-direction:column;gap:10px}.grp-sec{display:flex;flex-direction:column;gap:6px}.grp-sec>small{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -546,37 +547,68 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 "use strict";
 
 /* ---------- Konstanten ---------- */
-const GROUPS = ["Brust","Rücken","Schultern","Bizeps","Trizeps","Unterarme","Bauch","Po","Oberschenkel vorne","Oberschenkel hinten","Waden","Beine","Ganzkörper","Cardio","Sonstiges"];
+// Muskelgruppen, angelehnt an die übliche Einteilung im Krafttraining
+// (Brust · Schultern vorne/seitlich/hinten · Nacken & Trapez · oberer Rücken · Latissimus · unterer Rücken ·
+//  Bizeps · Trizeps · Unterarme · gerader und seitlicher Bauch · Po · Abduktoren · Adduktoren · Oberschenkel vorne/hinten · Waden)
+const GROUP_SECTIONS=[
+  ["Brust & Schultern",["Brust","Vordere Schulter","Seitliche Schulter","Hintere Schulter","Schultern"]],
+  ["Rücken",["Nacken & Trapez","Oberer Rücken","Latissimus","Unterer Rücken","Rücken"]],
+  ["Arme",["Bizeps","Trizeps","Unterarme"]],
+  ["Bauch",["Bauch","Seitliche Bauchmuskeln"]],
+  ["Hüfte & Beine",["Po","Abduktoren","Adduktoren","Oberschenkel vorne","Oberschenkel hinten","Waden","Beine"]],
+  ["Sonstiges",["Ganzkörper","Cardio","Sonstiges"]]];
+const GROUPS = GROUP_SECTIONS.flatMap(x=>x[1]);
+// Sammelgruppen: zählen für alle ihre Teilmuskeln
+const GROUP_LABEL={"Schultern":"Ganze Schulter","Rücken":"Ganzer Rücken","Beine":"Ganzes Bein","Bauch":"Gerader Bauch"};
+function groupLabel(g){ return GROUP_LABEL[g]||g; }
 // „Arme“ gibt es nur noch für ältere Übungen, die noch nicht genauer eingeordnet sind
 const LEGACY_GROUPS = ["Arme"];
-const PRESETS = [["Beinpresse","Beine"],["Latzug","Rücken"],["Brustpresse","Brust"],["Rudern sitzend","Rücken"],["Schulterpresse","Schultern"],["Beinstrecker","Oberschenkel vorne"],["Beinbeuger","Oberschenkel hinten"],["Bizepscurls","Bizeps"],["Trizepsdrücken am Kabel","Trizeps"],["Wadenheben","Waden"]];
+const PRESETS = [["Beinpresse","Beine"],["Latzug",["Latissimus","Bizeps"]],["Brustpresse",["Brust","Vordere Schulter","Trizeps"]],["Rudern sitzend",["Oberer Rücken","Latissimus","Hintere Schulter"]],["Schulterpresse",["Vordere Schulter","Seitliche Schulter","Trizeps"]],["Seitheben","Seitliche Schulter"],["Beinstrecker","Oberschenkel vorne"],["Beinbeuger","Oberschenkel hinten"],["Bizepscurls","Bizeps"],["Trizepsdrücken am Kabel","Trizeps"],["Wadenheben","Waden"],["Rückenstrecker","Unterer Rücken"]];
+const presetGroups = g => Array.isArray(g)?g:[g];
 function customGroups(){ return (cfg().groups||[]).filter(g=>typeof g==="string"&&g.trim()); }
 function legacyUsed(){ const u=new Set(); for(const [,d] of S.docs) if(d&&d.kind==="exercise") for(const g of exGroups(d)) if(LEGACY_GROUPS.includes(g)) u.add(g); return [...u]; }
 function allGroups(){ return [...GROUPS.filter(g=>g!=="Sonstiges"),...legacyUsed(),...customGroups(),"Sonstiges"]; }
-// Ältere Übungen mit eindeutigem Namen genauer einordnen (z. B. „Bizepscurls“: Arme → Bizeps)
+// Ältere Übungen mit eindeutigem Namen genauer einordnen (z. B. „Latzug“: Rücken → Latissimus)
 const GROUP_MIGRATE=[
-  ["Arme",/unterarm|handgelenk|wrist|griffkraft|farmer/i,"Unterarme"],
-  ["Arme",/trizeps|triceps|dips|push.?down|pushdown|french|kickback|stirndr|skull/i,"Trizeps"],
-  ["Arme",/bizeps|biceps|curl|hammer/i,"Bizeps"],
-  ["Beine",/beinstreck|leg.?ext|quadri/i,"Oberschenkel vorne"],
-  ["Beine",/beinbeug|leg.?curl|beincurl|hamstring/i,"Oberschenkel hinten"],
-  ["Beine",/wade|calf|calves/i,"Waden"]];
+  ["Arme",/unterarm|handgelenk|wrist|griffkraft|farmer/i,["Unterarme"]],
+  ["Arme",/trizeps|triceps|dips|push.?down|pushdown|french|kickback|stirndr|skull/i,["Trizeps"]],
+  ["Arme",/bizeps|biceps|curl|hammer/i,["Bizeps"]],
+  ["Beine",/abdukt|abduction/i,["Abduktoren"]],
+  ["Beine",/addukt|adduction/i,["Adduktoren"]],
+  ["Beine",/beinstreck|leg.?ext|quadri/i,["Oberschenkel vorne"]],
+  ["Beine",/beinbeug|leg.?curl|beincurl|hamstring/i,["Oberschenkel hinten"]],
+  ["Beine",/wade|calf|calves/i,["Waden"]],
+  ["Po",/abdukt|abduction/i,["Abduktoren"]],
+  ["Po",/addukt|adduction/i,["Adduktoren"]],
+  ["Rücken",/kreuzheb|deadlift/i,["Unterer Rücken","Po","Oberschenkel hinten"]],
+  ["Rücken",/shrug|schulterheb|nacken|trapez/i,["Nacken & Trapez"]],
+  ["Rücken",/hyperext|rückenstreck|back.?ext|superman/i,["Unterer Rücken"]],
+  ["Rücken",/face.?pull|reverse.?(fly|butterfly)|butterfly.?reverse/i,["Hintere Schulter","Oberer Rücken"]],
+  ["Rücken",/latzug|lat.?pull|pulldown|pull.?down|klimmz|pull.?up|chin.?up|pullover|latissimus|\blat\b/i,["Latissimus"]],
+  ["Rücken",/rudern|row|rückenisolator|rhomb/i,["Oberer Rücken","Latissimus"]],
+  ["Schultern",/shrug|schulterheb/i,["Nacken & Trapez"]],
+  ["Schultern",/face.?pull|reverse|hintere|rear/i,["Hintere Schulter"]],
+  ["Schultern",/seitheb|lateral|seitlich/i,["Seitliche Schulter"]],
+  ["Schultern",/frontheb|front.?raise/i,["Vordere Schulter"]],
+  ["Schultern",/schulterdr|schulterpress|overhead|military|arnold|shoulder.?press/i,["Vordere Schulter","Seitliche Schulter"]],
+  ["Bauch",/seitlich|oblique|russian|twist|seitstütz|side.?plank|holzhack|woodchop/i,["Seitliche Bauchmuskeln"]]];
+const GROUPS_V=3;
 function migrateGroups(force){
-  if(!force&&cfg().groupsV2) return 0;
+  if(!force&&(cfg().groupsV||0)>=GROUPS_V) return 0;
   const out=[];
   for(const [id,d] of S.docs){ if(!d||d.kind!=="exercise") continue;
     const G=exGroups(d); let changed=false;
-    const N=G.map(g=>{ const m=GROUP_MIGRATE.find(([from,re])=>from===g&&re.test(d.name)); if(m){ changed=true; return m[2]; } return g; });
+    const N=G.flatMap(g=>{ const m=GROUP_MIGRATE.find(([from,re])=>from===g&&re.test(d.name)); if(m){ changed=true; return m[2]; } return [g]; });
     if(changed){ const groups=[...new Set(N)]; out.push([id,{...d,group:groups[0],groups,updatedAt:Date.now()}]); } }
   if(out.length) putMany(out);
-  if(!cfg().groupsV2) saveCfg({groupsV2:true});
+  if((cfg().groupsV||0)<GROUPS_V) saveCfg({groupsV:GROUPS_V});
   return out.length;
 }
 function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:[e.group||"Sonstiges"]; return [...new Set(g)]; }
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.6";
+const APP_VERSION = "3.7";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -976,8 +1008,9 @@ function searchBox(){ return `<label class="search">${ICON.search}<input class="
 function viewExercises(){
   const exs=exercises();
   if(!exs.length) return emptyStart();
-  const vague=exs.filter(e=>exGroups(e).includes("Arme"));
-  const tip=vague.length?`<div class="card panel"><b>Arme genauer einordnen</b><p class="muted" style="margin:0">Bei ${vague.length===1?"dieser Übung":"diesen Übungen"} steht noch „Arme“. Tipp drauf und wähle Bizeps, Trizeps oder Unterarme, dann zeigt die Körperansicht genau, was du trainiert hast.</p><div class="chips">${vague.map(e=>`<button class="chip" data-act="editEx" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join("")}</div></div>`:"";
+  const okIds=new Set(cfg().vagueOk||[]), VG=["Arme","Rücken","Schultern"];
+  const vague=exs.filter(e=>!okIds.has(e.id)&&exGroups(e).some(g=>VG.includes(g)));
+  const tip=vague.length?`<div class="card panel"><b>Muskeln genauer einordnen</b><p class="muted" style="margin:0">Bei ${vague.length===1?"dieser Übung":"diesen Übungen"} steht nur grob „Arme“, „Rücken“ oder „Schultern“. Tipp drauf und wähl die genauen Muskeln, z. B. Latissimus oder hintere Schulter. Dann zeigt die Körperansicht genau, was du trainiert hast.</p><div class="chips">${vague.map(e=>`<button class="chip" data-act="editEx" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join("")}</div><button class="btn ghost" data-act="vagueOk" style="align-self:flex-start;min-height:34px;padding:0 4px">Passt so, ausblenden</button></div>`:"";
   return `${tip}${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
 }
 function viewPick(){
@@ -1183,12 +1216,18 @@ function finishWithExercise(id,created){
   else if(created){ pop(); toast("Übung gespeichert"); }
   else replace({type:"exercise",exId:id});
 }
+function groupPicker(d){
+  const chip=g=>{const i=d.groups.indexOf(g); return `<button class="chip" data-act="group" data-g="${esc(g)}" aria-pressed="${i>=0}">${i===0&&d.groups.length>1?"★ ":""}${esc(groupLabel(g))}</button>`;};
+  const extra=[...legacyUsed(),...customGroups(),...d.groups.filter(g=>!GROUPS.includes(g)&&!legacyUsed().includes(g)&&!customGroups().includes(g))];
+  return `<div class="grp-pick">${GROUP_SECTIONS.map(([t,G])=>`<div class="grp-sec"><small>${esc(t)}</small><div class="chips">${G.map(chip).join("")}</div></div>`).join("")}
+    <div class="grp-sec"><small>Eigene</small><div class="chips">${[...new Set(extra)].map(chip).join("")}${d.newGroup==null?`<button class="chip" data-act="groupNew">+ Eigene</button>`:""}</div></div></div>`;
+}
 function viewEditEx(){
   const d=S.exDraft;
   const used=new Set(d.settings.map(s=>s.k));
   let h=`<label class="field"><span>Name</span><input class="input" id="exname" data-field="exname" value="${esc(d.name)}" placeholder="${d.egym?"z. B. eGym Brustpresse":"z. B. Latzug am Turm"}" autocomplete="off"></label>
   ${d.id?"":`<div id="nameSugg">${nameSuggestions(d.name)}</div>`}
-  <div class="field"><span>Muskelgruppen <span style="font-weight:400">· mehrere möglich, die erste ist die Hauptgruppe</span></span><div class="chips">${allGroups().map(g=>{const i=d.groups.indexOf(g); return `<button class="chip" data-act="group" data-g="${esc(g)}" aria-pressed="${i>=0}">${i===0&&d.groups.length>1?"★ ":""}${esc(g)}</button>`;}).join("")}${d.newGroup==null?`<button class="chip" data-act="groupNew">+ Eigene</button>`:""}</div>
+  <div class="field"><span>Muskelgruppen <span style="font-weight:400">· mehrere möglich, die erste ist die Hauptgruppe</span></span>${groupPicker(d)}
     ${d.newGroup!=null?`<div class="set-edit" style="grid-template-columns:1fr auto"><input class="input" id="newgroup" data-field="newgroup" value="${esc(d.newGroup)}" placeholder="z. B. Oberschenkel außen" maxlength="24" autocomplete="off"><button class="btn primary" data-act="groupAdd">Hinzufügen</button></div>`:""}</div>
   <div class="field"><span>Art des Geräts</span><div class="chips"><button class="chip" data-act="exEgym" data-v="0" aria-pressed="${!d.egym}">Normal</button><button class="chip" data-act="exEgym" data-v="1" aria-pressed="${!!d.egym}">eGym-Gerät</button></div>
     ${d.egym?`<p class="hint" style="margin:0">Beim Eintragen gibt es ein Feld für die Kalorien aus der eGym-App. Nur diese zählen für die Kalorienbilanz, Gewicht und Wiederholungen nicht zusätzlich.</p>`:""}</div>
@@ -1511,6 +1550,7 @@ document.addEventListener("click",ev=>{
     case "newEgymLog": replace({type:"editEx",exId:null,thenLog:true,date:top().date||null,egym:true}); break;
     case "exEgym": S.exDraft.egym=b.dataset.v==="1"; render(); break;
     case "editEx": push({type:"editEx",exId:b.dataset.ex}); break;
+    case "vagueOk": { const VG=["Arme","Rücken","Schultern"]; saveCfg({vagueOk:[...new Set([...(cfg().vagueOk||[]),...exercises().filter(e=>exGroups(e).some(g=>VG.includes(g))).map(e=>e.id)])]}); render(); break; }
     case "preset": {
       const [n,g]=PRESETS[+b.dataset.i];
       const found=exercises().find(e=>e.name===n);
@@ -2473,11 +2513,22 @@ function renderEvalSheet(){
 }
 
 /* ---------- Trainingsabschluss ---------- */
-const ARMS=["biceps","triceps","forearms"], LEGS=["quads","hamstrings","calves"];
-const GROUP_REGIONS={"Brust":["chest"],"Rücken":["back"],"Schultern":["shoulders"],"Bizeps":["biceps"],"Trizeps":["triceps"],"Unterarme":["forearms"],"Arme":ARMS,"Bauch":["abs"],"Po":["glutes"],
-  "Oberschenkel vorne":["quads"],"Oberschenkel hinten":["hamstrings"],"Waden":["calves"],"Beine":[...LEGS,"hip"],"Ganzkörper":["chest","back","shoulders",...ARMS,"abs","glutes",...LEGS],"Cardio":[],"Sonstiges":[]};
-const REGION_WORDS=[[/hüft|abduk|adduk|hip/i,["hip","glutes"]],[/po\b|gesäß|glute/i,["glutes"]],[/bizeps|biceps/i,["biceps"]],[/trizeps|triceps/i,["triceps"]],[/unterarm|handgelenk|griff/i,["forearms"]],[/arm/i,ARMS],[/wade|calf/i,["calves"]],[/beinbeug|hamstring|oberschenkel hinten|oberschenkel-rück|beinrück/i,["hamstrings"]],[/beinstreck|quad|oberschenkel vorne|oberschenkel/i,["quads"]],[/bein|knie/i,LEGS],[/schulter|delt/i,["shoulders"]],[/brust|pec/i,["chest"]],[/bauch|core|rumpf|abs/i,["abs"]],[/rücken|lat|nacken|trapez/i,["back"]]];
-const REGION_NAMES={chest:"Brust",shoulders:"Schultern",arms:"Arme",biceps:"Bizeps",triceps:"Trizeps",forearms:"Unterarme",abs:"Bauch",back:"Rücken",glutes:"Po",hip:"Hüfte",legs:"Beine",quads:"Oberschenkel vorne",hamstrings:"Oberschenkel hinten",calves:"Waden",neck:"Nacken"};
+const ARMS=["biceps","triceps","forearms"], LEGS=["quads","hamstrings","calves","adductors"], DELTS=["front_delts","side_delts","rear_delts"], BACK=["traps","upper_back","lats","lower_back"];
+const GROUP_REGIONS={"Brust":["chest"],"Schultern":DELTS,"Vordere Schulter":["front_delts"],"Seitliche Schulter":["side_delts"],"Hintere Schulter":["rear_delts"],
+  "Rücken":BACK,"Nacken & Trapez":["traps","neck"],"Oberer Rücken":["upper_back"],"Latissimus":["lats"],"Unterer Rücken":["lower_back"],
+  "Bizeps":["biceps"],"Trizeps":["triceps"],"Unterarme":["forearms"],"Arme":ARMS,"Bauch":["abs"],"Seitliche Bauchmuskeln":["obliques"],
+  "Po":["glutes"],"Abduktoren":["hip"],"Adduktoren":["adductors"],"Oberschenkel vorne":["quads"],"Oberschenkel hinten":["hamstrings"],"Waden":["calves"],"Beine":[...LEGS,"hip"],
+  "Ganzkörper":["chest",...DELTS,...BACK,...ARMS,"abs","obliques","glutes",...LEGS],"Cardio":[],"Sonstiges":[]};
+// Für eigene Gruppen: Region anhand des Namens erraten (spezielle Begriffe zuerst)
+const REGION_WORDS=[[/abduk|hüfte außen|hip/i,["hip"]],[/adduk|innenschenkel|oberschenkel innen/i,["adductors"]],[/hüft/i,["hip","adductors"]],[/po\b|gesäß|glute/i,["glutes"]],
+  [/bizeps|biceps/i,["biceps"]],[/trizeps|triceps/i,["triceps"]],[/unterarm|handgelenk|griff/i,["forearms"]],[/arm/i,ARMS],
+  [/wade|calf/i,["calves"]],[/beinbeug|hamstring|oberschenkel hinten|oberschenkel-rück|beinrück/i,["hamstrings"]],[/beinstreck|quad|oberschenkel vorne|oberschenkel/i,["quads"]],[/bein|knie/i,LEGS],
+  [/vordere schulter|front.?delt/i,["front_delts"]],[/seitliche schulter|side.?delt|lateral/i,["side_delts"]],[/hintere schulter|rear.?delt/i,["rear_delts"]],[/schulter|delt/i,DELTS],
+  [/brust|pec/i,["chest"]],[/seitlich.*bauch|schräg|oblique/i,["obliques"]],[/bauch|core|rumpf|abs/i,["abs","obliques"]],
+  [/nacken|trapez|traps/i,["traps","neck"]],[/latissimus|\blat\b/i,["lats"]],[/unterer rücken|rückenstrecker|lenden/i,["lower_back"]],[/oberer rücken|rhomb|mittlerer rücken/i,["upper_back"]],[/rücken/i,BACK]];
+const REGION_NAMES={chest:"Brust",front_delts:"Vordere Schulter",side_delts:"Seitliche Schulter",rear_delts:"Hintere Schulter",traps:"Nacken & Trapez",upper_back:"Oberer Rücken",lats:"Latissimus",lower_back:"Unterer Rücken",
+  biceps:"Bizeps",triceps:"Trizeps",forearms:"Unterarme",abs:"Bauch",obliques:"Seitliche Bauchmuskeln",glutes:"Po",hip:"Abduktoren",adductors:"Adduktoren",quads:"Oberschenkel vorne",hamstrings:"Oberschenkel hinten",calves:"Waden",neck:"Nacken",
+  shoulders:"Schultern",back:"Rücken",arms:"Arme",legs:"Beine"};
 function groupRegions(g){ if(GROUP_REGIONS[g]) return GROUP_REGIONS[g]; for(const [re,r] of REGION_WORDS) if(re.test(g)) return r; return []; }
 function daySummary(date){
   const ls=sortDayLogs(date,logsByDate().get(date)||[]);

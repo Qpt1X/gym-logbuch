@@ -5,7 +5,11 @@
 (function(){
 "use strict";
 // Ab Nummer 11: Arme und Beine in einzelne Muskeln aufgeteilt (Bizeps/Trizeps/Unterarme, Oberschenkel vorne/hinten, Waden)
-const REG=["bg","none","chest","shoulders","arms","abs","back","glutes","hip","legs","neck","biceps","triceps","forearms","quads","hamstrings","calves"];
+const REG=["bg","none","chest","shoulders","arms","abs","back","glutes","hip","legs","neck","biceps","triceps","forearms","quads","hamstrings","calves",
+  // ab Nummer 17: Schultern, Rücken, Bauch und Adduktoren genauer aufgeteilt
+  "front_delts","side_delts","rear_delts","traps","upper_back","lats","lower_back","obliques","adductors"];
+// Ältere Sammelbegriffe auf die einzelnen Regionen verteilen
+const ALIAS={shoulders:["front_delts","side_delts","rear_delts"],back:["traps","upper_back","lats","lower_back"],arms:["biceps","triceps","forearms"],legs:["quads","hamstrings","calves","adductors"]};
 const cache={};
 
 function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
@@ -22,7 +26,8 @@ function paint(canvas,fig,intensity,colors){
   const ctx=canvas.getContext("2d"), out=ctx.createImageData(W,H), o=out.data, b=base.data, m=map.data;
   const lo=hex(colors.lo||"#f5b97a"), hi=hex(colors.hi||"#c62f28");
   // Tönung pro Region: Mischung aus Weiß und Wärmefarbe je nach Intensität
-  const tint=REG.map(r=>{ const t=intensity[r]||0; if(!t) return null; const c=lo.map((v,i)=>v+(hi[i]-v)*Math.min(1,t)); return c.map(v=>255-(255-v)*.9); });
+  const I={...intensity}; for(const [k,list] of Object.entries(ALIAS)) if(I[k]) for(const r of list) I[r]=Math.max(I[r]||0,I[k]);
+  const tint=REG.map(r=>{ const t=I[r]||0; if(!t) return null; const c=lo.map((v,i)=>v+(hi[i]-v)*Math.min(1,t)); return c.map(v=>255-(255-v)*.9); });
   for(let i=0;i<o.length;i+=4){
     const r=m[i], T=tint[r];
     if(T){ o[i]=b[i]*T[0]/255; o[i+1]=b[i+1]*T[1]/255; o[i+2]=b[i+2]*T[2]/255; }
