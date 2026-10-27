@@ -13,7 +13,7 @@ Läuft auf Android und iPhone, funktioniert offline und speichert alle Daten nur
 
 - `index.html` – die komplette App
 - `report.js` – erstellt den PDF-Fortschrittsbericht (ohne externe Bibliotheken)
-- `body3d.js` – 3D-Körpermodell (Mann/Frau) für den Abschluss-Screen, eigener WebGL-Renderer
+- `anatomy.js` – anatomische Körperzeichnung (Mann/Frau, vorne/hinten) für den Abschluss-Screen
 - `sw.js` – sorgt dafür, dass die App offline startet
 - `manifest.webmanifest` – Name, Farben und Icon für die Installation
 - `icons/` – App-Icons

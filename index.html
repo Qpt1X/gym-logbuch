@@ -24,6 +24,7 @@
   --pr:#c62f28; --pr-soft:#fbe2df; --ok:#1d7a4b;
   --cal1:#c9d6f7; --cal2:#7d9bec; --cal3:#1f46c2; --cal-ink3:#ffffff;
   --body-base:#c5cbd4; --heat-lo:#f5b97a; --heat-hi:#c62f28; --body-dark:0; --stage:#e4e9f0; --body-hair:#3b3f47;
+  --anat-skin:#c3c8cf; --anat-skin-dark:#9aa1ab; --anat-muscle:#f4f5f7; --anat-muscle-dark:#cfd3d9; --anat-line:#6c737d;
   --t-push:#2a78d6; --t-push-ink:#fff; --t-pull:#eb6834; --t-pull-ink:#fff; --t-beine:#1baf7a; --t-beine-ink:#0b1a14; --t-oben:#eda100; --t-oben-ink:#1f1600; --t-unten:#e87ba4; --t-unten-ink:#2a0d18; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#6250d6; --t-cardio-ink:#fff; --t-sonst:#e34948; --t-sonst-ink:#fff;
   --f-display:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -33,13 +34,13 @@
   :root:not([data-theme="light"]){
     --bg:#0d1219; --surface:#161d28; --sunk:#1e2734; --ink:#e6ebf2; --muted:#93a0b2; --line:#2a3546;
     --accent:#7196ff; --accent-ink:#0a1124; --accent-soft:#1c2a4f;
-    --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; --body-base:#566176; --heat-lo:#f2a25c; --heat-hi:#ff5848; --body-dark:1; --stage:#111824; --body-hair:#1c2028; --t-push:#3987e5; --t-push-ink:#fff; --t-pull:#d95926; --t-pull-ink:#fff; --t-beine:#199e70; --t-beine-ink:#fff; --t-oben:#c98500; --t-oben-ink:#1f1600; --t-unten:#d55181; --t-unten-ink:#fff; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#9085e9; --t-cardio-ink:#120d33; --t-sonst:#e66767; --t-sonst-ink:#fff; color-scheme:dark;
+    --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; --body-base:#566176; --heat-lo:#f2a25c; --heat-hi:#ff5848; --body-dark:1; --stage:#111824; --body-hair:#1c2028; --anat-skin:#4a5262; --anat-skin-dark:#363d4a; --anat-muscle:#9aa3b2; --anat-muscle-dark:#687182; --anat-line:#1d222b; --t-push:#3987e5; --t-push-ink:#fff; --t-pull:#d95926; --t-pull-ink:#fff; --t-beine:#199e70; --t-beine-ink:#fff; --t-oben:#c98500; --t-oben-ink:#1f1600; --t-unten:#d55181; --t-unten-ink:#fff; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#9085e9; --t-cardio-ink:#120d33; --t-sonst:#e66767; --t-sonst-ink:#fff; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0d1219; --surface:#161d28; --sunk:#1e2734; --ink:#e6ebf2; --muted:#93a0b2; --line:#2a3546;
   --accent:#7196ff; --accent-ink:#0a1124; --accent-soft:#1c2a4f;
-  --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; --body-base:#566176; --heat-lo:#f2a25c; --heat-hi:#ff5848; --body-dark:1; --stage:#111824; --body-hair:#1c2028; --t-push:#3987e5; --t-push-ink:#fff; --t-pull:#d95926; --t-pull-ink:#fff; --t-beine:#199e70; --t-beine-ink:#fff; --t-oben:#c98500; --t-oben-ink:#1f1600; --t-unten:#d55181; --t-unten-ink:#fff; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#9085e9; --t-cardio-ink:#120d33; --t-sonst:#e66767; --t-sonst-ink:#fff; color-scheme:dark;
+  --pr:#ff7568; --pr-soft:#3d1e1b; --ok:#52c78d; --cal1:#24345e; --cal2:#3d5bb5; --cal3:#7196ff; --cal-ink3:#0a1124; --body-base:#566176; --heat-lo:#f2a25c; --heat-hi:#ff5848; --body-dark:1; --stage:#111824; --body-hair:#1c2028; --anat-skin:#4a5262; --anat-skin-dark:#363d4a; --anat-muscle:#9aa3b2; --anat-muscle-dark:#687182; --anat-line:#1d222b; --t-push:#3987e5; --t-push-ink:#fff; --t-pull:#d95926; --t-pull-ink:#fff; --t-beine:#199e70; --t-beine-ink:#fff; --t-oben:#c98500; --t-oben-ink:#1f1600; --t-unten:#d55181; --t-unten-ink:#fff; --t-ganz:#008300; --t-ganz-ink:#fff; --t-cardio:#9085e9; --t-cardio-ink:#120d33; --t-sonst:#e66767; --t-sonst-ink:#fff; color-scheme:dark;
 }
 *{box-sizing:border-box}
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
@@ -222,6 +223,8 @@ details.plan-edit[open] summary{margin-bottom:12px}
 @media (max-width:380px){.mini-stats{grid-template-columns:repeat(2,1fr)}}
 .stage{position:relative;background:radial-gradient(ellipse at 50% 35%,var(--surface),var(--stage));border-radius:var(--radius);border:1px solid var(--line);overflow:hidden}
 .stage canvas{display:block;width:100%;height:400px;touch-action:none;cursor:grab}
+.anat-pair{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:14px 8px 26px}
+.anat-pair svg{width:100%;height:auto;display:block;max-height:460px}
 .stage .views{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:6px;justify-content:flex-end}
 .stage .views button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-weight:600;font-size:.82rem}
 .stage .hint3d{position:absolute;left:12px;bottom:10px;font-size:.75rem;color:var(--muted)}
@@ -424,7 +427,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 <input type="file" id="inbodyFile" accept=".csv,text/csv,.txt,text/plain" hidden>
 
 <script src="report.js"></script>
-<script src="body3d.js"></script>
+<script src="anatomy.js"></script>
 <script>
 (function(){
 "use strict";
@@ -438,7 +441,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "2.2";
+const APP_VERSION = "2.3";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -713,10 +716,8 @@ function render(){
   }
   $("#ttl").textContent=title;
   const upd=waitingWorker&&!(t&&(t.type==="log"||t.type==="editEx"))?`<div class="update-bar"><span>Neue Version verfügbar</span><button class="btn primary" data-act="update">Aktualisieren</button></div>`:"";
-  if(window.Body3D){ const a=window.Body3D._a; if(a) S.bodyYaw=a.yaw; window.Body3D.stop(); window.Body3D._a=null; }
-  clearTimeout(S.bodyT);
   $("#main").innerHTML=`<div class="wrap">${upd}${html}</div>`;
-  if(t&&t.type==="finish") mountBody(t.date);
+
 }
 
 function emptyStart(){
@@ -1296,7 +1297,6 @@ document.addEventListener("click",ev=>{
     case "finishView": S.bodyYaw=null; push({type:"finish",date:b.dataset.date}); break;
     case "finishClose": setTab("today"); break;
     case "unfinish": { const d=b.dataset.date; saveDay(d,{done:null}); toast("Training läuft weiter"); const t=top(); if(t&&t.type==="finish"&&d===todayStr()) setTab("today"); else render(); break; }
-    case "bodyView": { const a=window.Body3D&&window.Body3D._a; if(a) a.reset(); break; }
     case "pfSex": { const v=b.dataset.v, p=profile(); saveProfile({sex:p.sex===v?null:v}); render(); break; }
     case "pfModel": saveProfile({model:b.dataset.v}); render(); break;
     case "pfMet": saveProfile({met:+b.dataset.v}); render(); break;
@@ -1668,11 +1668,9 @@ function viewFinish(date){
     <div class="card stat"><b>${S0.prs}</b><span>${S0.prs===1?"Rekord":"Rekorde"}</span></div>
   </div>
   <div class="field"><span>Trainierte Körperregionen</span>
-    <div class="stage"><canvas id="body3d" aria-label="3D-Körpermodell von vorne und hinten. Trainiert: ${esc(regionsHit.join(", ")||"keine zugeordneten Regionen")}"></canvas>
-      ${window.Body3D&&window.Body3D.ready(bodyModel())?"":`<div class="loading3d" id="ld3d">Körpermodell wird erstellt…</div>`}
-      <span class="lbl3d" style="left:0">Vorne</span><span class="lbl3d" style="right:0">Hinten</span>
-      <div class="views"><button data-act="bodyView" data-v="reset">Ausrichten</button></div></div>
-    <p class="hint" style="margin:0">Zum Drehen wischen. ${profile().model||profile().sex?"":"Unter „Mehr“ → „Über mich“ wählst du, ob ein Mann oder eine Frau gezeigt wird."}</p>
+    <div class="stage" role="img" aria-label="Körper von vorne und hinten. Trainiert: ${esc(regionsHit.join(", ")||"keine zugeordneten Regionen")}"><div class="anat-pair">${anatomyPair(S0.intensity)}</div>
+      <span class="lbl3d" style="left:0">Vorne</span><span class="lbl3d" style="right:0">Hinten</span></div>
+    ${profile().model||profile().sex?"":`<p class="hint" style="margin:0">Unter „Mehr“ → „Über mich“ wählst du, ob ein Mann oder eine Frau gezeigt wird.</p>`}
     <div class="heat-legend"><i class="none"></i>nicht trainiert <i></i>wenig → viel</div>
     ${regionsHit.length?"":`<p class="hint">Deine Übungen sind keiner Körperpartie zugeordnet, die das Modell kennt. Ordne ihnen unter „Übungen“ → „Bearbeiten“ Muskelgruppen zu.</p>`}
   </div>
@@ -1683,15 +1681,14 @@ function viewFinish(date){
     ${done?`<button class="btn" data-act="unfinish" data-date="${date}">Rückgängig: Training doch nicht beendet</button>`:""}</div>`;
   return h;
 }
-function bodyModel(){ const p=profile(); return p.model||(p.sex==="w"?"f":"m"); }
-function mountBody(date){
-  const c=$("#body3d"); if(!c||!window.Body3D) return;
-  const sex=bodyModel(), ld=$("#ld3d");
-  const go=()=>{ const cc=$("#body3d"); if(!cc) return; let a=null; try{ a=window.Body3D.mount(cc,daySummary(date).intensity,{yaw:S.bodyYaw||0,sex}); }catch(e){ console.error(e); }
-    window.Body3D._a=a; const l=$("#ld3d"); if(l) l.remove();
-    if(!a){ cc.replaceWith(Object.assign(document.createElement("p"),{className:"hint",style:"padding:16px",textContent:"Das 3D-Modell kann auf diesem Gerät nicht angezeigt werden."})); } };
-  if(window.Body3D.ready(sex)){ if(ld) ld.remove(); go(); } else S.bodyT=setTimeout(go,60);
+function anatomyPair(intensity){
+  if(!window.Anatomy) return "";
+  const cs=getComputedStyle(document.documentElement), g=k=>cs.getPropertyValue(k).trim();
+  const colors={skin:g("--anat-skin"),skinDark:g("--anat-skin-dark"),muscle:g("--anat-muscle"),muscleDark:g("--anat-muscle-dark"),line:g("--anat-line"),lo:g("--heat-lo"),hi:g("--heat-hi"),hair:g("--body-hair")};
+  const sex=bodyModel();
+  return window.Anatomy.svg({sex,view:"front",intensity,colors,id:"af"})+window.Anatomy.svg({sex,view:"back",intensity,colors,id:"ab"});
 }
+function bodyModel(){ const p=profile(); return p.model||(p.sex==="w"?"f":"m"); }
 
 /* ---------- Eingabe-Layout ---------- */
 function sampleVal(d){ if(d.kind==="w") return "80"; if(d.kind==="r") return "12"; if(d.k==="rpe") return "8"; if(d.type==="time") return "1:30"; if(d.k==="dist") return "2,5"; if(d.type==="text") return "A"; return "4"; }
