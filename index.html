@@ -518,6 +518,12 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .update-bar{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 14px;background:var(--accent-soft);border-radius:10px;font-weight:600;font-size:.92rem}
 .in-unit{display:flex;align-items:center;gap:8px;color:var(--muted)}.in-unit .input{flex:1}
 .grp-pick{display:flex;flex-direction:column;gap:10px}.grp-sec{display:flex;flex-direction:column;gap:6px}.grp-sec>small{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.info-i{display:inline-grid;place-items:center;width:20px;height:20px;margin-left:6px;border-radius:50%;border:1.5px solid var(--muted);background:none;color:var(--muted);font:italic 700 .72rem/1 Georgia,"Times New Roman",serif;padding:0;cursor:pointer;vertical-align:middle;position:relative;flex:none;text-transform:none;letter-spacing:0}
+.info-i::after{content:"";position:absolute;inset:-12px}
+.info-i.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.info-row{display:flex;justify-content:flex-end;margin-top:-4px}
+.info-text:not([hidden]){background:var(--sunk);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:.85rem;margin:2px 0 0}
+.has-info{display:inline-flex;align-items:center}
 </style>
 </head>
 <body>
@@ -615,7 +621,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.10";
+const APP_VERSION = "3.11";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1878,6 +1884,64 @@ document.addEventListener("keydown",ev=>{
 window.addEventListener("scroll",()=>$("#bar").classList.toggle("scrolled",window.scrollY>4),{passive:true});
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"&&top()&&top().type==="log") saveDraft(false); });
 
+/* ---------- Erklärtexte hinter einem „i“ ----------
+   Längere Hinweise (p.hint / p.muted) werden eingeklappt. Ein kleines i neben der
+   passenden Überschrift blendet sie per Tipp ein. Kurze Texte (eine Zeile) bleiben sichtbar.
+   Ausnahme per data-keep, außerdem leere Zustände, Ergebnis-Karten und Texte mit Knöpfen. */
+const Info=(()=>{
+  const MAXLEN=58, opened=new Set();
+  const HEADS="h2,h3,.field>span:first-child,.daily-head>b,.food-head>b,.chart-top>.eyebrow,.group>h3,.panel>h3,.panel>b,.card>b:first-child,.goal-head";
+  const key=el=>el.textContent.trim().slice(0,80);
+  function anchorFor(el){
+    let sib=el.previousElementSibling;
+    // mehrere Hinweise direkt hintereinander teilen sich ein i
+    if(sib&&sib.classList.contains("info-text")){ const b=document.querySelector(`.info-i[aria-controls~="${sib.id}"]`); if(b) return b.parentNode; }
+    if(sib&&sib.matches(".dur-edit,.log-tools")) return sib;
+    // direkt davor eine Überschrift?
+    if(sib&&sib.matches(HEADS)) return sib;
+    // im Feld: Feldbeschriftung
+    const field=el.closest(".field");
+    if(field){ const lab=field.querySelector(":scope>span:first-child"); if(lab) return lab; }
+    // in einer Karte/Gruppe: deren Überschrift
+    const box=el.closest(".panel,.card,.group,.daily-body,.food-day");
+    if(box){ const h=box.querySelector(":scope>h3,:scope>b,:scope>.food-head>b,:scope>.acts-head>b,:scope>.chart-top>.eyebrow"); if(h&&h.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING) return h; }
+    return null;
+  }
+  function skip(el){
+    if(el.dataset.info||el.dataset.keep!=null) return true;
+    if(el.closest(".empty,.result,.loading,[data-keep]")) return true;
+    if(el.querySelector("a,button,input,select,textarea")) return true;
+    return el.textContent.trim().length<=MAXLEN;
+  }
+  function wire(el){
+    el.dataset.info="1";
+    const id="inf"+Math.random().toString(36).slice(2,8); el.id=el.id||id;
+    el.classList.add("info-text");
+    const a=anchorFor(el);
+    // pro Überschrift nur ein i – es blendet alle zugehörigen Texte ein
+    let btn=a&&a.querySelector(":scope>.info-i");
+    if(btn){ btn.setAttribute("aria-controls",btn.getAttribute("aria-controls")+" "+el.id); el.hidden=btn.getAttribute("aria-expanded")!=="true"; return; }
+    btn=document.createElement("button");
+    btn.type="button"; btn.className="info-i"; btn.setAttribute("aria-controls",el.id); btn.setAttribute("aria-label","Erklärung anzeigen");
+    btn.textContent="i";
+    if(a){ a.classList.add("has-info"); a.appendChild(btn); }
+    else { const row=document.createElement("div"); row.className="info-row"; row.appendChild(btn); el.parentNode.insertBefore(row,el); }
+    set(btn,opened.has(key(el)));
+  }
+  function targets(btn){ return (btn.getAttribute("aria-controls")||"").split(" ").map(i=>document.getElementById(i)).filter(Boolean); }
+  function set(btn,on){ targets(btn).forEach(el=>el.hidden=!on); btn.setAttribute("aria-expanded",String(on)); btn.classList.toggle("on",on); }
+  function scan(root){ if(!root||!root.querySelectorAll) return; root.querySelectorAll("p.hint,p.muted").forEach(el=>{ if(!skip(el)) wire(el); }); }
+  document.addEventListener("click",ev=>{
+    const b=ev.target.closest(".info-i"); if(!b) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const T=targets(b); if(!T.length) return;
+    const on=b.getAttribute("aria-expanded")!=="true"; set(b,on); const k=key(T[0]); if(on) opened.add(k); else opened.delete(k);
+  },true);
+  const mo=new MutationObserver(list=>{ for(const m of list) for(const n of m.addedNodes) if(n.nodeType===1){ if(n.matches&&n.matches("p.hint,p.muted")){ if(!skip(n)) wire(n); } else scan(n); } });
+  function start(){ ["#main","#sheetRoot"].forEach(s=>{ const r=$(s); if(r){ scan(r); mo.observe(r,{childList:true,subtree:true}); } }); }
+  return {start,scan};
+})();
+
 /* ---------- Reihenfolge per Gedrückthalten & Ziehen ---------- */
 const Sorter=(()=>{
   let st=null, holdT=null, suppressUntil=0;
@@ -2074,7 +2138,7 @@ function actsCard(date){
   const row=(a,i)=>{ const K=actKcal(a,date), A=ACT_BY[a.k]; const v=A&&!(A.sp&&parseNum(a.km)>0)&&A.v.length>1?A.v[Math.min(A.v.length-1,a.v|0)][0]:"";
     return `<button class="act-row" data-act="actEdit" data-date="${date}" data-i="${i}"><div class="grow"><b>${esc(actName(a))}</b><div class="meta num">${[fmtNum(+a.min)+" min",v,parseNum(a.km)>0?fmtNum(parseNum(a.km))+" km":"",parseNum(a.hr)?"Ø "+fmtNum(parseNum(a.hr))+" Puls":""].filter(Boolean).map(esc).join(" · ")}</div></div><span class="num act-k">${K&&K.net!=null?"+"+fmtNum(K.net)+" kcal":""}</span></button>`; };
   return `<div class="card acts"><div class="acts-head"><b>Aktivitäten</b><button class="btn ghost" data-act="actNew" data-date="${date}" style="min-height:34px;padding:0 4px">${ICON.plus}Aktivität</button></div>
-    ${L.length?`<div class="act-list">${L.map(row).join("")}</div>`:`<p class="meta" style="margin:0">Yoga, Joggen, Radfahren, Schwimmen … zählen zu deinem Tagesverbrauch dazu.</p>`}</div>`;
+    ${L.length?`<div class="act-list">${L.map(row).join("")}</div>`:`<p class="hint" style="margin:0">Yoga, Joggen, Radfahren, Schwimmen … zählen zu deinem Tagesverbrauch dazu.</p>`}</div>`;
 }
 function actRecent(){ const c=new Map(); for(const d of S.docs.values()) if(d&&d.kind==="day"&&Array.isArray(d.acts)) for(const a of d.acts) c.set(a.k,(c.get(a.k)||"")>d.date?c.get(a.k):d.date); return [...c.entries()].sort((a,b)=>b[1].localeCompare(a[1])).map(x=>x[0]).filter(k=>ACT_BY[k]).slice(0,6); }
 function openAct(date,i){
@@ -2178,7 +2242,7 @@ function balanceInfo(date){
 }
 function foodResult(date){
   const B=balanceInfo(date), F=foodOf(date);
-  if(!foodKcal(F)) return `<p class="meta" style="margin:0">Trag die Tagessumme ${esc(fromApp())} ein: Eiweiß, Kohlenhydrate und Fett. Die Kalorien rechnet die App daraus aus, oder du trägst sie direkt ein. Dann siehst du dein Defizit oder deinen Überschuss.</p>`;
+  if(!foodKcal(F)) return `<p class="hint" style="margin:0">Trag die Tagessumme ${esc(fromApp())} ein: Eiweiß, Kohlenhydrate und Fett. Die Kalorien rechnet die App daraus aus, oder du trägst sie direkt ein. Dann siehst du dein Defizit oder deinen Überschuss.</p>`;
   if(!B) return `<p class="meta" style="margin:0">Für die Bilanz fehlen Angaben zu deinem Körper unter „Mehr“ → „Über mich“.</p>`;
   const ic={good:"↗",warn:"!",info:"i",tip:"•"}, sign=B.diff>=0?"+":"−";
   const mk=macroKcal(F), P=parseNum(F.p)||0, Cc=parseNum(F.c)||0, Fa=parseNum(F.f)||0;
@@ -2990,6 +3054,7 @@ if("serviceWorker" in navigator){
   });
 }
 
+Info.start();
 init();
 applyIcon();
 setInterval(()=>{ refreshKcal(todayStr()); },60000);
