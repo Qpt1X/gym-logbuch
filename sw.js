@@ -1,6 +1,6 @@
 // Gym-Logbuch Service Worker: macht die App offline nutzbar.
 // Bei jeder neuen App-Version die Versionsnummer hochzählen.
-const VERSION = "gym-logbuch-3.12";
+const VERSION = "gym-logbuch-3.13";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -9,6 +9,8 @@ const APP_FILES = [
   "./body/m-front.webp","./body/m-back.webp","./body/f-front.webp","./body/f-back.webp",
   "./body/m-front-map.png","./body/m-back-map.png","./body/f-front-map.png","./body/f-back-map.png",
   "./manifest.webmanifest",
+  "./manifest-bear-1.webmanifest","./manifest-bear-2.webmanifest","./manifest-bear-3.webmanifest","./manifest-bear-4.webmanifest",
+  "./manifest-bear-5.webmanifest","./manifest-bear-6.webmanifest","./manifest-bear-7.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

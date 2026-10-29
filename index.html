@@ -641,7 +641,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.12";
+const APP_VERSION = "3.13";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -3095,7 +3095,9 @@ function randomIconFor(period,date){
 function currentIcon(){ const c=iconCfg(); return c.random?randomIconFor(c.period):c.pick; }
 async function applyIcon(){
   const id=currentIcon();
-  const fav=document.querySelector('link[rel="icon"]'), apple=document.querySelector('link[rel="apple-touch-icon"]');
+  const fav=document.querySelector('link[rel="icon"]'), apple=document.querySelector('link[rel="apple-touch-icon"]'), man=document.querySelector('link[rel="manifest"]');
+  // eigenes Manifest pro Symbol: Chrome erkennt so beim nächsten Start sicher, dass sich das Symbol geändert hat
+  if(man){ const href=id==="std"?"manifest.webmanifest":`manifest-${id}.webmanifest`; if(man.getAttribute("href")!==href) man.setAttribute("href",href); }
   if(fav) fav.href=id==="std"?"icons/icon-192.png":`icons/${id}-192.png`;
   if(apple) apple.href=id==="std"?"icons/apple-touch-icon.png":`icons/${id}-180.png`;
   try{ if(!("caches" in window)) return; const c=await caches.open("gym-logbuch-prefs"), old=await c.match("./__icon"), cur=old?(await old.json()).icon:"std";
@@ -3107,7 +3109,7 @@ function viewIconCard(){
     <div class="icon-grid">${APP_ICONS.map(([id,n])=>`<button class="icon-pick" data-act="iconPick" data-v="${id}" aria-pressed="${!c.random&&c.pick===id}" aria-label="${esc(n)}"${c.random?" disabled":""}><img src="${iconThumb(id)}" alt="" loading="lazy">${c.random&&cur===id?`<em>gerade</em>`:""}</button>`).join("")}</div>
     <div class="switch-row"><span>Zufällig wechseln</span><button class="switch" role="switch" data-act="iconRandom" aria-checked="${c.random}" aria-label="Symbol zufällig wechseln"></button></div>
     ${c.random?`<div class="chips">${ICON_PERIODS.map(([k,l])=>`<button class="chip" data-act="iconPeriod" data-v="${k}" aria-pressed="${c.period===k}">${l}</button>`).join("")}</div><p class="meta">Aktuell: ${esc(APP_ICONS.find(x=>x[0]===cur)[1])}</p>`:""}
-    <p class="hint">${isIOS?"Auf dem iPhone übernimmt Safari das Symbol nur beim Hinzufügen zum Home-Bildschirm. Wähle es also vorher aus. Zum späteren Wechseln müsstest du die App entfernen und neu hinzufügen. Achtung: Beim Entfernen löscht das iPhone deine Daten, mach vorher unbedingt ein Backup (unten).":"Auf Android übernimmt Chrome das neue Symbol nicht sofort: Chrome prüft beim Öffnen der App höchstens einmal am Tag, ob sich etwas geändert hat, und tauscht das Symbol dann aus, sobald die App geschlossen ist und das Handy im WLAN lädt. Bei einem neuen Bild fragt Chrome meist einmal nach, ob du das neue Symbol übernehmen willst (manchmal nur als Hinweis im Menü ⋮). Ein täglicher Wechsel kann deshalb hinterherhinken."}</p></div>`;
+    <p class="hint">${isIOS?"Auf dem iPhone übernimmt Safari das Symbol nur beim Hinzufügen zum Home-Bildschirm. Wähle es also vorher aus. Zum späteren Wechseln müsstest du die App entfernen und neu hinzufügen. Achtung: Beim Entfernen löscht das iPhone deine Daten, mach vorher unbedingt ein Backup (unten).":"So übernimmt Android das neue Symbol: App ganz schließen (aus der Liste der offenen Apps wegwischen) und wieder öffnen. Chrome prüft das höchstens einmal am Tag und fragt dann meist „App-Symbol aktualisieren?“ – manchmal erst am nächsten Tag. Klappt es nicht, oder hast du die App mit Samsung Internet statt Chrome hinzugefügt: unten ein Backup machen, die App vom Startbildschirm entfernen und in Chrome über Menü ⋮ → „App installieren“ neu hinzufügen. Dann ist das gewählte Symbol sofort da."}</p></div>`;
 }
 
 /* ---------- Installieren & Offline ---------- */
