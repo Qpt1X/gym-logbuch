@@ -524,6 +524,26 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .info-row{display:flex;justify-content:flex-end;margin-top:-4px}
 .info-text:not([hidden]){background:var(--sunk);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:.85rem;margin:2px 0 0}
 .has-info{display:inline-flex;align-items:center}
+.cmp-row{display:grid;grid-template-columns:var(--cols,2.2rem 1fr 1fr 3.1rem);gap:8px;margin:-4px 0 2px;font-size:.78rem;color:var(--muted)}
+.cmp-row .cl{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:0 4px;min-width:0}
+.cmp-row .cl>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlt{font-weight:700;font-size:.74rem;padding:1px 7px;border-radius:99px;background:var(--sunk);color:var(--muted);white-space:nowrap;justify-self:end}
+.dlt.up{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+.dlt.dn{background:var(--pr-soft);color:var(--pr)}
+.cmpcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.cmpcard .top{display:flex;justify-content:space-between;align-items:baseline;font-size:.85rem;color:var(--muted)}
+.cmpcard .top b{color:var(--ink);font-size:.95rem}
+.cmpgrid{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:6px 12px;align-items:center;font-variant-numeric:tabular-nums}
+.cmpgrid .h{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cmpgrid .v{font-family:var(--f-display);font-weight:600;font-size:1.02rem;min-width:0}
+.cmpgrid .old{color:var(--muted)}
+.cmpgrid .n{color:var(--muted);font-weight:700}
+.volbar{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}
+.volbar .vl{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.volbar b{color:var(--ink)}
+.volbar .track{height:8px;border-radius:99px;background:var(--sunk);position:relative;overflow:hidden}
+.volbar .fill{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:99px;transition:width .2s}
+.volbar .fill.over{background:var(--ok)}
 </style>
 </head>
 <body>
@@ -621,7 +641,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.11";
+const APP_VERSION = "3.12";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -850,6 +870,42 @@ function openDraft(exId,date){
   else { const tg=planTarget(date,exId); sets=Array.from({length:Math.max(tg&&tg.sets&&tg.sets.length?tg.sets.length:tg&&tg.s?tg.s:last&&last.sets?last.sets.length:3,1)},()=>({w:"",r:"",x:{}})); }
   S.draft={exId,date,sets,note:existing&&existing.note?existing.note:"",kcal:existing&&existing.kcal?String(existing.kcal):"",existed:!!existing};
 }
+/* ---------- Vergleich mit der letzten Einheit (Optionen: aus · „Zeile unter jedem Satz“ · „Vergleichstabelle“) ---------- */
+function cmpCfg(){ const c=cfg().cmp||{}; return {on:!!c.on,style:c.style==="table"?"table":"rows"}; }
+// Wert zum Vergleichen: bei Gegengewicht zählt das echte Trainingsgewicht (weniger Gegengewicht = mehr)
+function cmpW(w,a){ if(w==null) return null; if(!asA(a)) return w; const e=effW(w,a); return e!=null?e:-w; }
+function cmpDelta(cur,old,a){
+  if(!cur||!old) return null;
+  const cw=cmpW(cur.w,a), ow=cmpW(old.w,a);
+  if(cw!=null&&ow!=null&&Math.abs(cw-ow)>=0.01){ const d=Math.round((cw-ow)*100)/100; return {dir:d>0?1:-1,txt:`${fmtNum(Math.abs(d))} kg`}; }
+  if(cur.r!=null&&old.r!=null&&cur.r!==old.r){ const d=cur.r-old.r; return {dir:d>0?1:-1,txt:`${Math.abs(d)} Wdh.`}; }
+  if((cw!=null||cur.r!=null)&&(cw==null||ow!=null)&&(cur.r==null||old.r!=null)) return {dir:0,txt:"gleich"};
+  return null;
+}
+function dltChip(d){ if(!d) return ""; return `<span class="dlt${d.dir>0?" up":d.dir<0?" dn":""}">${d.dir>0?"▲ ":d.dir<0?"▼ ":"= "}${esc(d.txt)}</span>`; }
+function draftOwn(){ return S.draft.sets.map(s=>{ const w=parseNum(s.w), r=parseNum(s.r); return w==null&&r==null?null:{w,r:r==null?null:Math.round(r)}; }); }
+function oldTxt(s,a){ return s?setPlain(s,a):"–"; }
+function cmpRowHtml(i,last,a){
+  const L=layoutOrder(), idx=L.map((k,j)=>[k,j]).filter(([k])=>{const d=fieldDef(k); return d.kind!=="n"&&d.kind!=="c";}).map(x=>x[1]);
+  const from=(idx[0]??0)+1, to=(idx[idx.length-1]??L.length-1)+2;
+  const old=(last.sets||[])[i], cur=draftOwn()[i];
+  return `<span class="cl" style="grid-column:${from} / ${to}"><span>${old?`zuletzt ${esc(oldTxt(old,a))}`:"letztes Mal kein Satz"}</span>${old?dltChip(cmpDelta(cur,old,a)):""}</span>`;
+}
+function cmpTableHtml(last,a){
+  const old=last.sets||[], cur=draftOwn(), n=Math.max(old.length,S.draft.sets.length);
+  const vol=sets=>volume(sets.filter(Boolean).map(x=>({...x,w:asA(a)?effW(x.w,a):x.w})));
+  const vNow=vol(cur), vOld=vol(old), pct=vOld?Math.min(100,Math.round(vNow/vOld*100)):0;
+  let rows=""; for(let i=0;i<n;i++){ const o=old[i], c=cur[i]; rows+=`<span class="n">${i+1}</span><span class="v old">${esc(oldTxt(o,a))}</span><span class="v">${c?esc(setPlain(c,a)):"–"}</span>${o&&c?dltChip(cmpDelta(c,o,a)):"<span></span>"}`; }
+  return `<div class="top"><span><b>Vergleich</b> mit ${esc(relDay(last.date))}</span><span>${old.length} ${old.length===1?"Satz":"Sätze"}</span></div>
+    <div class="cmpgrid"><span class="h">Satz</span><span class="h">Letztes Mal</span><span class="h">Heute</span><span></span>${rows}</div>
+    ${vOld?`<div class="volbar"><div class="vl"><span>Volumen heute <b>${fmtNum(Math.round(vNow))} kg</b></span><span>letztes Mal ${fmtNum(Math.round(vOld))} kg</span></div><div class="track"><div class="fill${vNow>vOld?" over":""}" style="width:${pct}%"></div></div></div>`:""}`;
+}
+function refreshCmp(){
+  const C=cmpCfg(), d=S.draft; if(!C.on||!d) return;
+  const last=lastBefore(d.exId,d.date); if(!last) return; const a=assistCtx(last);
+  if(C.style==="table"){ const box=$("#cmpBox"); if(box) box.innerHTML=cmpTableHtml(last,a); }
+  else document.querySelectorAll(".cmp-row").forEach(r=>{ r.innerHTML=cmpRowHtml(+r.dataset.row,last,a); });
+}
 function assistLive(){
   const d=S.draft; if(!d) return ""; const bw=bwOn(d.date); if(bw==null) return "";
   const g=ghosts(), vals=d.sets.map((s,i)=>{ const w=parseNum(s.w)??(g[i]?g[i].w:null); return w==null?null:effW(w,{bw}); }).filter(v=>v!=null);
@@ -1058,7 +1114,10 @@ function viewLog(){
   h+=`<div class="log-tools"><button class="pause-chip${rs?"":" off"}" data-act="restPick" data-ex="${esc(e.id)}" aria-label="Pausenzeit einstellen">${ICON.clock}${rs?`Pause ${fmtClock(rs)}`:"Pause aus"}</button>${rs&&restCfg().auto?`<span class="meta">startet beim Abhaken eines Satzes</span>`:""}</div>`;
   const tgt=targetText(planTarget(d.date,d.exId));
   if(tgt) h+=`<div class="lastline" style="background:var(--sunk)">Ziel laut Plan: <b>${esc(tgt)}</b></div>`;
-  if(last) h+=`<div class="lastline">Letztes Mal · ${relDay(last.date)}: <b>${(last.sets||[]).map(s=>setPlain(s,assistCtx(last))).join(" · ")}</b></div>`;
+  const CMP=cmpCfg(), cmpOn=CMP.on&&!!last, la=last?assistCtx(last):null;
+  if(cmpOn&&CMP.style==="table") h+=`<div class="cmpcard" id="cmpBox">${cmpTableHtml(last,la)}</div>`;
+  else if(cmpOn) h+=`<div class="meta">Letztes Mal: <b style="color:var(--ink)">${esc(relDay(last.date))}</b> · ${(last.sets||[]).length} ${(last.sets||[]).length===1?"Satz":"Sätze"}${volume(statSets(last))?` · ${fmtNum(Math.round(volume(statSets(last))))} kg Volumen`:""}</div>`;
+  else if(last) h+=`<div class="lastline">Letztes Mal · ${relDay(last.date)}: <b>${(last.sets||[]).map(s=>setPlain(s,assistCtx(last))).join(" · ")}</b></div>`;
   const L=layoutOrder(), ic=inputCount();
   const AS=isAssist(e);
   if(AS){ const bw=bwOn(d.date);
@@ -1067,6 +1126,7 @@ function viewLog(){
   h+=`<div class="sets${ic>=4?" dense2":ic===3?" dense":""}" style="--cols:${layoutCols()}"><div class="set-head">${L.map(k=>`<span>${esc(AS&&fieldDef(k).kind==="w"?"Gegen-gew.":fieldDef(k).h)}</span>`).join("")}</div>`;
   d.sets.forEach((s,i)=>{
     h+=`<div class="set-row${rowFilled(s)?" filled":""}" data-row="${i}">${L.map(k=>setCell(k,s,i,g[i])).join("")}</div>`;
+    if(cmpOn&&CMP.style==="rows") h+=`<div class="cmp-row" data-row="${i}">${cmpRowHtml(i,last,la)}</div>`;
   });
   h+=`</div>${AS?`<div class="meta num" id="assistLive">${assistLive()}</div>`:""}
   <p class="hint">Graue Zahlen sind Vorschläge: dein Ziel aus dem Plan oder deine Werte vom letzten Mal. Tipp auf den Haken, um sie zu übernehmen, oder tipp eigene Werte ein. Ohne Gewicht zählt der Satz als Körpergewicht.</p>
@@ -1540,7 +1600,7 @@ function viewMore(){
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${cmpCard()}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1654,6 +1714,8 @@ document.addEventListener("click",ev=>{
     case "planFlat": { const d=b.dataset.date, items=planItems(d), it=items[+b.dataset.i]; if(it&&it.sets){ const f=it.sets[0]||{}; it.s=it.sets.length; it.r=f.r??null; it.w=f.w??null; delete it.sets; savePlan(d,items); render(); } break; }
     case "finish": { const d=b.dataset.date; Rest.stop(); saveDay(d,{done:Date.now()}); S.bodyYaw=null; const t=top(); if(t&&t.type==="finish") render(); else push({type:"finish",date:d}); window.scrollTo(0,0);
       if(wxOn()) fetchWeather(d).then(w=>{ const tt=top(); if(w&&tt&&tt.type==="finish"&&tt.date===d) render(); }); break; }
+    case "cmpToggle": { const C=cmpCfg(); saveCfg({cmp:{...C,on:!C.on}}); render(); break; }
+    case "cmpStyle": { const C=cmpCfg(); saveCfg({cmp:{...C,style:b.dataset.v}}); render(); break; }
     case "wxToggle": {
       const on=!wxOn(); saveCfg({weather:{on}}); S.wxError=null; render();
       if(on){ S.wxBusy=true; render(); fetchWeather(todayStr(),true).then(w=>{ S.wxBusy=false; S.wxTest=w; if(!w) toast(S.wxError==="denied"?"Standort nicht erlaubt":"Wetter gerade nicht abrufbar"); render(); }); }
@@ -1830,6 +1892,7 @@ document.addEventListener("input",ev=>{
     for(let j=i+1;j<S.draft.sets.length;j++){ const row=document.querySelector(`.set-row[data-row="${j}"]`); if(!row) continue; row.querySelectorAll("input").forEach(inp=>{ const k=inp.dataset.field==="x"?inp.dataset.k:inp.dataset.field; const d=fieldDef(k); if(d) inp.placeholder=ghostText(d,g[j]).replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'"); }); }
     scheduleSave();
     const al=$("#assistLive"); if(al) al.innerHTML=assistLive();
+    refreshCmp();
   }
   else if(f==="note"){ S.draft.note=el.value; scheduleSave(); }
   else if(f==="egkcal"){ S.draft.kcal=el.value; scheduleSave(); }
@@ -2785,6 +2848,15 @@ function bodyModel(){ const p=profile(); return p.model||(p.sex==="w"?"f":"m"); 
 /* ---------- Eingabe-Layout ---------- */
 function sampleVal(d){ if(d.kind==="w") return "80"; if(d.kind==="r") return "12"; if(d.k==="rpe") return "8"; if(d.type==="time") return "1:30"; if(d.k==="dist") return "2,5"; if(d.type==="text") return "A"; return "4"; }
 function bmrInfo(){ const b=bodyState(); return b.bmr?`Geschätzter Grundumsatz: <b>${fmtNum(Math.round(b.bmr))} kcal/Tag</b> · ${esc(b.src)}${age(profile())?` · ${age(profile())} Jahre`:""}`:"Für den Grundumsatz brauche ich Gewicht, Größe, Geburtstag und Geschlecht oder eine InBody-Messung."; }
+function cmpCard(){
+  const C=cmpCfg();
+  return `<div class="card panel"><h3>Vergleich beim Eintragen</h3>
+    <div class="switch-row"><span>Letzte Trainingseinheit zum Vergleich einblenden</span><button class="switch" role="switch" data-act="cmpToggle" aria-checked="${C.on}" aria-label="Vergleich mit letzter Einheit"></button></div>
+    ${C.on?`<div class="field"><span>Darstellung</span><div class="chips"><button class="chip" data-act="cmpStyle" data-v="rows" aria-pressed="${C.style==="rows"}">Zeile unter jedem Satz</button><button class="chip" data-act="cmpStyle" data-v="table" aria-pressed="${C.style==="table"}">Vergleichstabelle</button></div></div>
+    <p class="hint">${C.style==="rows"?"Unter jedem Satz steht, was du letztes Mal geschafft hast, mit grünem Pfeil nach oben bei mehr Gewicht oder Wiederholungen und rotem Pfeil nach unten bei weniger.":"Über den Eingabefeldern steht eine Tabelle: letztes Mal und heute Satz für Satz nebeneinander, mit Pfeilen und einem Balken für dein Gesamtvolumen."} Verglichen wird immer Satz 1 mit Satz 1 usw.; zuerst das Gewicht, bei gleichem Gewicht die Wiederholungen.</p>`
+    :`<p class="hint">Ausgeschaltet siehst du wie bisher eine Zeile „Letztes Mal“ und die alten Werte als graue Vorschläge.</p>`}
+  </div>`;
+}
 function viewLayoutCard(){
   const L=layoutOrder(), ic=inputCount(), F=S.fieldForm;
   const inactive=allFieldKeys().filter(k=>!L.includes(k));
