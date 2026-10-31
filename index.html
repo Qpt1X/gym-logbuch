@@ -544,6 +544,31 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .volbar .track{height:8px;border-radius:99px;background:var(--sunk);position:relative;overflow:hidden}
 .volbar .fill{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:99px;transition:width .2s}
 .volbar .fill.over{background:var(--ok)}
+.ex-photo{border-radius:16px;overflow:hidden;background:var(--sunk);aspect-ratio:4/3;max-height:300px;width:100%}
+.ex-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.ex-photo.small{max-height:200px}
+.ex-title{font-size:1.8rem;text-transform:uppercase;margin:4px 0 -4px}
+.ex-links{display:flex;flex-wrap:wrap;gap:4px 14px}
+.ex-links .btn svg{width:18px;height:18px}
+.tpl-row{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.tpl-row:last-child{border-bottom:0}
+.tpl-row .grow{flex:1;min-width:0}
+.tpl-row .icon-btn[disabled]{opacity:.3}
+.ex-thumb{flex:none;width:56px;height:56px;border-radius:10px;overflow:hidden;background:var(--sunk);display:grid;place-items:center;color:var(--muted)}
+.ex-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ex-thumb svg{width:24px;height:24px;opacity:.6}
+.tpl-row .ex-thumb{width:48px;height:48px}
+.icon-btn.trash{color:var(--pr);border-color:transparent;background:none}
+.fin-row{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;border-bottom:1px solid var(--line)}
+.fin-row:last-child{border-bottom:0}
+.fin-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.fin-main .grow{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fin-main .pr{align-self:flex-start}
+.dlg-bg{align-items:center;padding:16px}
+.dlg{width:100%;max-width:400px;background:var(--surface);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.dlg b{font-size:1.05rem;line-height:1.35}
+.dlg p{margin:0;color:var(--muted);font-size:.9rem}
+.dlg .btn-row{margin-top:6px}
 </style>
 </head>
 <body>
@@ -570,6 +595,8 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 <div id="sheetRoot"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
+<input type="file" id="photoCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="photoLib" accept="image/*" hidden>
 <input type="file" id="inbodyFile" accept=".csv,text/csv,.txt,text/plain" hidden>
 <input type="file" id="foodFile" accept=".csv,text/csv,.txt,text/plain" hidden>
 
@@ -641,7 +668,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.15";
+const APP_VERSION = "3.16";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -666,6 +693,11 @@ const ICON = {
   plusItem:'<svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4h6.8L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg>',
+  dumbbell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>',
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>'
 };
 
@@ -842,6 +874,7 @@ async function init(){
   if(local===undefined){ S.mode="memory"; setSync("memory"); }
   else { S.mode="local"; setSync("local"); if(local&&local.docs) for(const [id,d] of Object.entries(local.docs)) S.docs.set(id,d); }
   if(S.mode!=="memory"||S.docs.size) migrateGroups(false);
+  await Photos.loadAll();
   S.ready=true; render();
   // Browser bitten, die Daten nicht automatisch zu löschen
   try{ if(navigator.storage&&navigator.storage.persist) S.persisted=await navigator.storage.persist(); }catch(e){}
@@ -857,7 +890,8 @@ function enter(screen){
   S.armedDelete=false;
   if(screen.type==="log") openDraft(screen.exId,screen.date);
   if(screen.type==="editEx"){ openExDraft(screen.exId); if(screen.egym) S.exDraft.egym=true; }
-  if(screen.type==="pick"||screen.type==="planPick") S.query="";
+  if(screen.type==="pick"||screen.type==="planPick"||screen.type==="tplPick") S.query="";
+  if(screen.type==="tplEdit"&&(!S.tplDraft||S.tplDraft.id!==screen.id)){ const t=S.docs.get(screen.id); S.tplDraft=t?{id:screen.id,name:t.name||"",items:(t.items||[]).filter(it=>ex(it.id)).map(it=>JSON.parse(JSON.stringify(it)))}:null; S.armedTpl=null; }
   if(screen.type==="day") S.typeForm=null;
   if(screen.type==="exercise") S.prog.sel=null;
   if(screen.type==="report") S.rep={range:"3m",exIds:screen.exId?new Set([screen.exId]):null,chart:true,table:true,result:null,busy:false};
@@ -959,7 +993,7 @@ function openExDraft(exId){
   const e=exId?ex(exId):null;
   S.exDraft=e?{id:e.id,name:e.name,groups:exGroups(e),settings:(e.settings||[]).map(s=>({k:s.k,v:s.v})),notes:e.notes||"",rest:e.rest,load:e.load||"",egym:!!e.egym}
             :{id:null,name:"",groups:[],settings:[],notes:"",load:"",egym:false};
-  S.exDraft.newGroup=null;
+  S.exDraft.newGroup=null; S.exDraft.photoBlob=null; S.exDraft.photoUrl=null; S.exDraft.photoDel=false;
 }
 function createExercise(name,group,settings,notes,load,egym){
   const id=rid("ex"); const now=Date.now();
@@ -973,7 +1007,7 @@ function createExercise(name,group,settings,notes,load,egym){
 function renderFromData(){
   const t=top();
   // Formulare nicht neu zeichnen, während getippt wird
-  if(t&&(t.type==="log"||t.type==="editEx")) return;
+  if(t&&(t.type==="log"||t.type==="editEx"||t.type==="tplEdit")) return;
   render();
 }
 function render(){
@@ -989,6 +1023,8 @@ function render(){
     else if(t.type==="pick"){ title=t.date&&t.date!==todayStr()?"Nachtragen":"Übung wählen"; html=viewPick(); }
     else if(t.type==="report"){ title="Bericht"; html=viewReport(); }
     else if(t.type==="planPick"){ title="Übungen planen"; html=viewPlanPick(t.date); }
+    else if(t.type==="tplEdit"){ title="Einheit bearbeiten"; html=viewTplEdit(); }
+    else if(t.type==="tplPick"){ title="Übungen wählen"; html=viewTplPick(); }
     else if(t.type==="applyPick"){ title="Einheit übernehmen"; html=viewApplyPick(t.date); }
     else if(t.type==="finish"){ title=dayDoc(t.date)&&dayDoc(t.date).done?"Geschafft":"Übersicht"; html=viewFinish(t.date); }
     else if(t.type==="act"){ title="Aktivität"; html=viewAct(t.date); }
@@ -1074,7 +1110,7 @@ function exerciseList(list,act,sel){
     const sub=l?`${relDay(l.date)} · ${(l.sets||[]).map(s=>setPlain(s,assistCtx(l))).join(", ")}`:"Noch nicht trainiert";
     const set=[e.egym?"eGym-Gerät":"",...(e.settings||[]).filter(s=>s.k&&s.v).map(s=>`${s.k} ${s.v}`)].filter(Boolean).join(" · ");
     const also=exGroups(e).filter(x=>x!==g);
-    return `<button class="item" data-act="${act}" data-ex="${esc(e.id)}"${act==="planToggle"?` aria-pressed="${!!(sel&&sel.has(e.id))}"`:""}><div class="grow"><div class="name">${esc(e.name)}</div><div class="sub num">${esc(sub)}</div>${also.length?`<div class="sub">${allGroups().includes(g)?"Auch: ":""}${esc(also.join(" · "))}</div>`:""}${set?`<div class="sub">${esc(set)}</div>`:""}</div>${act==="planToggle"?(sel&&sel.has(e.id)?ICON.check.replace("<svg","<svg class=\"chk-on\""):ICON.plusItem):act==="pickEx"?ICON.plusItem:ICON.chev}</button>`;}).join("")}</div></div>`).join("");
+    return `<button class="item" data-act="${act}" data-ex="${esc(e.id)}"${act==="planToggle"||act==="tplToggle"?` aria-pressed="${!!(sel&&sel.has(e.id))}"`:""}><div class="grow"><div class="name">${esc(e.name)}</div><div class="sub num">${esc(sub)}</div>${also.length?`<div class="sub">${allGroups().includes(g)?"Auch: ":""}${esc(also.join(" · "))}</div>`:""}${set?`<div class="sub">${esc(set)}</div>`:""}</div>${act==="planToggle"||act==="tplToggle"?(sel&&sel.has(e.id)?ICON.check.replace("<svg","<svg class=\"chk-on\""):ICON.plusItem):act==="pickEx"?ICON.plusItem:ICON.chev}</button>`;}).join("")}</div></div>`).join("");
 }
 function recency(e){ const l=lastUsed(e.id); return Math.max(l?toDate(l).getTime()+86399999:0,e.createdAt||0); }
 function searchBox(){ return `<label class="search">${ICON.search}<input class="input" id="q" data-field="query" type="search" placeholder="Übung suchen" value="${esc(S.query)}" autocomplete="off"></label>`; }
@@ -1112,9 +1148,9 @@ function viewLog(){
   const d=S.draft, e=ex(d.exId);
   if(!e) return `<p class="hint">Diese Übung gibt es nicht mehr.</p>`;
   const last=lastBefore(d.exId,d.date), g=ghosts();
-  let h=`<div class="ex-head"><p class="eyebrow">${esc(groupsText(e))} · ${relDay(d.date)}</p>
+  let h=`${photoHero(e)}<div class="ex-head"><p class="eyebrow">${esc(groupsText(e))} · ${relDay(d.date)}</p>
     ${settingsDl(e)}
-    <div><button class="btn ghost" data-act="editEx" data-ex="${esc(e.id)}">${(e.settings||[]).length?"Übung bearbeiten (Name, Einstellungen)":"Übung bearbeiten (Name, Sitzhöhe, Griff …)"}</button></div></div>`;
+    <div class="ex-links"><button class="btn ghost" data-act="editEx" data-ex="${esc(e.id)}">${(e.settings||[]).length?"Übung bearbeiten":"Übung bearbeiten (Name, Sitzhöhe …)"}</button>${Photos.url(e.id)?"":`<button class="btn ghost" data-act="photoCam" data-ex="${esc(e.id)}">${ICON.camera}Foto vom Gerät</button>`}</div></div>`;
   const rs=restFor(e);
   h+=`<div class="log-tools"><button class="pause-chip${rs?"":" off"}" data-act="restPick" data-ex="${esc(e.id)}" aria-label="Pausenzeit einstellen">${ICON.clock}${rs?`Pause ${fmtClock(rs)}`:"Pause aus"}</button>${rs&&restCfg().auto?`<span class="meta">startet beim Abhaken eines Satzes</span>`:""}</div>`;
   const tgt=targetText(planTarget(d.date,d.exId));
@@ -1202,7 +1238,7 @@ function viewExercise(exId){
   const hist=logsFor(exId);
   const best=hist.reduce((m,l)=>{const x=maxW(statSets(l));return x!=null&&(m==null||x>m)?x:m;},null);
   const bestE=hist.reduce((m,l)=>{for(const s of statSets(l)){const v=e1rm(s.w,s.r); if(v!=null&&(m==null||v>m)) m=v;} return m;},null);
-  let h=`<div class="ex-head"><p class="eyebrow">${esc(groupsText(e))}</p>${settingsDl(e)}${e.notes?`<p class="muted" style="margin:0">${esc(e.notes)}</p>`:""}</div>
+  let h=`${photoHero(e)}<div class="ex-head"><p class="eyebrow">${esc(groupsText(e))}</p>${settingsDl(e)}${e.notes?`<p class="muted" style="margin:0">${esc(e.notes)}</p>`:""}</div>
   <div class="btn-row"><button class="btn primary" data-act="openLog" data-ex="${esc(e.id)}" data-date="${todayStr()}">${ICON.plus}Heute eintragen</button><button class="btn" data-act="editEx" data-ex="${esc(e.id)}">Bearbeiten</button></div>
   <div class="stats">
     <div class="card stat"><b>${best!=null?fmtNum(best):"–"}</b><span>Bestes Gewicht (kg)</span></div>
@@ -1303,6 +1339,8 @@ function viewEditEx(){
   const used=new Set(d.settings.map(s=>s.k));
   let h=`<label class="field"><span>Name</span><input class="input" id="exname" data-field="exname" value="${esc(d.name)}" placeholder="${d.egym?"z. B. eGym Brustpresse":"z. B. Latzug am Turm"}" autocomplete="off"></label>
   ${d.id?"":`<div id="nameSugg">${nameSuggestions(d.name)}</div>`}
+  <div class="field"><span>Foto vom Gerät</span>${exPhoto(d.id)?`<div class="ex-photo small"><img src="${exPhoto(d.id)}" alt=""></div><div class="btn-row"><button class="btn" data-act="photoCam" data-ex="${esc(d.id||"")}">${ICON.camera}Neues Foto</button><button class="btn" data-act="photoDel">Foto entfernen</button></div>`
+    :`<div class="btn-row"><button class="btn" data-act="photoCam" data-ex="${esc(d.id||"")}">${ICON.camera}Foto aufnehmen</button><button class="btn" data-act="photoLib" data-ex="${esc(d.id||"")}">Aus Galerie</button></div>`}</div>
   <div class="field"><span>Muskelgruppen <span style="font-weight:400">· mehrere möglich, die erste ist die Hauptgruppe</span></span>${groupPicker(d)}
     ${d.newGroup!=null?`<div class="set-edit" style="grid-template-columns:1fr auto"><input class="input" id="newgroup" data-field="newgroup" value="${esc(d.newGroup)}" placeholder="z. B. Oberschenkel außen" maxlength="24" autocomplete="off"><button class="btn primary" data-act="groupAdd">Hinzufügen</button></div>`:""}</div>
   <div class="field"><span>Art des Geräts</span><div class="chips"><button class="chip" data-act="exEgym" data-v="0" aria-pressed="${!d.egym}">Normal</button><button class="chip" data-act="exEgym" data-v="1" aria-pressed="${!!d.egym}">eGym-Gerät</button></div>
@@ -1408,9 +1446,32 @@ function viewApplyPick(date){
   const days=[...byDate.keys()].filter(d=>d!==date).sort().reverse().slice(0,25);
   const exNames=items=>items.map(it=>ex(it.id)).filter(Boolean).map(e=>e.name);
   let h=`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(date)))}</p><p class="muted" style="margin:0">Übernimmt alle Übungen in derselben Reihenfolge, mit Sätzen, Gewicht und Wiederholungen als Ziel. Beim Eintragen stehen sie dann als Vorschläge bereit.</p>`;
-  h+=`<div class="group"><h3>Gespeicherte Einheiten</h3>${T.length?`<div class="list">${T.map(t=>{const n=exNames(t.items||[]); return `<div class="ib-row"><button class="grow" data-act="applyTpl" data-id="${esc(t.id)}" style="border:0;background:none;text-align:left;padding:0"><b>${esc(t.name)}</b> ${(t.types||[]).map(k=>typeOf(k)).filter(Boolean).map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}<div class="meta">${n.length} ${n.length===1?"Übung":"Übungen"} · ${esc(n.slice(0,4).join(", "))}${n.length>4?" …":""}</div></button><button class="btn danger${S.armedTpl===t.id?" armed":""}" data-act="tplDel" data-id="${esc(t.id)}">${S.armedTpl===t.id?"Wirklich?":"Löschen"}</button></div>`;}).join("")}</div>`:`<p class="hint">Noch keine gespeichert. Öffne im Kalender einen Trainingstag und tippe auf „Als Einheit speichern“.</p>`}</div>`;
+  h+=`<div class="group"><h3>Gespeicherte Einheiten</h3>${T.length?`<div class="list">${T.map(t=>{const n=exNames(t.items||[]); return `<div class="ib-row"><button class="grow" data-act="applyTpl" data-id="${esc(t.id)}" style="border:0;background:none;text-align:left;padding:0"><b>${esc(t.name)}</b> ${(t.types||[]).map(k=>typeOf(k)).filter(Boolean).map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}<div class="meta">${n.length} ${n.length===1?"Übung":"Übungen"} · ${esc(n.slice(0,4).join(", "))}${n.length>4?" …":""}</div></button><button class="btn" data-act="tplEdit" data-id="${esc(t.id)}">Bearbeiten</button></div>`;}).join("")}</div>`:`<p class="hint">Noch keine gespeichert. Öffne im Kalender einen Trainingstag und tippe auf „Als Einheit speichern“.</p>`}</div>`;
   h+=`<div class="group"><h3>Frühere Trainings</h3>${days.length?`<div class="list">${days.map(d=>{const n=byDate.get(d).length, names=sortDayLogs(d,byDate.get(d)).map(l=>ex(l.exId)).filter(Boolean).map(e=>e.name); return `<button class="item" data-act="applyDay" data-src="${d}"><div class="grow"><div class="name" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(dayDiff(d)<7?relDay(d):fmtShortY.format(toDate(d)))} ${typeBadge(d)}</div><div class="sub">${n} ${n===1?"Übung":"Übungen"} · ${esc(names.slice(0,4).join(", "))}${names.length>4?" …":""}</div></div>${ICON.plusItem}</button>`;}).join("")}</div>`:`<p class="hint">Noch keine früheren Trainings eingetragen.</p>`}</div>`;
   return h;
+}
+function viewTplEdit(){
+  const D=S.tplDraft; if(!D) return `<p class="hint">Diese Einheit gibt es nicht mehr.</p>`;
+  const rows=D.items.map((it,i)=>{ const e=ex(it.id); if(!e) return ""; const tg=targetText(it);
+    return `<div class="tpl-row">${exThumb(e)}<div class="grow"><b>${esc(e.name)}</b><div class="meta num">${tg?esc(tg):"Werte vom letzten Mal"}</div></div>
+      <button class="icon-btn" data-act="tplMove" data-i="${i}" data-d="-1" aria-label="Nach oben"${i===0?" disabled":""}>${ICON.up}</button>
+      <button class="icon-btn" data-act="tplMove" data-i="${i}" data-d="1" aria-label="Nach unten"${i===D.items.length-1?" disabled":""}>${ICON.down}</button>
+      <button class="icon-btn trash" data-act="tplRm" data-i="${i}" aria-label="${esc(e.name)} entfernen">${ICON.trash}</button></div>`; }).join("");
+  return `<label class="field"><span>Name der Einheit</span><input class="input" id="tpled-name" data-field="tplEdName" maxlength="30" value="${esc(D.name)}" autocomplete="off"></label>
+  <div class="field"><span>Übungen · ${D.items.length}</span>${D.items.length?`<div class="list">${rows}</div>`:`<p class="hint">Noch keine Übungen in dieser Einheit.</p>`}</div>
+  <button class="btn" data-act="tplAddEx">${ICON.plus}Übung hinzufügen</button>
+  <button class="btn primary big" data-act="tplEdSave">${ICON.check}Speichern</button>
+  <button class="btn danger${S.armedTpl===D.id?" armed":""}" data-act="tplDel" data-id="${esc(D.id)}">${S.armedTpl===D.id?"Wirklich löschen?":"Einheit löschen"}</button>`;
+}
+function viewTplPick(){
+  const exs=exercises(), sel=new Set((S.tplDraft?S.tplDraft.items:[]).map(x=>x.id));
+  return `${exs.length>4?searchBox():""}<div id="exlist" class="stack">${exerciseList(exs,"tplToggle",sel)}</div>
+  <button class="btn primary big" data-act="back">${ICON.check}Fertig${sel.size?` · ${sel.size} ${sel.size===1?"Übung":"Übungen"}`:""}</button>`;
+}
+function viewTplCard(){
+  const T=templates(); if(!T.length) return "";
+  return `<div class="card panel"><h3>Gespeicherte Einheiten</h3><div class="list">${T.map(t=>{ const n=(t.items||[]).map(it=>ex(it.id)).filter(Boolean).map(e=>e.name);
+    return `<button class="item" data-act="tplEdit" data-id="${esc(t.id)}"><div class="grow"><div class="name">${esc(t.name)}</div><div class="sub">${n.length} ${n.length===1?"Übung":"Übungen"}${n.length?" · "+esc(n.slice(0,3).join(", "))+(n.length>3?" …":""):""}</div></div>${ICON.chev}</button>`; }).join("")}</div></div>`;
 }
 function viewPlanPick(date){
   const exs=exercises(), sel=new Set(planIds(date));
@@ -1604,7 +1665,7 @@ function viewMore(){
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${cmpCard()}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${cmpCard()}${viewTplCard()}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1625,6 +1686,8 @@ document.addEventListener("click",ev=>{
     case "newEx": push({type:"editEx",exId:null,thenLog:S.tab==="today"}); break;
     case "newExLog": replace({type:"editEx",exId:null,thenLog:true,date:top().date||null}); break;
     case "newEgymLog": replace({type:"editEx",exId:null,thenLog:true,date:top().date||null,egym:true}); break;
+    case "photoCam": case "photoLib": S.photoFor=b.dataset.ex||null; $(a==="photoCam"?"#photoCam":"#photoLib").click(); break;
+    case "photoDel": { const d=S.exDraft; if(d){ if(d.photoUrl) URL.revokeObjectURL(d.photoUrl); d.photoBlob=null; d.photoUrl=null; d.photoDel=true; render(); } break; }
     case "exEgym": S.exDraft.egym=b.dataset.v==="1"; render(); break;
     case "editEx": push({type:"editEx",exId:b.dataset.ex}); break;
     case "vagueOk": { const VG=["Arme","Rücken","Schultern"]; saveCfg({vagueOk:[...new Set([...(cfg().vagueOk||[]),...exercises().filter(e=>exGroups(e).some(g=>VG.includes(g))).map(e=>e.id)])]}); render(); break; }
@@ -1666,6 +1729,11 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "dlgNo": closeDlg(); break;
+    case "dlgYes": { const o=S.dlg; closeDlg(); if(o&&o.onOk) o.onOk(); break; }
+    case "logDel": { const l=S.docs.get(b.dataset.id), e=l&&ex(l.exId); if(!l) return; const n=(l.sets||[]).length;
+      askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ wirklich aus diesem Training gelöscht werden?`,text:`Die ${n} eingetragenen ${n===1?"Satz":"Sätze"} vom ${fmtShortY.format(toDate(l.date))} gehen dabei verloren. Die Übung selbst bleibt erhalten.`,ok:"Löschen",
+        onOk:()=>{ put(b.dataset.id,null); render(); toast(`„${e?e.name:"Übung"}“ gelöscht`); }}); break; }
     case "iconPick": saveCfg({icon:{...iconCfg(),pick:b.dataset.v,random:false}}); applyIcon(); render(); toast("App-Symbol gewählt"); break;
     case "iconRandom": saveCfg({icon:{...iconCfg(),random:!iconCfg().random}}); applyIcon(); render(); break;
     case "iconPeriod": saveCfg({icon:{...iconCfg(),period:b.dataset.v}}); applyIcon(); render(); break;
@@ -1714,7 +1782,21 @@ document.addEventListener("click",ev=>{
       put(id,{kind:"tpl",name,types:dayTypeKeys(dayDoc(d)),items,createdAt:existing?existing.createdAt:Date.now(),updatedAt:Date.now()});
       S.tplForm=null; toast(existing?`„${name}“ aktualisiert`:`Einheit „${name}“ gespeichert`); render(); break;
     }
-    case "tplDel": { if(S.armedTpl!==b.dataset.id){ S.armedTpl=b.dataset.id; render(); return; } S.armedTpl=null; put(b.dataset.id,null); toast("Einheit gelöscht"); render(); break; }
+    case "tplDel": { if(S.armedTpl!==b.dataset.id){ S.armedTpl=b.dataset.id; render(); return; } S.armedTpl=null; put(b.dataset.id,null); toast("Einheit gelöscht"); if(top()&&top().type==="tplEdit"){ S.tplDraft=null; pop(); } else render(); break; }
+    case "tplEdit": S.tplDraft=null; push({type:"tplEdit",id:b.dataset.id}); break;
+    case "tplAddEx": push({type:"tplPick"}); break;
+    case "tplToggle": { const D=S.tplDraft; if(!D) return; const id=b.dataset.ex, i=D.items.findIndex(x=>x.id===id); if(i>=0) D.items.splice(i,1); else D.items.push({id}); const y=window.scrollY; render(); window.scrollTo(0,y); break; }
+    case "tplRm": { const D=S.tplDraft; if(!D) return; const i=+b.dataset.i, e=ex(D.items[i]&&D.items[i].id);
+      askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ wirklich aus der Einheit „${D.name.trim()||"ohne Namen"}“ entfernt werden?`,text:"Die Übung selbst und deine bisherigen Einträge bleiben erhalten. Die Änderung gilt, sobald du die Einheit speicherst.",ok:"Entfernen",
+        onOk:()=>{ if(S.tplDraft===D){ D.items.splice(i,1); render(); } }}); break; }
+    case "tplMove": { const D=S.tplDraft; if(!D) return; const i=+b.dataset.i, j=i+(+b.dataset.d); if(j<0||j>=D.items.length) return; [D.items[i],D.items[j]]=[D.items[j],D.items[i]]; render(); break; }
+    case "tplEdSave": {
+      const D=S.tplDraft; if(!D) return; const name=D.name.trim();
+      if(!name){ toast("Gib der Einheit einen Namen"); $("#tpled-name").focus(); return; }
+      if(templates().some(t=>t.id!==D.id&&t.name.toLowerCase()===name.toLowerCase())){ toast(`„${name}“ gibt es schon – bitte anderen Namen wählen`); return; }
+      const cur=S.docs.get(D.id)||{kind:"tpl",createdAt:Date.now()};
+      put(D.id,{...cur,kind:"tpl",name,items:D.items,updatedAt:Date.now()}); S.tplDraft=null; pop(); toast(`„${name}“ gespeichert`); break;
+    }
     case "planFlat": { const d=b.dataset.date, items=planItems(d), it=items[+b.dataset.i]; if(it&&it.sets){ const f=it.sets[0]||{}; it.s=it.sets.length; it.r=f.r??null; it.w=f.w??null; delete it.sets; savePlan(d,items); render(); } break; }
     case "finish": { const d=b.dataset.date; Rest.stop(); saveDay(d,{done:Date.now()}); S.bodyYaw=null; const t=top(); if(t&&t.type==="finish") render(); else push({type:"finish",date:d}); window.scrollTo(0,0);
       if(wxOn()) fetchWeather(d).then(w=>{ const tt=top(); if(w&&tt&&tt.type==="finish"&&tt.date===d) render(); }); break; }
@@ -1803,10 +1885,10 @@ document.addEventListener("click",ev=>{
         const cur=S.docs.get(id), body={...cur,name,group:groups[0],groups,settings,notes:d.notes.trim(),updatedAt:Date.now()};
         if(d.load&&!d.egym) body.load=d.load; else delete body.load;
         if(d.egym) body.egym=true; else delete body.egym;
-        put(id,body); pop(); toast("Übung gespeichert"); break; }
+        put(id,body); commitPhoto(id); pop(); toast("Übung gespeichert"); break; }
       const dup=exercises().find(e=>e.name.trim().toLowerCase()===name.toLowerCase());
       if(dup){ toast(`„${dup.name}“ gibt es schon – wird verwendet`); finishWithExercise(dup.id,false); break; }
-      id=createExercise(name,groups,settings,d.notes.trim(),d.egym?"":d.load||"",d.egym);
+      id=createExercise(name,groups,settings,d.notes.trim(),d.egym?"":d.load||"",d.egym); commitPhoto(id);
       finishWithExercise(id,true);
       break;
     }
@@ -1814,7 +1896,7 @@ document.addEventListener("click",ev=>{
       if(!S.armedDelete){ S.armedDelete=true; render(); return; }
       const id=S.exDraft.id;
       for(const l of logsFor(id)) put(l.id,null);
-      put(id,null);
+      put(id,null); Photos.del(id);
       S.stack=[]; S.tab="exercises"; render(); toast("Übung gelöscht"); break;
     }
     case "export": exportBackup(); break;
@@ -1901,7 +1983,7 @@ document.addEventListener("input",ev=>{
   }
   else if(f==="note"){ S.draft.note=el.value; scheduleSave(); }
   else if(f==="egkcal"){ S.draft.kcal=el.value; scheduleSave(); }
-  else if(f==="query"){ S.query=el.value; const list=$("#exlist"); if(list){ const t=top(); list.innerHTML=t&&t.type==="planPick"?exerciseList(exercises(),"planToggle",new Set(planIds(t.date))):exerciseList(exercises(),t&&t.type==="pick"?"pickEx":"openEx"); } }
+  else if(f==="query"){ S.query=el.value; const list=$("#exlist"); if(list){ const t=top(); list.innerHTML=t&&t.type==="planPick"?exerciseList(exercises(),"planToggle",new Set(planIds(t.date))):t&&t.type==="tplPick"?exerciseList(exercises(),"tplToggle",new Set((S.tplDraft?S.tplDraft.items:[]).map(x=>x.id))):exerciseList(exercises(),t&&t.type==="pick"?"pickEx":"openEx"); } }
   else if(f==="plannote") saveDay(el.dataset.date,{note:el.value});
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
@@ -1925,6 +2007,7 @@ document.addEventListener("input",ev=>{
     },700);
   }
   else if(f==="tplname"){ if(S.tplForm) S.tplForm.name=el.value; }
+  else if(f==="tplEdName"){ if(S.tplDraft) S.tplDraft.name=el.value; }
   else if(f==="ffname"){ if(S.fieldForm) S.fieldForm.n=el.value; }
   else if(f==="ffunit"){ if(S.fieldForm) S.fieldForm.unit=el.value; }
   else if(f==="tfname"){ if(S.typeForm) S.typeForm.name=el.value; }
@@ -1951,6 +2034,57 @@ document.addEventListener("keydown",ev=>{
 
 window.addEventListener("scroll",()=>$("#bar").classList.toggle("scrolled",window.scrollY>4),{passive:true});
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"&&top()&&top().type==="log") saveDraft(false); });
+
+/* ---------- Fotos der Geräte ----------
+   Liegen in IndexedDB (nicht im normalen Speicher, der für Bilder zu klein ist), Schlüssel = Übungs-ID.
+   Beim Hinzufügen wird das Bild auf höchstens 1000 px verkleinert (ca. 100 KB). */
+const Photos=(()=>{
+  const urls=new Map(); let dbp=null;
+  function db(){ if(!dbp) dbp=new Promise((res,rej)=>{ const r=indexedDB.open("gym-logbuch-photos",1); r.onupgradeneeded=()=>r.result.createObjectStore("p"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); return dbp; }
+  async function tx(mode,fn){ const d=await db(); return new Promise((res,rej)=>{ const t=d.transaction("p",mode), req=fn(t.objectStore("p")); t.oncomplete=()=>res(req&&req.result); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error); }); }
+  function show(id,blob){ const old=urls.get(id); if(old) URL.revokeObjectURL(old); if(blob) urls.set(id,URL.createObjectURL(blob)); else urls.delete(id); }
+  async function loadAll(){ try{ const d=await db(); await new Promise(res=>{ const c=d.transaction("p","readonly").objectStore("p").openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ show(cur.key,cur.value); cur.continue(); } else res(); }; c.onerror=()=>res(); }); }catch(e){} }
+  // Anzeige sofort aktualisieren, Speichern läuft im Hintergrund
+  async function set(id,blob){ show(id,blob); await tx("readwrite",st=>st.put(blob,id)); }
+  async function del(id){ show(id,null); try{ await tx("readwrite",st=>st.delete(id)); }catch(e){} }
+  async function all(){ const out={}; try{ const d=await db(); await new Promise(res=>{ const c=d.transaction("p","readonly").objectStore("p").openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ out[cur.key]=cur.value; cur.continue(); } else res(); }; c.onerror=()=>res(); }); }catch(e){} return out; }
+  return {loadAll,set,del,all,url:id=>urls.get(id)||null};
+})();
+function shrinkPhoto(file){
+  return new Promise((res,rej)=>{
+    const u=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{ const M=1000, k=Math.min(1,M/Math.max(img.naturalWidth,img.naturalHeight)); const c=document.createElement("canvas");
+      c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(u); c.toBlob(b=>b?res(b):rej(new Error("toBlob")),"image/jpeg",0.8); };
+    img.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error("img")); };
+    img.src=u;
+  });
+}
+function blobToDataUrl(b){ return new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(null); fr.readAsDataURL(b); }); }
+// Foto für eine Übung: gespeichert oder (im Editor) noch nicht gespeichert
+function exPhoto(id){ const d=S.exDraft; if(d&&d.id===id&&top()&&top().type==="editEx"){ if(d.photoDel) return null; if(d.photoUrl) return d.photoUrl; } return id?Photos.url(id):null; }
+// Kleines Vorschaubild (Foto oder Platzhalter) für Listen
+function exThumb(e){ const u=e&&Photos.url(e.id); return `<span class="ex-thumb${u?"":" empty"}" aria-hidden="true">${u?`<img src="${u}" alt="">`:ICON.dumbbell}</span>`; }
+// Sicherheitsabfrage mit Namen, z. B. „Soll „Brustpresse“ wirklich gelöscht werden?“
+function askConfirm(o){ S.dlg=o;
+  $("#sheetRoot").innerHTML=`<div class="sheet-bg dlg-bg" data-act="dlgNo"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlgT" data-act="noop">
+    <b id="dlgT">${esc(o.title)}</b>${o.text?`<p data-keep>${esc(o.text)}</p>`:""}
+    <div class="btn-row"><button class="btn" data-act="dlgNo">Abbrechen</button><button class="btn danger armed" data-act="dlgYes">${esc(o.ok||"Löschen")}</button></div></div></div>`;
+  setTimeout(()=>{ const b=document.querySelector('[data-act="dlgNo"].btn'); b&&b.focus(); },30); }
+function closeDlg(){ S.dlg=null; $("#sheetRoot").innerHTML=""; }
+function photoHero(e){ const u=Photos.url(e.id); return u?`<div class="ex-photo"><img src="${u}" alt="Foto: ${esc(e.name)}"></div><h2 class="ex-title">${esc(e.name)}</h2>`:""; }
+
+function commitPhoto(id){ const d=S.exDraft; if(!d||!id) return; if(d.photoBlob) Photos.set(id,d.photoBlob).catch(()=>toast("Foto konnte nicht gespeichert werden")); else if(d.photoDel) Photos.del(id); }
+["#photoCam","#photoLib"].forEach(sel=>$(sel).addEventListener("change",async ev=>{
+  const file=ev.target.files&&ev.target.files[0]; ev.target.value=""; if(!file) return;
+  let blob; try{ blob=await shrinkPhoto(file); }catch(e){ toast("Das Bild konnte nicht gelesen werden"); return; }
+  const t=top();
+  if(t&&t.type==="editEx"&&S.exDraft){ const d=S.exDraft; if(d.photoUrl) URL.revokeObjectURL(d.photoUrl); d.photoBlob=blob; d.photoUrl=URL.createObjectURL(blob); d.photoDel=false; render(); return; }
+  const id=S.photoFor; if(!id||!ex(id)) return;
+  try{ await Photos.set(id,blob); toast("Foto gespeichert"); }catch(e){ toast("Foto konnte nicht gespeichert werden"); }
+  if(t&&t.type==="log") saveDraft(false);
+  render();
+}));
 
 /* ---------- Erklärtexte hinter einem „i“ ----------
    Längere Hinweise (p.hint / p.muted) werden eingeklappt. Ein kleines i neben der
@@ -2797,6 +2931,13 @@ function cheerFor(date,S0){
   else pick=CHEERS[hsh%CHEERS.length];
   return [fillName(pick[0]),fillName(pick[1])];
 }
+function finishRow(l,e){
+  const st=statSets(l), n=(l.sets||[]).length, R=st.map(x=>x.r).filter(v=>v!=null), W=maxW(st);
+  const reps=R.length?(Math.min(...R)===Math.max(...R)?`${R[0]} Wdh.`:`${Math.min(...R)}–${Math.max(...R)} Wdh.`):"";
+  const line=[`${n} ${n===1?"Satz":"Sätze"}`,reps,W!=null?`bis ${fmtNum(W)} kg`:""].filter(Boolean).join(" · ");
+  return `<div class="fin-row"><button class="fin-main" data-act="openLog" data-ex="${esc(l.exId)}" data-date="${l.date}">${exThumb(e)}<span class="grow"><b>${esc(e?e.name:"Gelöschte Übung")}</b><span class="meta num">${esc(line)}</span>${isPR(l)?'<span class="pr">Rekord</span>':""}</span></button>
+    <button class="icon-btn trash" data-act="logDel" data-id="${esc(l.id)}" aria-label="${esc(e?e.name:"Übung")} aus diesem Training löschen">${ICON.trash}</button></div>`;
+}
 function viewFinish(date){
   const S0=daySummary(date), done=dayDoc(date)&&dayDoc(date).done, isToday=date===todayStr();
   const fmtKg=v=>fmtNum(Math.round(v))+" kg";
@@ -2823,6 +2964,7 @@ function viewFinish(date){
     <div class="card stat"><b>${S0.reps}</b><span>Wdh.</span></div>
     <div class="card stat"><b>${S0.prs}</b><span>${S0.prs===1?"Rekord":"Rekorde"}</span></div>
   </div>
+  <div class="field"><span>Übungen</span><div class="list">${S0.ls.map(l=>{ const e=ex(l.exId); return finishRow(l,e); }).join("")}</div></div>
   <div class="field"><span>Trainierte Körperregionen</span>
     <div class="stage paper" role="img" aria-label="Körper von vorne und hinten. Trainiert: ${esc(regionsHit.join(", ")||"keine zugeordneten Regionen")}"><div class="anat-pair" id="anatPair"></div>
       <span class="lbl3d" style="left:0">Vorne</span><span class="lbl3d" style="right:0">Hinten</span></div>
@@ -3030,7 +3172,8 @@ const Rest=(()=>{
 /* ---------- Backup ---------- */
 async function exportBackup(){
   const docs={}; for(const [id,d] of S.docs) docs[id]=d;
-  const data=JSON.stringify({app:"gym-logbuch",version:1,exportedAt:new Date().toISOString(),docs},null,1);
+  const photos={}; for(const [id,b] of Object.entries(await Photos.all())) if(S.docs.has(id)){ const u=await blobToDataUrl(b); if(u) photos[id]=u; }
+  const data=JSON.stringify({app:"gym-logbuch",version:1,exportedAt:new Date().toISOString(),docs,photos},null,1);
   const name=`gym-logbuch-backup-${todayStr()}.json`;
   const blob=new Blob([data],{type:"application/json"});
   // Auf dem Handy: Teilen-Menü (z. B. in Google Drive speichern oder per Mail an dich selbst)
@@ -3074,7 +3217,8 @@ $("#importFile").addEventListener("change",ev=>{
     if(parsed.docs.cfg&&Array.isArray(parsed.docs.cfg.types)){ const have=new Set(customTypes().map(t=>t.k)); const add=parsed.docs.cfg.types.filter(t=>t&&t.k&&t.n&&!have.has(t.k)); if(add.length) saveCfg({types:[...customTypes(),...add]}); }
     const entries=Object.entries(parsed.docs).filter(([id,d])=>d&&(d.kind==="exercise"||d.kind==="log"||d.kind==="day"||d.kind==="inbody"||d.kind==="tpl")&&/^[A-Za-z0-9_\-.~:@+]+$/.test(id))
       .filter(([id,d])=>{const cur=S.docs.get(id); return !cur||(d.updatedAt||0)>(cur.updatedAt||0);});
-    if(!entries.length){ toast("Alles schon vorhanden – nichts Neues im Backup"); return; }
+    let ph=0; if(parsed.photos&&typeof parsed.photos==="object") for(const [id,u] of Object.entries(parsed.photos)){ if(Photos.url(id)||typeof u!=="string"||!/^data:image\//.test(u)) continue; try{ await Photos.set(id,await (await fetch(u)).blob()); ph++; }catch(e){} }
+    if(!entries.length){ render(); toast(ph?`${ph} ${ph===1?"Foto":"Fotos"} importiert`:"Alles schon vorhanden – nichts Neues im Backup"); return; }
     toast("Importiere…");
     await putMany(entries); migrateGroups(true); render(); toast(`${entries.length} Einträge importiert`);
   };
