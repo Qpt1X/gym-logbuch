@@ -641,7 +641,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.13";
+const APP_VERSION = "3.14";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1567,6 +1567,7 @@ function viewMore(){
     ${sw("auto","Automatisch starten, wenn ich einen Satz abhake")}
     <div class="switch-row"><span>Standard-Pause</span><button class="pause-chip" data-act="restPick">${ICON.clock}${fmtClock(rc.def)}</button></div>
     ${sw("sound","Ton am Ende")}
+    ${rc.sound?`<div class="field"><span>Signalton · antippen zum Anhören</span><div class="chips">${REST_TONES.map(([k,l])=>`<button class="chip" data-act="restTone" data-v="${k}" aria-pressed="${rc.tone===k}">${esc(l)}</button>`).join("")}</div></div>`:""}
     ${"vibrate" in navigator?sw("vib","Vibration am Ende"):""}
     <p class="hint">Pro Übung kannst du im Eintragen-Bildschirm über „Pause“ eine eigene Zeit wählen oder den Timer ausschalten.${/iPhone|iPad/.test(navigator.userAgent)?" Auf dem iPhone ist der Ton im Lautlos-Modus stumm, und Vibration gibt es leider nicht.":""}</p>
     <div><button class="btn" data-act="restTest">Ton testen</button></div></div>`;
@@ -1784,6 +1785,7 @@ document.addEventListener("click",ev=>{
     case "restStop": Rest.stop(); break;
     case "restSet": { const k=b.dataset.k, c=restCfg(); saveRestCfg({[k]:!c[k]}); if(k==="sound"&&!c.sound) Rest.test(); render(); break; }
     case "restTest": Rest.test(); break;
+    case "restTone": saveRestCfg({tone:b.dataset.v}); Rest.test(b.dataset.v); render(); break;
     case "useExisting": finishWithExercise(b.dataset.ex,false); break;
     case "usePreset": { const [n,g]=PRESETS[+b.dataset.i]; finishWithExercise(createExercise(n,g,[],""),true); break; }
     case "saveEx": {
@@ -2906,7 +2908,9 @@ const Steps=(()=>{
 })();
 
 /* ---------- Pausentimer ---------- */
-function restCfg(){ const r=cfg().rest||{}; return {auto:r.auto!==false, def:r.def>0?r.def:90, sound:r.sound!==false, vib:r.vib!==false}; }
+// Signaltöne am Ende der Pause, alle direkt im Handy erzeugt (keine Audiodateien nötig)
+const REST_TONES=[["classic","Klassisch"],["bling","Arcade-Bling"],["boxing","Boxring-Glocke"],["gong","Gong"],["dingdong","Ding-Dong"],["marimba","Sanft"],["whistle","Pfiff"]];
+function restCfg(){ const r=cfg().rest||{}; return {auto:r.auto!==false, def:r.def>0?r.def:90, sound:r.sound!==false, vib:r.vib!==false, tone:REST_TONES.some(x=>x[0]===r.tone)?r.tone:"classic"}; }
 function saveRestCfg(patch){ saveCfg({rest:{...restCfg(),...patch}}); }
 function restFor(e){ if(e&&typeof e.rest==="number") return e.rest; return restCfg().def; }
 function fmtClock(sec){ sec=Math.max(0,Math.round(sec)); return pad(Math.floor(sec/60))+":"+pad(sec%60); }
@@ -2948,12 +2952,24 @@ const Rest=(()=>{
     }catch(e){ return null; }
   }
   function clearBeeps(){ for(const o of scheduled){ try{ o.stop(); }catch(e){} } scheduled=[]; }
-  function beepAt(t,freq,dur,vol){
+  function beepAt(t,freq,dur,vol,type,attack,glide){
     const c=ctx; const o=c.createOscillator(), g=c.createGain();
-    o.type="sine"; o.frequency.value=freq;
-    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.type=type||"sine"; o.frequency.setValueAtTime(freq,t); if(glide) o.frequency.exponentialRampToValueAtTime(glide,t+dur);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+(attack||0.015)); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+0.05); scheduled.push(o);
   }
+  // Glocke: Grundton plus unharmonische Obertöne, langes Ausklingen
+  function bellAt(t,f,dur,vol){ [[1,1],[2.76,.45],[5.4,.25],[8.9,.12]].forEach(([m,a])=>beepAt(t,f*m,dur/(m>3?2:1),vol*a,"sine",0.004)); }
+  const TONES={
+    classic:t=>{ beepAt(t,880,0.18,0.5); beepAt(t+0.25,880,0.18,0.5); beepAt(t+0.5,1175,0.35,0.55); },
+    bling:t=>{ [1046.5,1318.5,1568,2093].forEach((f,i)=>beepAt(t+i*0.06,f,0.09,0.22,"square",0.004)); beepAt(t+0.24,2637,0.45,0.2,"square",0.004); beepAt(t+0.24,2637*1.005,0.45,0.08,"triangle",0.004); },
+    boxing:t=>{ for(let i=0;i<4;i++) bellAt(t+i*0.22,880,0.9,0.32); },
+    gong:t=>{ bellAt(t,196,2.6,0.6); bellAt(t+0.02,293.7,2.2,0.18); },
+    dingdong:t=>{ bellAt(t,659.3,1.1,0.45); bellAt(t+0.45,523.3,1.6,0.45); },
+    marimba:t=>{ [523.3,659.3,784,1046.5].forEach((f,i)=>{ beepAt(t+i*0.13,f,0.5,0.4,"sine",0.005); beepAt(t+i*0.13,f*4,0.12,0.08,"sine",0.003); }); },
+    whistle:t=>{ beepAt(t,2200,0.22,0.35,"sine",0.02,2600); beepAt(t+0.32,2200,0.55,0.35,"sine",0.02,2900); }
+  };
+  function signal(t,tone){ (TONES[tone]||TONES.classic)(t); }
   function schedule(){
     clearBeeps();
     if(!restCfg().sound) return;
@@ -2961,7 +2977,7 @@ const Rest=(()=>{
     const left=(end-Date.now())/1000, t0=c.currentTime+Math.max(0,left);
     // kurze Vorwarnung bei 3, 2, 1 Sekunden, dann Signal
     for(let k=3;k>=1;k--) if(left-k>0.2) beepAt(t0-k,660,0.09,0.25);
-    beepAt(t0,880,0.18,0.5); beepAt(t0+0.25,880,0.18,0.5); beepAt(t0+0.5,1175,0.35,0.55);
+    signal(t0,restCfg().tone);
   }
   async function wake(on){
     try{
@@ -3008,7 +3024,7 @@ const Rest=(()=>{
     schedule(); draw();
   }
   function stop(){ end=0; doneAt=0; clearBeeps(); clearInterval(timer); clearTimeout(hideT); wake(false); const b=bar(); if(b) b.innerHTML=""; draw(); }
-  function test(){ const c=audio(); if(!c){ toast("Ton wird hier nicht unterstützt"); return; } clearBeeps(); const t=c.currentTime+0.05; beepAt(t,880,0.18,0.5); beepAt(t+0.25,880,0.18,0.5); beepAt(t+0.5,1175,0.35,0.55); if(restCfg().vib&&navigator.vibrate) try{ navigator.vibrate([200,100,200]); }catch(e){} }
+  function test(tone){ const c=audio(); if(!c){ toast("Ton wird hier nicht unterstützt"); return; } clearBeeps(); const t=c.currentTime+0.05; signal(t,tone||restCfg().tone); if(restCfg().vib&&navigator.vibrate) try{ navigator.vibrate([200,100,200]); }catch(e){} }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&end&&!doneAt){ wake(true); if(ctx&&ctx.state==="suspended") ctx.resume().then(schedule).catch(()=>{}); draw(); } });
   return {start,add,stop,test};
 })();
