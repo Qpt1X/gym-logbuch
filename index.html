@@ -569,6 +569,20 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .dlg b{font-size:1.05rem;line-height:1.35}
 .dlg p{margin:0;color:var(--muted);font-size:.9rem}
 .dlg .btn-row{margin-top:6px}
+.seg.wide{display:flex;width:100%}
+.seg.wide button{flex:1;padding:9px 12px}
+.unit-card{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;color:inherit;font:inherit;cursor:pointer}
+.unit-top{display:flex;align-items:center;gap:8px}
+.unit-top b{font-size:1.15rem;flex:none}
+.unit-top .chev{margin-left:auto;color:var(--muted);width:20px;height:20px;flex:none}
+.unit-thumbs{display:flex;gap:6px;margin-top:2px;flex-wrap:wrap}
+.unit-thumbs .ex-thumb{width:44px;height:44px;border-radius:8px}
+.unit-thumbs .ex-thumb svg{width:18px;height:18px}
+.ex-thumb.more{font-weight:700;font-size:.85rem;color:var(--muted)}
+.tpl-main{flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.tpl-main .grow{display:flex;flex-direction:column;gap:1px;min-width:0}
+.swap-l{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:600;color:var(--accent);margin-top:2px}
+.swap-l svg{width:14px;height:14px}
 </style>
 </head>
 <body>
@@ -668,7 +682,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.17";
+const APP_VERSION = "3.18";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -698,6 +712,7 @@ const ICON = {
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg>',
   dumbbell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>',
+  swap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"/></svg>',
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>'
 };
 
@@ -891,7 +906,7 @@ function enter(screen){
   if(screen.type==="log") openDraft(screen.exId,screen.date);
   if(screen.type==="editEx"){ openExDraft(screen.exId); if(screen.egym) S.exDraft.egym=true; }
   if(screen.type==="pick"||screen.type==="planPick"||screen.type==="tplPick") S.query="";
-  if(screen.type==="tplEdit"&&(!S.tplDraft||S.tplDraft.id!==screen.id)){ const t=S.docs.get(screen.id); S.tplDraft=t?{id:screen.id,name:t.name||"",items:(t.items||[]).filter(it=>ex(it.id)).map(it=>JSON.parse(JSON.stringify(it)))}:null; S.armedTpl=null; }
+  if(screen.type==="tplEdit"&&(!S.tplDraft||S.tplDraft.id!==screen.id)){ const t=S.docs.get(screen.id); S.tplDraft=t?{id:screen.id,name:t.name||"",items:(t.items||[]).filter(it=>ex(it.id)).map(it=>JSON.parse(JSON.stringify(it)))}:screen.isNew?{id:screen.id,name:"",items:[],isNew:true}:null; S.armedTpl=null; }
   if(screen.type==="day") S.typeForm=null;
   if(screen.type==="exercise") S.prog.sel=null;
   if(screen.type==="report") S.rep={range:"3m",exIds:screen.exId?new Set([screen.exId]):null,chart:true,table:true,result:null,busy:false};
@@ -1023,8 +1038,8 @@ function render(){
     else if(t.type==="pick"){ title=t.date&&t.date!==todayStr()?"Nachtragen":"Übung wählen"; html=viewPick(); }
     else if(t.type==="report"){ title="Bericht"; html=viewReport(); }
     else if(t.type==="planPick"){ title="Übungen planen"; html=viewPlanPick(t.date); }
-    else if(t.type==="tplEdit"){ title="Einheit bearbeiten"; html=viewTplEdit(); }
-    else if(t.type==="tplPick"){ title="Übungen wählen"; html=viewTplPick(); }
+    else if(t.type==="tplEdit"){ title=S.tplDraft&&S.tplDraft.isNew?"Neue Einheit":"Einheit bearbeiten"; html=viewTplEdit(); }
+    else if(t.type==="tplPick"){ title=t.swap!=null?"Übung austauschen":"Übungen wählen"; html=viewTplPick(); }
     else if(t.type==="applyPick"){ title="Einheit übernehmen"; html=viewApplyPick(t.date); }
     else if(t.type==="finish"){ title=dayDoc(t.date)&&dayDoc(t.date).done?"Geschafft":"Übersicht"; html=viewFinish(t.date); }
     else if(t.type==="act"){ title="Aktivität"; html=viewAct(t.date); }
@@ -1121,7 +1136,19 @@ function viewExercises(){
   const okIds=new Set(cfg().vagueOk||[]), VG=["Arme","Rücken","Schultern"];
   const vague=exs.filter(e=>!okIds.has(e.id)&&exGroups(e).some(g=>VG.includes(g)));
   const tip=vague.length?`<div class="card panel"><b>Muskeln genauer einordnen</b><p class="muted" style="margin:0">Bei ${vague.length===1?"dieser Übung":"diesen Übungen"} steht nur grob „Arme“, „Rücken“ oder „Schultern“. Tipp drauf und wähl die genauen Muskeln, z. B. Latissimus oder hintere Schulter. Dann zeigt die Körperansicht genau, was du trainiert hast.</p><div class="chips">${vague.map(e=>`<button class="chip" data-act="editEx" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join("")}</div><button class="btn ghost" data-act="vagueOk" style="align-self:flex-start;min-height:34px;padding:0 4px">Passt so, ausblenden</button></div>`:"";
-  return `${tip}${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
+  if(S.exView==="units") return exSwitch()+viewUnits();
+  return `${exSwitch()}${tip}${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
+}
+function exSwitch(){ const u=S.exView==="units"; return `<div class="seg wide" role="tablist"><button data-act="exView" data-v="list" aria-pressed="${!u}">Übungen</button><button data-act="exView" data-v="units" aria-pressed="${u}">Einheiten${templates().length?` · ${templates().length}`:""}</button></div>`; }
+function viewUnits(){
+  const T=templates();
+  const cards=T.map(t=>{ const E=(t.items||[]).map(it=>ex(it.id)).filter(Boolean), types=(t.types||[]).map(k=>typeOf(k)).filter(Boolean);
+    return `<button class="unit-card" data-act="tplEdit" data-id="${esc(t.id)}"><div class="unit-top"><b>${esc(t.name)}</b>${types.map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}${ICON.chev}</div>
+      <div class="meta">${E.length} ${E.length===1?"Übung":"Übungen"}${E.length?" · "+esc(E.slice(0,4).map(e=>e.name).join(", "))+(E.length>4?" …":""):""}</div>
+      ${E.length?`<div class="unit-thumbs">${E.slice(0,6).map(exThumb).join("")}${E.length>6?`<span class="ex-thumb more">+${E.length-6}</span>`:""}</div>`:""}</button>`; }).join("");
+  return `<button class="btn" data-act="tplCreate">${ICON.plus}Neue Einheit</button>
+  ${T.length?`<div class="stack">${cards}</div><p class="hint">Eine Einheit ist deine Vorlage, z. B. für Push, Pull oder Beine. Antippen zum Bearbeiten: Übungen hinzufügen, austauschen, entfernen oder umsortieren. Mit „Heute trainieren“ landet die ganze Einheit in deinem Tagesplan, beim Eintragen stehen dann die Werte vom letzten Mal als Vorschlag bereit.</p>`
+    :`<div class="card empty"><h3>Noch keine Einheiten</h3><p class="muted">Leg z. B. „Push“, „Pull“ oder „Beine“ an und wähl die passenden Übungen aus. Im Gym übernimmst du die ganze Einheit dann mit einem Tipp.</p></div>`}`;
 }
 function viewPick(){
   const exs=exercises();
@@ -1453,20 +1480,30 @@ function viewApplyPick(date){
 function viewTplEdit(){
   const D=S.tplDraft; if(!D) return `<p class="hint">Diese Einheit gibt es nicht mehr.</p>`;
   const rows=D.items.map((it,i)=>{ const e=ex(it.id); if(!e) return ""; const tg=targetText(it);
-    return `<div class="tpl-row">${exThumb(e)}<div class="grow"><b>${esc(e.name)}</b><div class="meta num">${tg?esc(tg):"Werte vom letzten Mal"}</div></div>
+    return `<div class="tpl-row"><button class="tpl-main" data-act="tplSwapOpen" data-i="${i}" aria-label="${esc(e.name)} austauschen">${exThumb(e)}<span class="grow"><b>${esc(e.name)}</b><span class="meta num">${tg?esc(tg):"Werte vom letzten Mal"}</span><span class="swap-l">${ICON.swap}Austauschen</span></span></button>
       <button class="icon-btn" data-act="tplMove" data-i="${i}" data-d="-1" aria-label="Nach oben"${i===0?" disabled":""}>${ICON.up}</button>
       <button class="icon-btn" data-act="tplMove" data-i="${i}" data-d="1" aria-label="Nach unten"${i===D.items.length-1?" disabled":""}>${ICON.down}</button>
       <button class="icon-btn trash" data-act="tplRm" data-i="${i}" aria-label="${esc(e.name)} entfernen">${ICON.trash}</button></div>`; }).join("");
   return `<label class="field"><span>Name der Einheit</span><input class="input" id="tpled-name" data-field="tplEdName" maxlength="30" value="${esc(D.name)}" autocomplete="off"></label>
-  <div class="field"><span>Übungen · ${D.items.length}</span>${D.items.length?`<div class="list">${rows}</div><p class="hint">Der Papierkorb nimmt die Übung nur aus dieser Einheit heraus. Die Übung selbst und alle deine bisherigen Einträge bleiben erhalten. Wirksam wird das erst, wenn du unten auf „Speichern“ tippst.</p>`:`<p class="hint">Noch keine Übungen in dieser Einheit.</p>`}</div>
+  <div class="field"><span>Übungen · ${D.items.length}</span>${D.items.length?`<div class="list">${rows}</div><p class="hint">Der Papierkorb nimmt die Übung nur aus dieser Einheit heraus. Die Übung selbst und alle deine bisherigen Einträge bleiben erhalten. Wirksam wird das erst, wenn du unten auf „Speichern“ tippst. Tippst du auf eine Übung, kannst du sie gegen eine andere austauschen; sie bleibt an derselben Stelle.</p>`:`<p class="hint">Noch keine Übungen in dieser Einheit.</p>`}</div>
   <button class="btn" data-act="tplAddEx">${ICON.plus}Übung hinzufügen</button>
-  <button class="btn primary big" data-act="tplEdSave">${ICON.check}Speichern</button>
-  <button class="btn danger${S.armedTpl===D.id?" armed":""}" data-act="tplDel" data-id="${esc(D.id)}">${S.armedTpl===D.id?"Wirklich löschen?":"Einheit löschen"}</button>`;
+  ${D.items.length?`<button class="btn success big" data-act="tplToday">${ICON.check}Heute trainieren</button>`:""}
+  <button class="btn primary big" data-act="tplEdSave">Speichern</button>
+  ${D.isNew?"":`<button class="btn danger${S.armedTpl===D.id?" armed":""}" data-act="tplDel" data-id="${esc(D.id)}">${S.armedTpl===D.id?"Wirklich löschen?":"Einheit löschen"}</button>`}`;
 }
 function viewTplPick(){
-  const exs=exercises(), sel=new Set((S.tplDraft?S.tplDraft.items:[]).map(x=>x.id));
+  const exs=exercises(), sel=new Set((S.tplDraft?S.tplDraft.items:[]).map(x=>x.id)), t=top();
+  if(t&&t.swap!=null){ const cur=S.tplDraft&&ex((S.tplDraft.items[t.swap]||{}).id);
+    return `${cur?`<p class="muted" style="margin:0">Statt <b>${esc(cur.name)}</b>:</p>`:""}${exs.length>4?searchBox():""}<div id="exlist" class="stack">${exerciseList(exs.filter(e=>!cur||e.id!==cur.id),"tplSwap")}</div>`; }
   return `${exs.length>4?searchBox():""}<div id="exlist" class="stack">${exerciseList(exs,"tplToggle",sel)}</div>
   <button class="btn primary big" data-act="back">${ICON.check}Fertig${sel.size?` · ${sel.size} ${sel.size===1?"Übung":"Übungen"}`:""}</button>`;
+}
+function saveTplDraft(){
+  const D=S.tplDraft; if(!D) return false; const name=D.name.trim();
+  if(!name){ toast("Gib der Einheit einen Namen"); const i=$("#tpled-name"); i&&i.focus(); return false; }
+  if(templates().some(t=>t.id!==D.id&&t.name.toLowerCase()===name.toLowerCase())){ toast(`„${name}“ gibt es schon – bitte anderen Namen wählen`); return false; }
+  const cur=S.docs.get(D.id)||{kind:"tpl",createdAt:Date.now()};
+  put(D.id,{...cur,kind:"tpl",name,items:D.items,updatedAt:Date.now()}); S.lastTplId=D.id; S.tplDraft=null; return true;
 }
 function viewTplCard(){
   const T=templates(); if(!T.length) return "";
@@ -1665,7 +1702,7 @@ function viewMore(){
   const pdfCard=lgCount?`<div class="card panel"><h3>Fortschritt als PDF</h3><p class="muted">Kurven und Tabellen für alle oder einzelne Übungen, zum Speichern, Ausdrucken oder Weiterschicken.</p><div><button class="btn primary" data-act="report">${ICON.doc}PDF-Bericht erstellen</button></div></div>`:"";
   const cts=customTypes();
   const ctCard=`<div class="card panel"><h3>Eigene Trainingsarten</h3>${cts.length?cts.map(t=>`<div class="ct-row"><div class="top"><input class="input" id="ct-${esc(t.k)}" data-field="ctname" data-k="${esc(t.k)}" value="${esc(t.n)}" maxlength="24" aria-label="Name"><button class="btn danger${S.armedCt===t.k?" armed":""}" data-act="ctDel" data-k="${esc(t.k)}">${S.armedCt===t.k?"Wirklich?":"Löschen"}</button></div><div class="swatches">${DAY_TYPES.map(d=>`<button class="swatch ty-${d.c}" data-act="ctColor" data-k="${esc(t.k)}" data-c="${d.c}" aria-pressed="${t.c===d.c}" aria-label="${COLOR_NAMES[d.c]}"></button>`).join("")}</div></div>`).join(""):`<p class="muted">Leg eigene Arten wie „Po“ oder „Arme“ direkt beim Auswählen der Trainingsart über „+ Eigene Art“ an. Hier kannst du sie danach umbenennen, umfärben oder löschen.</p>`}</div>`;
-  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${cmpCard()}${viewTplCard()}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
+  return `${install}${meCard}${goalCard}${foodCard}${ibCard}${bodyCard}${wxCard}${iconCard}${layoutCard}${cmpCard()}${restCard}${pdfCard}${ctCard}<div class="card panel"><h3>Speicherort</h3>${status}<p class="meta num">${exCount} Übungen · ${lgCount} eingetragene Einheiten</p></div>
   <div class="card panel"><h3>Backup</h3><p class="muted">Sichert alle Übungen, Einstellungen und Einheiten in einer Datei. Damit nimmst du dein Logbuch auf ein neues Handy mit. Ein Backup aus der Claude-Version kannst du hier auch importieren.</p>
     <div class="btn-row"><button class="btn" data-act="export">Backup exportieren</button><button class="btn" data-act="import">Backup importieren</button></div>
   </div>
@@ -1785,18 +1822,20 @@ document.addEventListener("click",ev=>{
     case "tplDel": { if(S.armedTpl!==b.dataset.id){ S.armedTpl=b.dataset.id; render(); return; } S.armedTpl=null; put(b.dataset.id,null); toast("Einheit gelöscht"); if(top()&&top().type==="tplEdit"){ S.tplDraft=null; pop(); } else render(); break; }
     case "tplEdit": S.tplDraft=null; push({type:"tplEdit",id:b.dataset.id}); break;
     case "tplAddEx": push({type:"tplPick"}); break;
+    case "exView": S.exView=b.dataset.v; S.query=""; render(); break;
+    case "tplCreate": S.tplDraft=null; push({type:"tplEdit",id:rid("tp"),isNew:true}); setTimeout(()=>{ const i=$("#tpled-name"); i&&i.focus(); },50); break;
+    case "tplSwapOpen": push({type:"tplPick",swap:+b.dataset.i}); break;
+    case "tplSwap": { const D=S.tplDraft, t=top(); if(!D||!t||t.swap==null) return; const old=ex((D.items[t.swap]||{}).id), nw=ex(b.dataset.ex); if(!nw) return;
+      if(D.items.some((x,k)=>x.id===nw.id&&k!==t.swap)){ toast(`„${nw.name}“ ist schon in der Einheit`); return; }
+      D.items[t.swap]={id:nw.id}; pop(); toast(`${old?old.name+" → ":""}${nw.name}`); break; }
+    case "tplToday": { if(!saveTplDraft()) return; const t=S.docs.get(b.dataset.id||S.lastTplId); if(!t) return;
+      const r=applyItems(todayStr(),t.items||[],t.types||[]); put(S.lastTplId,{...t,usedAt:Date.now()}); setTab("today"); toast(`„${t.name}“ für heute übernommen · ${r.total} ${r.total===1?"Übung":"Übungen"}`); break; }
     case "tplToggle": { const D=S.tplDraft; if(!D) return; const id=b.dataset.ex, i=D.items.findIndex(x=>x.id===id); if(i>=0) D.items.splice(i,1); else D.items.push({id}); const y=window.scrollY; render(); window.scrollTo(0,y); break; }
     case "tplRm": { const D=S.tplDraft; if(!D) return; const i=+b.dataset.i, e=ex(D.items[i]&&D.items[i].id);
       askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ wirklich aus der Einheit „${D.name.trim()||"ohne Namen"}“ entfernt werden?`,text:"Die Übung selbst und deine bisherigen Einträge bleiben erhalten. Die Änderung gilt, sobald du die Einheit speicherst.",ok:"Entfernen",
         onOk:()=>{ if(S.tplDraft===D){ D.items.splice(i,1); render(); } }}); break; }
     case "tplMove": { const D=S.tplDraft; if(!D) return; const i=+b.dataset.i, j=i+(+b.dataset.d); if(j<0||j>=D.items.length) return; [D.items[i],D.items[j]]=[D.items[j],D.items[i]]; render(); break; }
-    case "tplEdSave": {
-      const D=S.tplDraft; if(!D) return; const name=D.name.trim();
-      if(!name){ toast("Gib der Einheit einen Namen"); $("#tpled-name").focus(); return; }
-      if(templates().some(t=>t.id!==D.id&&t.name.toLowerCase()===name.toLowerCase())){ toast(`„${name}“ gibt es schon – bitte anderen Namen wählen`); return; }
-      const cur=S.docs.get(D.id)||{kind:"tpl",createdAt:Date.now()};
-      put(D.id,{...cur,kind:"tpl",name,items:D.items,updatedAt:Date.now()}); S.tplDraft=null; pop(); toast(`„${name}“ gespeichert`); break;
-    }
+    case "tplEdSave": { const D=S.tplDraft, name=D&&D.name.trim(); if(!saveTplDraft()) return; pop(); toast(`„${name}“ gespeichert`); break; }
     case "planFlat": { const d=b.dataset.date, items=planItems(d), it=items[+b.dataset.i]; if(it&&it.sets){ const f=it.sets[0]||{}; it.s=it.sets.length; it.r=f.r??null; it.w=f.w??null; delete it.sets; savePlan(d,items); render(); } break; }
     case "finish": { const d=b.dataset.date; Rest.stop(); saveDay(d,{done:Date.now()}); S.bodyYaw=null; const t=top(); if(t&&t.type==="finish") render(); else push({type:"finish",date:d}); window.scrollTo(0,0);
       if(wxOn()) fetchWeather(d).then(w=>{ const tt=top(); if(w&&tt&&tt.type==="finish"&&tt.date===d) render(); }); break; }
@@ -1983,7 +2022,7 @@ document.addEventListener("input",ev=>{
   }
   else if(f==="note"){ S.draft.note=el.value; scheduleSave(); }
   else if(f==="egkcal"){ S.draft.kcal=el.value; scheduleSave(); }
-  else if(f==="query"){ S.query=el.value; const list=$("#exlist"); if(list){ const t=top(); list.innerHTML=t&&t.type==="planPick"?exerciseList(exercises(),"planToggle",new Set(planIds(t.date))):t&&t.type==="tplPick"?exerciseList(exercises(),"tplToggle",new Set((S.tplDraft?S.tplDraft.items:[]).map(x=>x.id))):exerciseList(exercises(),t&&t.type==="pick"?"pickEx":"openEx"); } }
+  else if(f==="query"){ S.query=el.value; const list=$("#exlist"); if(list){ const t=top(); list.innerHTML=t&&t.type==="planPick"?exerciseList(exercises(),"planToggle",new Set(planIds(t.date))):t&&t.type==="tplPick"?(t.swap!=null?exerciseList(exercises().filter(e=>!S.tplDraft||e.id!==(S.tplDraft.items[t.swap]||{}).id),"tplSwap"):exerciseList(exercises(),"tplToggle",new Set((S.tplDraft?S.tplDraft.items:[]).map(x=>x.id)))):exerciseList(exercises(),t&&t.type==="pick"?"pickEx":"openEx"); } }
   else if(f==="plannote") saveDay(el.dataset.date,{note:el.value});
   else if(f==="pt"){ const items=planItems(el.dataset.date), it=items[+el.dataset.i]; if(it){ const k=el.dataset.k, v=parseNum(el.value); it[k]=v==null?null:(k==="w"?v:Math.max(0,Math.round(v))); savePlan(el.dataset.date,items); } }
   else if(f==="pf"){ const k=el.dataset.k; S.pfT=S.pfT||{}; clearTimeout(S.pfT[k]); S.pfT[k]=setTimeout(()=>{ saveProfile({[k]:el.value.trim()}); const info=$("#bmrInfo"); if(info) info.innerHTML=bmrInfo(); },350); }
