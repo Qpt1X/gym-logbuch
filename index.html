@@ -668,7 +668,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.16";
+const APP_VERSION = "3.17";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1458,7 +1458,7 @@ function viewTplEdit(){
       <button class="icon-btn" data-act="tplMove" data-i="${i}" data-d="1" aria-label="Nach unten"${i===D.items.length-1?" disabled":""}>${ICON.down}</button>
       <button class="icon-btn trash" data-act="tplRm" data-i="${i}" aria-label="${esc(e.name)} entfernen">${ICON.trash}</button></div>`; }).join("");
   return `<label class="field"><span>Name der Einheit</span><input class="input" id="tpled-name" data-field="tplEdName" maxlength="30" value="${esc(D.name)}" autocomplete="off"></label>
-  <div class="field"><span>Übungen · ${D.items.length}</span>${D.items.length?`<div class="list">${rows}</div>`:`<p class="hint">Noch keine Übungen in dieser Einheit.</p>`}</div>
+  <div class="field"><span>Übungen · ${D.items.length}</span>${D.items.length?`<div class="list">${rows}</div><p class="hint">Der Papierkorb nimmt die Übung nur aus dieser Einheit heraus. Die Übung selbst und alle deine bisherigen Einträge bleiben erhalten. Wirksam wird das erst, wenn du unten auf „Speichern“ tippst.</p>`:`<p class="hint">Noch keine Übungen in dieser Einheit.</p>`}</div>
   <button class="btn" data-act="tplAddEx">${ICON.plus}Übung hinzufügen</button>
   <button class="btn primary big" data-act="tplEdSave">${ICON.check}Speichern</button>
   <button class="btn danger${S.armedTpl===D.id?" armed":""}" data-act="tplDel" data-id="${esc(D.id)}">${S.armedTpl===D.id?"Wirklich löschen?":"Einheit löschen"}</button>`;
@@ -2964,7 +2964,8 @@ function viewFinish(date){
     <div class="card stat"><b>${S0.reps}</b><span>Wdh.</span></div>
     <div class="card stat"><b>${S0.prs}</b><span>${S0.prs===1?"Rekord":"Rekorde"}</span></div>
   </div>
-  <div class="field"><span>Übungen</span><div class="list">${S0.ls.map(l=>{ const e=ex(l.exId); return finishRow(l,e); }).join("")}</div></div>
+  <div class="field"><span>Übungen</span><div class="list">${S0.ls.map(l=>{ const e=ex(l.exId); return finishRow(l,e); }).join("")}</div>
+    <p class="hint">Der Papierkorb löscht nur die eingetragenen Sätze dieser Übung an diesem Tag. Die Übung selbst, ihr Foto, ihre Einstellungen und alle anderen Trainingstage bleiben erhalten. Vorher fragt die App mit dem Namen der Übung nach.</p></div>
   <div class="field"><span>Trainierte Körperregionen</span>
     <div class="stage paper" role="img" aria-label="Körper von vorne und hinten. Trainiert: ${esc(regionsHit.join(", ")||"keine zugeordneten Regionen")}"><div class="anat-pair" id="anatPair"></div>
       <span class="lbl3d" style="left:0">Vorne</span><span class="lbl3d" style="right:0">Hinten</span></div>
