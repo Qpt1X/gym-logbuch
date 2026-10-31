@@ -641,7 +641,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.14";
+const APP_VERSION = "3.15";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -754,19 +754,24 @@ function bwOn(date){ const L=weightEntries(); if(!L.length) return null; let b=n
 function assistCtx(l){ const e=l&&ex(l.exId); return isAssist(e)?{bw:bwOn(l.date)}:null; }
 function effW(w,a){ a=asA(a); if(w==null||!a) return w; if(a.bw==null) return null; return Math.max(0,Math.round((a.bw-w)*10)/10); }
 /* ---------- eGym-Geräte ----------
-   Kalorien kommen aus der eGym-App und werden von Hand eingetragen.
-   Gewicht und Wiederholungen dieser Übungen zählen deshalb nicht zusätzlich zur Kalorienschätzung. */
+   „eGym-Gerät“ ist nur eine Kennzeichnung. Die Kalorienangaben der eGym-App sind oft stark überhöht
+   und zählen deshalb nicht; ältere eingetragene eGym-Kalorien werden ignoriert. */
 function isEgym(e){ return !!(e&&e.egym); }
-function egymKcal(l){ return l&&l.kcal>0?l.kcal:0; }
-function logLine(l){ return setsLine(l.sets||[],assistCtx(l))+(egymKcal(l)?`<div class="meta num">${fmtNum(l.kcal)} kcal laut eGym-App</div>`:""); }
+function logLine(l){ return setsLine(l.sets||[],assistCtx(l)); }
+/* ---------- Kalorien fürs Training: nur aus den Sätzen ----------
+   Pro Satz etwa 45 Sekunden Arbeit, dazu die Pausenzeit der Übung.
+   Krafttraining moderat mit 3,5 MET (Compendium of Physical Activities). Die echte Trainingsdauer zählt nicht. */
+const SET_WORK_MIN=0.75, TRAIN_MET=3.5;
+function setMinutes(ls){
+  let m=0;
+  for(const l of ls){ const e=ex(l.exId), n=(l.sets||[]).length; if(!n) continue;
+    const rest=(e&&typeof e.rest==="number"&&e.rest>0?e.rest:restCfg().def)/60; m+=n*(SET_WORK_MIN+rest); }
+  return Math.round(m);
+}
 function trainSplit(date,S0){
   S0=S0||daySummary(date);
-  const TM=trainingMinutes(date,S0), met=metFor(S0,TM);
-  const eg=S0.ls.filter(l=>isEgym(ex(l.exId)));
-  const egK=eg.reduce((a,l)=>a+egymKcal(l),0), egSets=eg.reduce((a,l)=>a+(l.sets||[]).length,0);
-  // Zeit nur für die übrigen Übungen schätzen (anteilig nach Sätzen), damit eGym nicht doppelt zählt
-  const restMin=!eg.length?TM.min:eg.length===S0.ls.length?0:S0.sets?Math.round(TM.min*(S0.sets-egSets)/S0.sets):TM.min;
-  return {TM,met,eg,egK,restMin};
+  const TM=trainingMinutes(date,S0);
+  return {TM,met:TRAIN_MET,kMin:setMinutes(S0.ls)};
 }
 function statSets(l){ const a=assistCtx(l), s=l.sets||[]; return a?s.map(x=>({...x,w:effW(x.w,a)})):s; }
 function setText(s,a){
@@ -1131,8 +1136,6 @@ function viewLog(){
   h+=`</div>${AS?`<div class="meta num" id="assistLive">${assistLive()}</div>`:""}
   <p class="hint">Graue Zahlen sind Vorschläge: dein Ziel aus dem Plan oder deine Werte vom letzten Mal. Tipp auf den Haken, um sie zu übernehmen, oder tipp eigene Werte ein. Ohne Gewicht zählt der Satz als Körpergewicht.</p>
   <div class="btn-row"><button class="btn" data-act="addSet">${ICON.plus}Satz</button>${d.sets.length>1?`<button class="btn" data-act="rmSet">Letzten Satz entfernen</button>`:""}</div>
-  ${isEgym(e)?`<label class="field"><span>Kalorien laut eGym-App</span><span class="in-unit"><input class="input" id="egkcal" data-field="egkcal" inputmode="numeric" autocomplete="off" placeholder="z. B. 45" value="${esc(d.kcal)}"> kcal</span></label>
-  <p class="hint" style="margin:0">Die Kalorien liest du in der eGym-App ab. Sie gehen genau so in deine Tagesbilanz ein. Gewicht und Wiederholungen dieser Übung zählen dafür nicht noch einmal.</p>`:""}
   <label class="field"><span>Notiz</span><textarea class="input" id="note" data-field="note" placeholder="z. B. letzter Satz bis zum Versagen">${esc(d.note)}</textarea></label>
   <button class="btn primary big" data-act="doneLog">${ICON.check}Fertig</button>`;
   return h;
@@ -1303,7 +1306,7 @@ function viewEditEx(){
   <div class="field"><span>Muskelgruppen <span style="font-weight:400">· mehrere möglich, die erste ist die Hauptgruppe</span></span>${groupPicker(d)}
     ${d.newGroup!=null?`<div class="set-edit" style="grid-template-columns:1fr auto"><input class="input" id="newgroup" data-field="newgroup" value="${esc(d.newGroup)}" placeholder="z. B. Oberschenkel außen" maxlength="24" autocomplete="off"><button class="btn primary" data-act="groupAdd">Hinzufügen</button></div>`:""}</div>
   <div class="field"><span>Art des Geräts</span><div class="chips"><button class="chip" data-act="exEgym" data-v="0" aria-pressed="${!d.egym}">Normal</button><button class="chip" data-act="exEgym" data-v="1" aria-pressed="${!!d.egym}">eGym-Gerät</button></div>
-    ${d.egym?`<p class="hint" style="margin:0">Beim Eintragen gibt es ein Feld für die Kalorien aus der eGym-App. Nur diese zählen für die Kalorienbilanz, Gewicht und Wiederholungen nicht zusätzlich.</p>`:""}</div>
+    ${d.egym?`<p class="hint" style="margin:0">Dient nur zur Kennzeichnung. Die Kalorien schätzt die App wie bei allen Übungen aus deinen Sätzen, weil die Angaben der eGym-App oft stark überhöht sind.</p>`:""}</div>
   ${d.egym?"":`<div class="field"><span>Gewicht am Gerät</span><div class="chips"><button class="chip" data-act="exLoad" data-v="" aria-pressed="${d.load!=="assist"}">Normales Gewicht</button><button class="chip" data-act="exLoad" data-v="assist" aria-pressed="${d.load==="assist"}">Gegengewicht (Unterstützung)</button></div>
     <p class="hint" style="margin:0">${d.load==="assist"?"Du trägst das am Gerät eingestellte Gegengewicht ein. Die App rechnet dein echtes Trainingsgewicht aus: Körpergewicht minus Gegengewicht.":"Für Klimmzug- oder Dip-Türme mit Gegengewicht „Gegengewicht“ wählen."}</p></div>`}
   <div class="field"><span>Einstellungen am Gerät</span>
@@ -2376,12 +2379,12 @@ function dayEnergy(date){
   const p=profile(), d=dayDoc(date)||{}, isToday=date===todayStr();
   let train=0, trainMin=0, met=null, egK=0;
   const S0=daySummary(date);
-  if(S0.ls.length){ const T=trainSplit(date,S0); met=T.met; trainMin=T.restMin; egK=T.egK; train=Math.max(0,(met-1)*(b.bmr/24)*(T.restMin/60)); }
+  if(S0.ls.length){ const T=trainSplit(date,S0); met=T.met; trainMin=T.kMin; train=Math.max(0,(met-1)*(b.bmr/24)*(T.kMin/60)); }
   const AL=dayActs(date).map(a=>({a,K:actKcal(a,date)})).filter(x=>x.K);
   const actK=AL.reduce((s,x)=>s+(x.K.net||0),0), overlap=AL.reduce((s,x)=>s+(x.K.steps||0),0);
   const stepsAll=d.steps||0, steps=Math.max(0,stepsAll-overlap), km=steps*stepLength(p)/1000, stepK=b.weight?0.5*b.weight*km:0;
   const now=new Date(), frac=isToday?Math.min(1,(now-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000):1;
-  const restNow=b.bmr*frac, activity=train+egK+stepK+actK;
+  const restNow=b.bmr*frac, activity=train+stepK+actK;
   const tefNow=0.1*(restNow+activity), tefDay=0.1*(b.bmr+activity);
   return {bmr:b.bmr,src:b.src,frac,restNow,train,trainMin,met,egK,steps,stepsAll,overlap,km,stepK,actK,acts:AL,tefNow,tefDay,
     now:Math.round(restNow+activity+tefNow), day:Math.round(b.bmr+activity+tefDay), isToday};
@@ -2395,8 +2398,7 @@ function kcalBlock(date){
       ${E.isToday?`<span><b class="num">${r(E.now)} kcal</b> bisher verbrannt<small>bis Mitternacht mindestens etwa ${r(E.day)} kcal, jeder weitere Schritt kommt dazu</small></span>`:`<span><b class="num">${r(E.day)} kcal</b> an diesem Tag verbrannt</span>`}<i class="chev" aria-hidden="true">›</i></summary>
     <div class="kcal-rows">
       <div><span>Grundumsatz${E.isToday?` bis ${timeTxt}`:""}</span><b class="num">${r(E.isToday?E.restNow:E.bmr)}</b></div>
-      <div><span>Training${E.trainMin?` · ${E.trainMin} min, ${fmtNum(E.met)} MET`:""}</span><b class="num">${E.train?"+"+r(E.train):"–"}</b></div>
-      ${E.egK?`<div><span>eGym-Geräte · laut eGym-App</span><b class="num">+${r(E.egK)}</b></div>`:""}
+      <div><span>Training${E.trainMin?` · aus Sätzen ≈ ${E.trainMin} min`:""}</span><b class="num">${E.train?"+"+r(E.train):"–"}</b></div>
       ${E.acts.length?`<div><span>Aktivitäten · ${esc(E.acts.map(x=>actName(x.a)+" "+fmtNum(+x.a.min)+" min").join(", "))}</span><b class="num">+${r(E.actK)}</b></div>`:""}
       <div><span>Schritte${E.steps?` · ${fmtNum(E.steps)} ≈ ${fmtNum(Math.round(E.km*10)/10)} km`:""}${E.overlap&&E.stepsAll?` (ohne ${fmtNum(Math.min(E.overlap,E.stepsAll))} Schritte der Aktivitäten)`:""}</span><b class="num">${E.stepK?"+"+r(E.stepK):"–"}</b></div>
       <div><span>Verdauung · etwa 10 %</span><b class="num">+${r(E.isToday?E.tefNow:E.tefDay)}</b></div>
@@ -2420,9 +2422,6 @@ function bodyState(onDate){
   return {weight,pbf,ffm,bmr,src,ib};
 }
 function dayDiffBetween(a,b){ return Math.round((toDate(b)-toDate(a))/86400000); }
-// MET-Wert wird automatisch aus der Trainingsdichte bestimmt: gemessene Dauer und Sätze pro Minute.
-// Ab etwa einem Satz alle 2 Minuten (inkl. Pause) gilt das Training als intensiv (6,0 MET), sonst moderat (3,5 MET).
-function metFor(S0,TM){ return TM&&!TM.est&&TM.min>0&&S0&&S0.sets/TM.min>=0.5?6:3.5; }
 function trainingMinutes(date,S0){
   const dd=dayDoc(date);
   if(dd&&dd.dur>0) return {min:dd.dur,est:false,manual:true};
@@ -2808,7 +2807,7 @@ function viewFinish(date){
   let h=done?`<div class="finish-hero"><span class="finish-badge">${ICON.check}</span><h2>${esc(cheer[0])}</h2><p>${esc(cheer[1])}</p><p class="meta">${esc(fmtLong.format(toDate(date)))} ${typeBadge(date)}</p>${wxChip(date)}</div>`
     :`<div class="date-head"><p class="eyebrow">Trainingsübersicht</p><h2>${esc(fmtLong.format(toDate(date)))}</h2></div>${typeBadge(date)?`<div>${typeBadge(date)}</div>`:""}`;
   if(!S0.ls.length) return h+`<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>`;
-  const T=trainSplit(date,S0), TM=T.TM, MET=T.met, KCm=T.restMin>0?kcalFor(date,T.restMin,MET):null, KCt=(KCm?KCm.kcal:0)+T.egK, KC=KCm||(T.egK?{kcal:KCt}:null), wi=weekIndex(date);
+  const T=trainSplit(date,S0), TM=T.TM, MET=T.met, KC=T.kMin>0?kcalFor(date,T.kMin,MET):null, KCt=KC?KC.kcal:0, wi=weekIndex(date);
   if(wi) h+=`<div class="week-pill">${wi}. Training der Woche</div>`;
   h+=`<div class="three-stats">
     <div class="card"><span>Gewicht</span><b>${anyVol?fmtNum(Math.round(S0.vol)):"–"}</b><small>kg bewegt</small></div>
@@ -2816,9 +2815,8 @@ function viewFinish(date){
     <div class="card"><span>Kalorien</span><b>${KC?"~"+fmtNum(KCt):"–"}</b><small>kcal</small></div>
   </div>
   <div class="dur-edit"><label for="durEdit">Dauer anpassen:</label><input id="durEdit" data-field="dur" data-date="${date}" inputmode="numeric" value="${TM.min}" aria-label="Trainingsdauer in Minuten"> min${TM.est?" · geschätzt aus Sätzen und Pausenzeit":TM.manual?" · von dir eingetragen":" · vom ersten Satz bis zum Beenden"}</div>
-  ${T.egK?`<p class="hint" style="margin:0">Davon ${fmtNum(T.egK)} kcal von deinen eGym-Geräten, so wie in der eGym-App angezeigt.${KCm?" Der Rest ist eine Schätzung für die übrigen Übungen:":""}</p>`:""}
-  ${KCm?`<p class="hint" style="margin:0">Kalorien sind eine Schätzung nach der MET-Methode (Compendium of Physical Activities, Krafttraining ${MET===6?"intensiv, 6,0":"moderat, 3,5"} MET, ${TM.est?"Standardwert, weil die Dauer nur geschätzt ist":`automatisch aus ${S0.sets} Sätzen in ${TM.min} Minuten bestimmt`}) mit deinem Grundumsatz: ${esc(KC.src)}. Enthalten ist auch der Ruheverbrauch während des Trainings. Der tatsächliche Verbrauch kann deutlich abweichen.</p>`
-     :T.egK&&!T.restMin?"":`<p class="hint" style="margin:0">Für eine Kalorienschätzung trag unter „Mehr“ → „Über mich“ dein Gewicht, deine Größe, dein Alter und dein Geschlecht ein oder eine Körpermessung (InBody/Fitnesshub).</p>`}
+  ${KC?`<p class="hint" style="margin:0">Die Kalorien schätzt die App nur aus deinen Sätzen: ${S0.sets} Sätze mit je etwa 45 Sekunden Arbeit plus deiner Pausenzeit ergeben rund ${T.kMin} Minuten Krafttraining. Gerechnet wird mit moderatem Krafttraining (3,5 MET, Compendium of Physical Activities) und deinem Grundumsatz: ${esc(KC.src)}. Die Trainingsdauer oben ist nur zur Info und hat keinen Einfluss. Der tatsächliche Verbrauch kann abweichen.</p>`
+     :`<p class="hint" style="margin:0">Für eine Kalorienschätzung trag unter „Mehr“ → „Über mich“ dein Gewicht, deine Größe, dein Alter und dein Geschlecht ein oder eine Körpermessung (InBody/Fitnesshub).</p>`}
   <div class="mini-stats">
     <div class="card stat"><b>${S0.ls.length}</b><span>${S0.ls.length===1?"Übung":"Übungen"}</span></div>
     <div class="card stat"><b>${S0.sets}</b><span>Sätze</span></div>
