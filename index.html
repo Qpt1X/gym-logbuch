@@ -583,6 +583,22 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .tpl-main .grow{display:flex;flex-direction:column;gap:1px;min-width:0}
 .swap-l{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:600;color:var(--accent);margin-top:2px}
 .swap-l svg{width:14px;height:14px}
+.lnk{background:none;border:0;padding:0;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
+.rem-a{background:var(--accent);color:var(--accent-ink);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.rem-a .t{display:flex;gap:12px;align-items:center}.rem-a .tx{display:flex;flex-direction:column;gap:2px}
+.rem-a .ic{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center;flex:none}.rem-a .ic svg{width:24px;height:24px}
+.rem-a b{font-size:1.15rem}.rem-a small{opacity:.85;font-size:.85rem}
+.rem-a .row{display:flex;gap:8px}.rem-a .row button{flex:1;min-height:44px;border-radius:12px;border:0;font-weight:600;font-size:.95rem}
+.rem-a .p{background:var(--accent-ink);color:var(--accent)}.rem-a .s{background:rgba(255,255,255,.18);color:inherit}
+.rem-a .later{background:none;border:0;color:inherit;opacity:.85;font-size:.82rem;text-decoration:underline;align-self:center;padding:4px}
+.rem-b{display:flex;align-items:center;gap:10px;border:1.5px solid var(--warn-c,#e0901f);background:color-mix(in srgb,#e0901f 14%,var(--surface));border-radius:12px;padding:8px 10px 8px 12px;font-size:.92rem}
+.rem-b .dot{width:10px;height:10px;border-radius:50%;background:#e0901f;flex:none}.rem-b .grow{flex:1;text-align:left;font-weight:700;text-decoration:none}
+.rem-b .chk{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 12px;font-weight:600}
+.rem-c{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.rem-c .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.rem-c .top b{font-size:1rem}.rem-c .top span{color:var(--muted);font-size:.85rem;text-align:right}
+.rem-c .track{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}.rem-c .fill{height:100%;border-radius:99px;background:var(--accent)}
+.rem-c .lab{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;color:var(--muted)}
+.rem-c.due{border-color:#e0901f}.rem-c.due .top span{color:#e0901f;font-weight:700}.rem-c.due .fill{background:#e0901f}.rem-c.due .lab .lnk{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -682,7 +698,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.18";
+const APP_VERSION = "3.19";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -713,6 +729,7 @@ const ICON = {
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg>',
   dumbbell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>',
   swap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"/></svg>',
+  scale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8.5 9a5 5 0 0 1 7 0l-2.2 2.6"/></svg>',
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>'
 };
 
@@ -1070,6 +1087,7 @@ function viewToday(){
   const hr=new Date().getHours(), gr=hr<11?"Guten Morgen":hr<18?"Hallo":"Guten Abend";
   let h=`<div class="date-head"><p class="eyebrow">${firstName()?esc(gr+", "+firstName()):"Heute"}</p><h2>${esc(fmtLong.format(new Date()))}</h2></div>`;
   if(!exs.length) return h+emptyStart();
+  h+=bodyRemCard();
   h+=dailyCard(date);
   h+=actsCard(date);
   h+=typePicker(date);
@@ -1429,6 +1447,45 @@ function planTarget(date,exId){ return planItems(date).find(x=>x.id===exId)||nul
 function savePlan(date,items){ saveDay(date,{plan:items.map(x=>{const o={id:x.id}; for(const k of ["s","r","w"]) if(x[k]!=null) o[k]=x[k]; if(Array.isArray(x.sets)&&x.sets.length) o.sets=x.sets.map(st=>{const q={}; if(st.w!=null) q.w=st.w; if(st.r!=null) q.r=st.r; if(st.x&&Object.keys(st.x).length) q.x={...st.x}; return q;}); return o;})}); }
 function addToPlan(date,id){ const items=planItems(date); if(!items.some(x=>x.id===id)){ items.push({id}); savePlan(date,items); } }
 function targetText(t){ if(!t) return ""; if(Array.isArray(t.sets)&&t.sets.length) return t.sets.map(setPlain).join(" · "); let s=t.s&&t.r?`${t.s} × ${t.r}`:t.s?`${t.s} ${t.s===1?"Satz":"Sätze"}`:t.r?`${t.r} Wdh.`:""; if(t.w!=null) s+=(s?" · ":"")+fmtNum(t.w)+" kg"; return s; }
+/* ---------- Erinnerung an die Körperanalyse ----------
+   Fällig: letzte Messung (InBody/Fitnesshub) oder „Erledigt“ + Intervall. Darstellung wählbar:
+   A große Karte (nur wenn fällig) · B schmaler Hinweis (nur wenn fällig) · C Fortschrittsbalken (immer sichtbar). */
+const REM_WEEKS=[2,3,4,6,8], REM_STYLES=[["C","Fortschrittsbalken"],["A","Große Karte"],["B","Schmaler Hinweis"]];
+function remCfg(){ const r=cfg().bodyRem||{}; return {on:!!r.on, weeks:REM_WEEKS.includes(r.weeks)?r.weeks:4, style:["A","B","C"].includes(r.style)?r.style:"C", doneAt:r.doneAt||null, snooze:r.snooze||null}; }
+function saveRem(patch){ saveCfg({bodyRem:{...remCfg(),...patch}}); }
+function remState(){
+  const R=remCfg(); if(!R.on) return null;
+  const t=todayStr(), lastM=inbodyList().map(m=>m.date).filter(d=>d<=t)[0]||null;
+  const last=[lastM,R.doneAt].filter(Boolean).sort().pop()||null;
+  if(!last) return {R,last:null,due:t,left:0,over:0,frac:1};
+  const due=addDays(last,R.weeks*7), left=dayDiffBetween(t,due);
+  return {R,last,due,left,over:Math.max(0,-left),frac:Math.max(0,Math.min(1,dayDiffBetween(last,t)/(R.weeks*7)))};
+}
+function bodyRemCard(){
+  const st=remState(); if(!st) return "";
+  const {R,last,due,left,over,frac}=st, isDue=left<=0, t=todayStr();
+  const lastTxt=last?`${dayDiffBetween(last,t)===0?"heute":`vor ${dayDiffBetween(last,t)} ${dayDiffBetween(last,t)===1?"Tag":"Tagen"}`} (${fmtShort.format(toDate(last))})`:"noch keine";
+  const every=`alle ${R.weeks} Wochen`, since=over===0?"seit heute":`seit ${over} ${over===1?"Tag":"Tagen"}`;
+  if(R.style==="C"){
+    const when=isDue?since:left===1?"morgen":`in ${left} Tagen · ${fmtShort.format(toDate(due))}`;
+    return `<div class="rem-c${isDue?" due":""}"><div class="top"><b>${isDue?"Körperanalyse fällig":"Nächste Körperanalyse"}</b><span>${esc(when)}</span></div>
+      <div class="track"><div class="fill" style="width:${Math.round(frac*100)}%"></div></div>
+      <div class="lab"><span>Letzte: ${last?esc(fmtShort.format(toDate(last))):"noch keine"}</span>${isDue?`<span><button class="lnk" data-act="remEntry">Messung eintragen</button> · <button class="lnk" data-act="remDone">Erledigt</button></span>`:`<span>${every}</span>`}</div></div>`;
+  }
+  if(!isDue||(R.snooze&&R.snooze>t)) return "";
+  if(R.style==="B") return `<div class="rem-b"><span class="dot"></span><button class="lnk grow" data-act="remEntry">Körperanalyse fällig – ${esc(since)}</button><button class="chk" data-act="remDone">Erledigt</button></div>`;
+  return `<div class="rem-a"><div class="t"><span class="ic">${ICON.scale}</span><div class="tx"><b>Zeit für deine Körperanalyse</b><small>Letzte Messung ${esc(lastTxt)} · ${every}</small></div></div>
+    <div class="row"><button class="p" data-act="remEntry">Messung eintragen</button><button class="s" data-act="remDone">Erledigt</button></div>
+    <button class="later" data-act="remLater">In 2 Tagen nochmal erinnern</button></div>`;
+}
+function remSettings(){
+  const R=remCfg(), st=remState();
+  return `<div class="switch-row"><span>An Körperanalyse erinnern</span><button class="switch" role="switch" data-act="remToggle" aria-checked="${R.on}" aria-label="An Körperanalyse erinnern"></button></div>
+  ${R.on?`<div class="field"><span>Intervall</span><div class="chips">${REM_WEEKS.map(w=>`<button class="chip" data-act="remWeeks" data-v="${w}" aria-pressed="${R.weeks===w}">${w} Wochen</button>`).join("")}</div></div>
+  <div class="field"><span>Darstellung auf der Startseite</span><div class="chips">${REM_STYLES.map(([k,l])=>`<button class="chip" data-act="remStyle" data-v="${k}" aria-pressed="${R.style===k}">${l}</button>`).join("")}</div></div>
+  <p class="meta" style="margin:0">${st&&st.last?(st.left<=0?"Gerade fällig":`Nächste Messung fällig am ${esc(fmtShortY.format(toDate(st.due)))}`):"Noch keine Messung – die Erinnerung ist sofort fällig"}</p>
+  <p class="hint">Das Intervall zählt ab deiner letzten eingetragenen Messung. Die Erinnerung bleibt, bis du eine Messung einträgst (dann verschwindet sie von selbst) oder auf „Erledigt“ tippst, etwa wenn du gemessen, aber nichts eingetragen hast. „Fortschrittsbalken“ ist immer sichtbar, „Große Karte“ und „Schmaler Hinweis“ erscheinen nur, wenn die Messung fällig ist.</p>`:""}`;
+}
 function addDays(date,n){ const d=toDate(date); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
 function planEditor(date){
   const items=planItems(date), doc=dayDoc(date);
@@ -1684,14 +1741,14 @@ function viewMore(){
   const IB=inbodyList(), F2=S.ibForm;
   const ibin=(k,label,ph)=>`<label class="field"><span>${label}</span><input class="input" id="ib-${k}" data-field="ib" data-k="${k}" inputmode="${k==="date"?"text":"decimal"}" placeholder="${ph}" value="${esc(F2[k]||"")}" autocomplete="off"></label>`;
   const fh=F2&&F2.src==="fh";
-  const ibCard=`<div class="card panel"><h3>Körpermessungen</h3><p class="muted">Messungen von InBody oder vom EGYM Fitness Hub. Die App vergleicht jede neue Messung mit der vorherigen und sagt dir, ob du Richtung Ziel gehst. Die aktuellste Messung (bis 180 Tage alt) verbessert außerdem die Kalorienschätzung.</p>
+  const ibCard=`<div class="card panel" id="ibCard"><h3>Körpermessungen</h3><p class="muted">Messungen von InBody oder vom EGYM Fitness Hub. Die App vergleicht jede neue Messung mit der vorherigen und sagt dir, ob du Richtung Ziel gehst. Die aktuellste Messung (bis 180 Tage alt) verbessert außerdem die Kalorienschätzung.</p>
     ${IB.length?`<div class="list">${IB.slice(0,10).map(m=>`<div class="ib-row"><button class="ib-open" data-act="evalOpen" data-id="${esc(m.id)}"><b>${esc(fmtShortY.format(toDate(m.date)))}</b> <span class="src-tag ${msrc(m)}">${MSRC[msrc(m)]}</span><div class="meta num">${[m.weight?fmtNum(m.weight)+" kg":"",m.smm?"Muskeln "+fmtNum(m.smm)+" kg":"",pbfOf(m)!=null?"KFA "+fmtNum(Math.round(pbfOf(m)*10)/10)+" %":"",m.bmr?"GU "+fmtNum(m.bmr)+" kcal":""].filter(Boolean).join(" · ")}</div><span class="more">Auswertung ›</span></button><button class="btn danger${S.armedIb===m.id?" armed":""}" data-act="ibDel" data-id="${esc(m.id)}">${S.armedIb===m.id?"Wirklich?":"Löschen"}</button></div>`).join("")}</div>`:""}
     ${F2?`<div class="card type-form"><b>${fh?"Fitnesshub-Messung":"InBody-Messung"}</b><div class="form-grid">${ibin("date","Datum","TT.MM.JJJJ")}${ibin("weight","Gewicht (kg)","78,5")}${ibin("smm",fh?"Muskelmasse (kg)":"Skelettmuskelmasse (kg)","35,2")}${ibin("fatMass","Körperfettmasse (kg)","14,1")}${ibin("pbf","Körperfettanteil (%)","18,0")}${ibin("ffm","Fettfreie Masse (kg) · optional","64,4")}${ibin("visc",fh?"Viszeralfett (l) · optional":"Viszeralfett-Level · optional",fh?"1,8":"6")}${ibin("bmr","Grundumsatz (kcal) · optional","1720")}</div>
       ${fh?`<p class="hint" style="margin:0">Die Werte findest du nach der Messung in der EGYM-App bzw. Fitness-Hub-Auswertung. Trag ein, was du hast, mindestens einen Wert.</p>`:""}
       <div class="btn-row"><button class="btn primary" data-act="ibSave">Speichern & auswerten</button><button class="btn" data-act="ibCancel">Abbrechen</button></div></div>`:""}
     ${S.csvPending?`<div class="card type-form"><b>${S.csvPending.length} ${S.csvPending.length===1?"Messung":"Messungen"} erkannt. Von welchem Gerät?</b><div class="btn-row"><button class="btn primary" data-act="csvSrc" data-v="ib">InBody</button><button class="btn primary" data-act="csvSrc" data-v="fh">Fitnesshub</button><button class="btn" data-act="csvCancel">Abbrechen</button></div></div>`:""}
     <div class="btn-row">${F2?"":`<button class="btn" data-act="ibNew" data-src="ib">${ICON.plus}InBody</button><button class="btn" data-act="ibNew" data-src="fh">${ICON.plus}Fitnesshub</button>`}<button class="btn" data-act="ibImport">CSV importieren</button></div>
-    <p class="hint">CSV-Export, zum Beispiel aus der InBody- bzw. LookinBody-App: Die App erkennt Spalten wie Datum, Gewicht, Muskelmasse, Körperfett, Viszeralfett und Grundumsatz (deutsch oder englisch). Ein PDF-Ergebnisblatt kann sie nicht auslesen, die Werte kannst du aber oben eintragen.</p></div>`;
+    <p class="hint">CSV-Export, zum Beispiel aus der InBody- bzw. LookinBody-App: Die App erkennt Spalten wie Datum, Gewicht, Muskelmasse, Körperfett, Viszeralfett und Grundumsatz (deutsch oder englisch). Ein PDF-Ergebnisblatt kann sie nicht auslesen, die Werte kannst du aber oben eintragen.</p>${remSettings()}</div>`;
   const G0=goal(), TK=goalTargetKeys(G0);
   const foodCard=viewFoodCard();
   const goalCard=`<div class="card panel"><h3>Mein Ziel</h3><p class="muted">Woran arbeitest du gerade? Du kannst mehrere Ziele kombinieren, zum Beispiel Fettabbau und Muskelaufbau. Die App bewertet danach deine Messungen, dein Gewicht und deine Kalorienbilanz.</p>
@@ -1766,6 +1823,12 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "remToggle": saveRem({on:!remCfg().on}); render(); break;
+    case "remWeeks": saveRem({weeks:+b.dataset.v}); render(); break;
+    case "remStyle": saveRem({style:b.dataset.v}); render(); break;
+    case "remDone": saveRem({doneAt:todayStr(),snooze:null}); render(); toast("Körperanalyse erledigt – nächste Erinnerung in "+remCfg().weeks+" Wochen"); break;
+    case "remLater": saveRem({snooze:addDays(todayStr(),2)}); render(); toast("Erinnerung in 2 Tagen"); break;
+    case "remEntry": setTab("more"); setTimeout(()=>{ const c=$("#ibCard"); if(c) c.scrollIntoView({behavior:"smooth",block:"start"}); },60); break;
     case "dlgNo": closeDlg(); break;
     case "dlgYes": { const o=S.dlg; closeDlg(); if(o&&o.onOk) o.onOk(); break; }
     case "logDel": { const l=S.docs.get(b.dataset.id), e=l&&ex(l.exId); if(!l) return; const n=(l.sets||[]).length;
