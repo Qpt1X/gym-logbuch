@@ -599,6 +599,11 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .rem-c .track{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}.rem-c .fill{height:100%;border-radius:99px;background:var(--accent)}
 .rem-c .lab{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;color:var(--muted)}
 .rem-c.due{border-color:#e0901f}.rem-c.due .top span{color:#e0901f;font-weight:700}.rem-c.due .fill{background:#e0901f}.rem-c.due .lab .lnk{color:var(--ink)}
+.undo-bar{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border-radius:12px;padding:8px 8px 8px 14px;font-weight:600}
+.undo-bar span{flex:1}.undo-bar .btn{min-height:38px;padding:0 14px}.undo-bar .icon-btn{width:38px;height:38px;border:0;background:none}
+.plan-head{display:flex;justify-content:space-between;align-items:baseline}
+.plan-head .lnk{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
+.unit-go{margin-left:auto;font-size:.82rem;font-weight:700;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -698,7 +703,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.19";
+const APP_VERSION = "3.20";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1092,6 +1097,7 @@ function viewToday(){
   h+=actsCard(date);
   h+=typePicker(date);
   const doneIds0=new Set(today.map(l=>l.exId));
+  h+=undoBar(date);
   h+=plannedList(date,doneIds0);
   if(today.length){
     const vol=today.reduce((a,l)=>a+volume(statSets(l)),0);
@@ -1508,6 +1514,16 @@ function itemsFromDay(date){
   if(ls.length) return ls.filter(l=>ex(l.exId)).map(l=>({id:l.exId,sets:(l.sets||[]).map(st=>({...st}))}));
   return planItems(date).map(x=>({...x}));
 }
+// Übernehmen mit Rückgängig: vorherigen Plan und Trainingsart merken
+function applyWithUndo(date,items,types,name){
+  const d=dayDoc(date)||{};
+  S.undoApply={date,name,plan:JSON.parse(JSON.stringify(d.plan||[])),types:[...dayTypeKeys(d)]};
+  return applyItems(date,items,types);
+}
+function undoBar(date){
+  const U=S.undoApply; if(!U||U.date!==date) return "";
+  return `<div class="undo-bar"><span>„${esc(U.name)}“ übernommen</span><button class="btn" data-act="undoApply">Rückgängig</button><button class="icon-btn" data-act="undoDismiss" aria-label="Hinweis schließen">${ICON.x}</button></div>`;
+}
 function applyItems(date,items,types){
   const cur=planItems(date), byId=new Map(cur.map(x=>[x.id,x]));
   let added=0;
@@ -1526,12 +1542,16 @@ function tplSaveForm(date){
     <div class="btn-row"><button class="btn primary" data-act="tplSave" data-date="${date}">Speichern</button><button class="btn" data-act="tplCancel">Abbrechen</button></div></div>`;
 }
 function viewApplyPick(date){
-  const T=templates(), byDate=logsByDate();
+  const T=templates().sort((x,y)=>x.name.localeCompare(y.name,"de",{numeric:true})), byDate=logsByDate();
   const days=[...byDate.keys()].filter(d=>d!==date).sort().reverse().slice(0,25);
-  const exNames=items=>items.map(it=>ex(it.id)).filter(Boolean).map(e=>e.name);
-  let h=`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(date)))}</p><p class="muted" style="margin:0">Übernimmt alle Übungen in derselben Reihenfolge, mit Sätzen, Gewicht und Wiederholungen als Ziel. Beim Eintragen stehen sie dann als Vorschläge bereit.</p>`;
-  h+=`<div class="group"><h3>Gespeicherte Einheiten</h3>${T.length?`<div class="list">${T.map(t=>{const n=exNames(t.items||[]); return `<div class="ib-row"><button class="grow" data-act="applyTpl" data-id="${esc(t.id)}" style="border:0;background:none;text-align:left;padding:0"><b>${esc(t.name)}</b> ${(t.types||[]).map(k=>typeOf(k)).filter(Boolean).map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}<div class="meta">${n.length} ${n.length===1?"Übung":"Übungen"} · ${esc(n.slice(0,4).join(", "))}${n.length>4?" …":""}</div></button><button class="btn" data-act="tplEdit" data-id="${esc(t.id)}">Bearbeiten</button></div>`;}).join("")}</div>`:`<p class="hint">Noch keine gespeichert. Öffne im Kalender einen Trainingstag und tippe auf „Als Einheit speichern“.</p>`}</div>`;
-  h+=`<div class="group"><h3>Frühere Trainings</h3>${days.length?`<div class="list">${days.map(d=>{const n=byDate.get(d).length, names=sortDayLogs(d,byDate.get(d)).map(l=>ex(l.exId)).filter(Boolean).map(e=>e.name); return `<button class="item" data-act="applyDay" data-src="${d}"><div class="grow"><div class="name" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(dayDiff(d)<7?relDay(d):fmtShortY.format(toDate(d)))} ${typeBadge(d)}</div><div class="sub">${n} ${n===1?"Übung":"Übungen"} · ${esc(names.slice(0,4).join(", "))}${names.length>4?" …":""}</div></div>${ICON.plusItem}</button>`;}).join("")}</div>`:`<p class="hint">Noch keine früheren Trainings eingetragen.</p>`}</div>`;
+  let h=`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(date)))}</p>`;
+  h+=`<div class="group"><h3>Deine Einheiten</h3>${T.length?`<div class="stack">${T.map(t=>{ const E=(t.items||[]).map(it=>ex(it.id)).filter(Boolean), types=(t.types||[]).map(k=>typeOf(k)).filter(Boolean);
+      return `<button class="unit-card" data-act="applyTpl" data-id="${esc(t.id)}"><div class="unit-top"><b>${esc(t.name)}</b>${types.map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}<span class="unit-go">Übernehmen</span></div>
+        <div class="meta">${E.length} ${E.length===1?"Übung":"Übungen"}${E.length?" · "+esc(E.slice(0,4).map(e=>e.name).join(", "))+(E.length>4?" …":""):""}</div>
+        ${E.length?`<div class="unit-thumbs">${E.slice(0,6).map(exThumb).join("")}${E.length>6?`<span class="ex-thumb more">+${E.length-6}</span>`:""}</div>`:""}</button>`; }).join("")}</div>
+      <p class="hint">Übernimmt alle Übungen der Einheit in derselben Reihenfolge. Beim Eintragen stehen die Werte vom letzten Mal als Vorschläge bereit. Falsche Einheit erwischt? Auf der Startseite erscheint danach „Rückgängig“.</p>`
+    :`<p class="hint">Noch keine Einheiten. Leg sie unter „Übungen“ → „Einheiten“ an, z. B. Push, Pull und Beine.</p><button class="btn" data-act="tplCreate">${ICON.plus}Neue Einheit</button>`}</div>`;
+  h+=days.length?`<details class="plan-edit"><summary>Oder ein früheres Training übernehmen</summary><div class="group" style="margin-top:10px">${days.length?`<div class="list">${days.map(d=>{const n=byDate.get(d).length, names=sortDayLogs(d,byDate.get(d)).map(l=>ex(l.exId)).filter(Boolean).map(e=>e.name); return `<button class="item" data-act="applyDay" data-src="${d}"><div class="grow"><div class="name" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(dayDiff(d)<7?relDay(d):fmtShortY.format(toDate(d)))} ${typeBadge(d)}</div><div class="sub">${n} ${n===1?"Übung":"Übungen"} · ${esc(names.slice(0,4).join(", "))}${names.length>4?" …":""}</div></div>${ICON.plusItem}</button>`;}).join("")}</div>`:`<p class="hint">Noch keine früheren Trainings eingetragen.</p>`}</div></details>`:"";
   return h;
 }
 function viewTplEdit(){
@@ -1580,7 +1600,7 @@ function viewPlanPick(date){
 function plannedList(date,loggedIds){
   const rest=planItems(date).filter(x=>!loggedIds.has(x.id));
   if(!rest.length) return "";
-  return `<div class="group"><h3>Geplant${loggedIds.size?", noch offen":""}</h3><div class="list${rest.length>1?" sortable":""}" data-sort="planopen" data-date="${date}">${rest.map(it=>{const id=it.id, e=ex(id), l=lastBefore(id,date), tg=targetText(it);
+  return `<div class="group"><h3 class="plan-head"><span>Geplant${loggedIds.size?", noch offen":""}</span><button class="lnk" data-act="planClear" data-date="${date}">Plan leeren</button></h3><div class="list${rest.length>1?" sortable":""}" data-sort="planopen" data-date="${date}">${rest.map(it=>{const id=it.id, e=ex(id), l=lastBefore(id,date), tg=targetText(it);
     return `<button class="item" data-act="openLog" data-ex="${esc(id)}" data-date="${date}" data-sort-id="${esc(id)}"><div class="grow"><div class="name">${esc(e.name)}</div>${tg?`<div class="sub num" style="color:var(--ink)">Ziel: ${esc(tg)}</div>`:""}<div class="sub num">${l?`Zuletzt ${relDay(l.date)}: ${(l.sets||[]).map(s=>setPlain(s)).join(", ")}`:"Noch nicht trainiert"}</div></div>${ICON.plusItem}</button>`;}).join("")}</div></div>`;
 }
 function nextPlanned(){
@@ -1670,7 +1690,7 @@ function viewDay(date){
   }
   if(date!==todayStr()) h+=dailyCard(date)+actsCard(date);
   const loggedIds=new Set(ls.map(l=>l.exId));
-  const planned=plannedList(date,loggedIds);
+  const planned=undoBar(date)+plannedList(date,loggedIds);
   const editPlan=date===todayStr()?`<details class="plan-edit"${S.planOpen?" open":""}><summary>${planIds(date).length?"Plan bearbeiten":"Übungen für heute planen"}</summary><div class="stack">${planEditor(date)}</div></details>`:"";
   if(!ls.length) return h+planned+(planned?`<button class="btn" data-act="pickFor" data-date="${date}">${ICON.plus}Andere Übung eintragen</button>`:`<div class="card empty"><h3>Kein Training an diesem Tag</h3><p class="muted">Hast du trainiert und es nur nicht eingetragen? Dann kannst du es hier nachtragen.</p><button class="btn primary" data-act="pickFor" data-date="${date}">${ICON.plus}Training nachtragen</button></div>`)+`<button class="btn" data-act="applyOpen" data-date="${date}">${ICON.copy}Einheit übernehmen</button>`+editPlan;
   const sets=ls.reduce((a,l)=>a+(l.sets||[]).length,0), vol=ls.reduce((a,l)=>a+volume(statSets(l)),0);
@@ -1823,6 +1843,11 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "undoApply": { const U=S.undoApply; if(!U) return; S.undoApply=null; savePlan(U.date,U.plan.map(x=>typeof x==="string"?{id:x}:x)); saveDay(U.date,{types:U.types}); render(); toast(`„${U.name}“ wieder entfernt`); break; }
+    case "undoDismiss": S.undoApply=null; render(); break;
+    case "planClear": { const d=b.dataset.date, n=planItems(d).length;
+      askConfirm({title:`Soll der Plan für ${d===todayStr()?"heute":fmtShortY.format(toDate(d))} wirklich geleert werden?`,text:`${n} geplante ${n===1?"Übung wird":"Übungen werden"} aus dem Plan genommen. Bereits eingetragene Sätze bleiben erhalten.`,ok:"Plan leeren",
+        onOk:()=>{ S.undoApply=null; savePlan(d,[]); saveDay(d,{types:[]}); render(); toast("Plan geleert"); }}); break; }
     case "remToggle": saveRem({on:!remCfg().on}); render(); break;
     case "remWeeks": saveRem({weeks:+b.dataset.v}); render(); break;
     case "remStyle": saveRem({style:b.dataset.v}); render(); break;
@@ -1866,9 +1891,10 @@ document.addEventListener("click",ev=>{
     case "applyOpen": push({type:"applyPick",date:b.dataset.date}); break;
     case "applyDay": case "applyTpl": {
       const d=top().date; let items, types;
-      if(a==="applyDay"){ items=itemsFromDay(b.dataset.src); types=dayTypeKeys(dayDoc(b.dataset.src)); }
-      else { const t=S.docs.get(b.dataset.id); if(!t) return; items=t.items||[]; types=t.types||[]; put(b.dataset.id,{...t,usedAt:Date.now()}); }
-      const r=applyItems(d,items,types); pop();
+      let name;
+      if(a==="applyDay"){ items=itemsFromDay(b.dataset.src); types=dayTypeKeys(dayDoc(b.dataset.src)); name="Training vom "+fmtShortY.format(toDate(b.dataset.src)); }
+      else { const t=S.docs.get(b.dataset.id); if(!t) return; items=t.items||[]; types=t.types||[]; name=t.name; put(b.dataset.id,{...t,usedAt:Date.now()}); }
+      const r=applyWithUndo(d,items,types,name); pop();
       if(d===todayStr()&&top()==null) render();
       toast(`${r.total} ${r.total===1?"Übung":"Übungen"} übernommen`); break;
     }
@@ -1892,7 +1918,7 @@ document.addEventListener("click",ev=>{
       if(D.items.some((x,k)=>x.id===nw.id&&k!==t.swap)){ toast(`„${nw.name}“ ist schon in der Einheit`); return; }
       D.items[t.swap]={id:nw.id}; pop(); toast(`${old?old.name+" → ":""}${nw.name}`); break; }
     case "tplToday": { if(!saveTplDraft()) return; const t=S.docs.get(b.dataset.id||S.lastTplId); if(!t) return;
-      const r=applyItems(todayStr(),t.items||[],t.types||[]); put(S.lastTplId,{...t,usedAt:Date.now()}); setTab("today"); toast(`„${t.name}“ für heute übernommen · ${r.total} ${r.total===1?"Übung":"Übungen"}`); break; }
+      const r=applyWithUndo(todayStr(),t.items||[],t.types||[],t.name); put(S.lastTplId,{...t,usedAt:Date.now()}); setTab("today"); toast(`„${t.name}“ für heute übernommen · ${r.total} ${r.total===1?"Übung":"Übungen"}`); break; }
     case "tplToggle": { const D=S.tplDraft; if(!D) return; const id=b.dataset.ex, i=D.items.findIndex(x=>x.id===id); if(i>=0) D.items.splice(i,1); else D.items.push({id}); const y=window.scrollY; render(); window.scrollTo(0,y); break; }
     case "tplRm": { const D=S.tplDraft; if(!D) return; const i=+b.dataset.i, e=ex(D.items[i]&&D.items[i].id);
       askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ wirklich aus der Einheit „${D.name.trim()||"ohne Namen"}“ entfernt werden?`,text:"Die Übung selbst und deine bisherigen Einträge bleiben erhalten. Die Änderung gilt, sobald du die Einheit speicherst.",ok:"Entfernen",
