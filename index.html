@@ -604,6 +604,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .plan-head{display:flex;justify-content:space-between;align-items:baseline}
 .plan-head .lnk{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
 .unit-go{margin-left:auto;font-size:.82rem;font-weight:700;color:var(--accent)}
+.sugg-box{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -703,7 +704,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.20";
+const APP_VERSION = "3.21";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1165,12 +1166,9 @@ function viewExercises(){
 }
 function exSwitch(){ const u=S.exView==="units"; return `<div class="seg wide" role="tablist"><button data-act="exView" data-v="list" aria-pressed="${!u}">Übungen</button><button data-act="exView" data-v="units" aria-pressed="${u}">Einheiten${templates().length?` · ${templates().length}`:""}</button></div>`; }
 function viewUnits(){
-  const T=templates();
-  const cards=T.map(t=>{ const E=(t.items||[]).map(it=>ex(it.id)).filter(Boolean), types=(t.types||[]).map(k=>typeOf(k)).filter(Boolean);
-    return `<button class="unit-card" data-act="tplEdit" data-id="${esc(t.id)}"><div class="unit-top"><b>${esc(t.name)}</b>${types.map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}${ICON.chev}</div>
-      <div class="meta">${E.length} ${E.length===1?"Übung":"Übungen"}${E.length?" · "+esc(E.slice(0,4).map(e=>e.name).join(", "))+(E.length>4?" …":""):""}</div>
-      ${E.length?`<div class="unit-thumbs">${E.slice(0,6).map(exThumb).join("")}${E.length>6?`<span class="ex-thumb more">+${E.length-6}</span>`:""}</div>`:""}</button>`; }).join("");
-  return `<button class="btn" data-act="tplCreate">${ICON.plus}Neue Einheit</button>
+  const T=templates().sort((x,y)=>x.name.localeCompare(y.name,"de",{numeric:true}));
+  const cards=T.map(t=>unitCard(t,"tplEdit")).join("");
+  return `${suggestBox()}<button class="btn" data-act="tplCreate">${ICON.plus}Neue Einheit</button>
   ${T.length?`<div class="stack">${cards}</div><p class="hint">Eine Einheit ist deine Vorlage, z. B. für Push, Pull oder Beine. Antippen zum Bearbeiten: Übungen hinzufügen, austauschen, entfernen oder umsortieren. Mit „Heute trainieren“ landet die ganze Einheit in deinem Tagesplan, beim Eintragen stehen dann die Werte vom letzten Mal als Vorschlag bereit.</p>`
     :`<div class="card empty"><h3>Noch keine Einheiten</h3><p class="muted">Leg z. B. „Push“, „Pull“ oder „Beine“ an und wähl die passenden Übungen aus. Im Gym übernimmst du die ganze Einheit dann mit einem Tipp.</p></div>`}`;
 }
@@ -1541,16 +1539,40 @@ function tplSaveForm(date){
     <p class="hint" style="margin:0">Speichert ${itemsFromDay(date).length} Übungen mit allen Sätzen, Gewichten und Wiederholungen. Du kannst die Einheit dann an jedem Tag mit einem Tipp übernehmen.</p>
     <div class="btn-row"><button class="btn primary" data-act="tplSave" data-date="${date}">Speichern</button><button class="btn" data-act="tplCancel">Abbrechen</button></div></div>`;
 }
+// Wann wurde eine Einheit zuletzt trainiert? Letzter Trainingstag mit derselben Trainingsart
+function unitLastDone(t){
+  const ty=new Set(t.types||[]); if(!ty.size) return null;
+  const days=[...logsByDate().keys()].filter(d=>d<=todayStr()&&dayTypeKeys(dayDoc(d)).some(k=>ty.has(k))).sort();
+  return days.pop()||null;
+}
+// Vorschläge: Trainingsarten, die du schon trainiert, aber noch nicht als Einheit gespeichert hast
+function unitSuggestions(){
+  const have=new Set(templates().map(t=>[...(t.types||[])].sort().join("+")).filter(Boolean)), names=new Set(templates().map(t=>t.name.toLowerCase()));
+  const byKey=new Map();
+  for(const d of [...logsByDate().keys()].sort()){ const ks=dayTypeKeys(dayDoc(d)); if(!ks.length) continue; const key=[...ks].sort().join("+"); byKey.set(key,{date:d,types:ks}); }
+  return [...byKey.entries()].filter(([k,v])=>!have.has(k)&&!names.has(typesName(v.types.map(typeOf).filter(Boolean)).toLowerCase())).map(([k,v])=>({...v,name:typesName(v.types.map(typeOf).filter(Boolean)),n:itemsFromDay(v.date).length})).filter(x=>x.name&&x.n);
+}
+function suggestBox(){
+  const L=unitSuggestions(); if(!L.length) return "";
+  return `<div class="card panel sugg-box"><b>Einheiten aus deinen Trainings anlegen</b>
+    <div class="meta">${L.map(x=>`${esc(x.name)} (${x.n} Übungen, ${esc(relDay(x.date))})`).join(" · ")}</div>
+    <button class="btn primary" data-act="tplFromDays">${ICON.plus}${L.length===1?"Als Einheit":"Alle "+L.length+" als Einheiten"} speichern</button>
+    <p class="hint">Nimmt jeweils dein letztes Training dieser Art mit allen Übungen in derselben Reihenfolge. Danach findest du sie hier und unter „Übungen“ → „Einheiten“ und kannst sie dort jederzeit ändern.</p></div>`;
+}
+function unitCard(t,act){
+  const E=(t.items||[]).map(it=>ex(it.id)).filter(Boolean), types=(t.types||[]).map(k=>typeOf(k)).filter(Boolean), last=unitLastDone(t);
+  return `<button class="unit-card" data-act="${act}" data-id="${esc(t.id)}"><div class="unit-top"><b>${esc(t.name)}</b>${types.map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}${act==="applyTpl"?`<span class="unit-go">Übernehmen</span>`:ICON.chev}</div>
+    <div class="meta">${E.length} ${E.length===1?"Übung":"Übungen"}${last?` · zuletzt ${esc(dayDiff(last)<7?relDay(last):fmtShortY.format(toDate(last)))}`:""}</div>
+    ${E.length?`<div class="unit-thumbs">${E.slice(0,6).map(exThumb).join("")}${E.length>6?`<span class="ex-thumb more">+${E.length-6}</span>`:""}</div>`:""}</button>`;
+}
 function viewApplyPick(date){
   const T=templates().sort((x,y)=>x.name.localeCompare(y.name,"de",{numeric:true})), byDate=logsByDate();
   const days=[...byDate.keys()].filter(d=>d!==date).sort().reverse().slice(0,25);
   let h=`<p class="eyebrow">Für ${esc(fmtLong.format(toDate(date)))}</p>`;
-  h+=`<div class="group"><h3>Deine Einheiten</h3>${T.length?`<div class="stack">${T.map(t=>{ const E=(t.items||[]).map(it=>ex(it.id)).filter(Boolean), types=(t.types||[]).map(k=>typeOf(k)).filter(Boolean);
-      return `<button class="unit-card" data-act="applyTpl" data-id="${esc(t.id)}"><div class="unit-top"><b>${esc(t.name)}</b>${types.map(x=>`<span class="tbadge ty-${x.c}">${esc(x.n)}</span>`).join(" ")}<span class="unit-go">Übernehmen</span></div>
-        <div class="meta">${E.length} ${E.length===1?"Übung":"Übungen"}${E.length?" · "+esc(E.slice(0,4).map(e=>e.name).join(", "))+(E.length>4?" …":""):""}</div>
-        ${E.length?`<div class="unit-thumbs">${E.slice(0,6).map(exThumb).join("")}${E.length>6?`<span class="ex-thumb more">+${E.length-6}</span>`:""}</div>`:""}</button>`; }).join("")}</div>
+  h+=suggestBox();
+  h+=`<div class="group"><h3>Deine Einheiten</h3>${T.length?`<div class="stack">${T.map(t=>unitCard(t,"applyTpl")).join("")}</div>
       <p class="hint">Übernimmt alle Übungen der Einheit in derselben Reihenfolge. Beim Eintragen stehen die Werte vom letzten Mal als Vorschläge bereit. Falsche Einheit erwischt? Auf der Startseite erscheint danach „Rückgängig“.</p>`
-    :`<p class="hint">Noch keine Einheiten. Leg sie unter „Übungen“ → „Einheiten“ an, z. B. Push, Pull und Beine.</p><button class="btn" data-act="tplCreate">${ICON.plus}Neue Einheit</button>`}</div>`;
+    :`<p class="hint">Noch keine Einheiten gespeichert.</p><button class="btn" data-act="tplCreate">${ICON.plus}Neue Einheit</button>`}</div>`;
   h+=days.length?`<details class="plan-edit"><summary>Oder ein früheres Training übernehmen</summary><div class="group" style="margin-top:10px">${days.length?`<div class="list">${days.map(d=>{const n=byDate.get(d).length, names=sortDayLogs(d,byDate.get(d)).map(l=>ex(l.exId)).filter(Boolean).map(e=>e.name); return `<button class="item" data-act="applyDay" data-src="${d}"><div class="grow"><div class="name" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${esc(dayDiff(d)<7?relDay(d):fmtShortY.format(toDate(d)))} ${typeBadge(d)}</div><div class="sub">${n} ${n===1?"Übung":"Übungen"} · ${esc(names.slice(0,4).join(", "))}${names.length>4?" …":""}</div></div>${ICON.plusItem}</button>`;}).join("")}</div>`:`<p class="hint">Noch keine früheren Trainings eingetragen.</p>`}</div></details>`:"";
   return h;
 }
@@ -1843,6 +1865,8 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "tplFromDays": { const L=unitSuggestions(); for(const x of L){ put(rid("tp"),{kind:"tpl",name:x.name,types:[...x.types],items:itemsFromDay(x.date),createdAt:Date.now(),updatedAt:Date.now()}); }
+      render(); toast(L.length===1?`Einheit „${L[0].name}“ angelegt`:`${L.length} Einheiten angelegt`); break; }
     case "undoApply": { const U=S.undoApply; if(!U) return; S.undoApply=null; savePlan(U.date,U.plan.map(x=>typeof x==="string"?{id:x}:x)); saveDay(U.date,{types:U.types}); render(); toast(`„${U.name}“ wieder entfernt`); break; }
     case "undoDismiss": S.undoApply=null; render(); break;
     case "planClear": { const d=b.dataset.date, n=planItems(d).length;
