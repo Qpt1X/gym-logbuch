@@ -601,10 +601,13 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .rem-c.due{border-color:#e0901f}.rem-c.due .top span{color:#e0901f;font-weight:700}.rem-c.due .fill{background:#e0901f}.rem-c.due .lab .lnk{color:var(--ink)}
 .undo-bar{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border-radius:12px;padding:8px 8px 8px 14px;font-weight:600}
 .undo-bar span{flex:1}.undo-bar .btn{min-height:38px;padding:0 14px}.undo-bar .icon-btn{width:38px;height:38px;border:0;background:none}
-.plan-head{display:flex;justify-content:space-between;align-items:baseline}
-.plan-head .lnk{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
+.plan-head{display:flex;align-items:center;gap:2px}
+.plan-head .lnk{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:auto;order:3}
 .unit-go{margin-left:auto;font-size:.82rem;font-weight:700;color:var(--accent)}
 .sugg-box{border-color:var(--accent)}
+.item.plan-open{padding:0 6px 0 0;gap:4px}
+.pl-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:13px 4px 13px 14px;background:none;border:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.pl-main .grow{flex:1;min-width:0}
 </style>
 </head>
 <body>
@@ -704,7 +707,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.21";
+const APP_VERSION = "3.22";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1621,9 +1624,11 @@ function viewPlanPick(date){
 }
 function plannedList(date,loggedIds){
   const rest=planItems(date).filter(x=>!loggedIds.has(x.id));
-  if(!rest.length) return "";
+  // Nach „Training beenden“ werden offene Übungen ausgeblendet (bei „Training fortsetzen“ sind sie wieder da)
+  if(!rest.length||(dayDoc(date)&&dayDoc(date).done)) return "";
   return `<div class="group"><h3 class="plan-head"><span>Geplant${loggedIds.size?", noch offen":""}</span><button class="lnk" data-act="planClear" data-date="${date}">Plan leeren</button></h3><div class="list${rest.length>1?" sortable":""}" data-sort="planopen" data-date="${date}">${rest.map(it=>{const id=it.id, e=ex(id), l=lastBefore(id,date), tg=targetText(it);
-    return `<button class="item" data-act="openLog" data-ex="${esc(id)}" data-date="${date}" data-sort-id="${esc(id)}"><div class="grow"><div class="name">${esc(e.name)}</div>${tg?`<div class="sub num" style="color:var(--ink)">Ziel: ${esc(tg)}</div>`:""}<div class="sub num">${l?`Zuletzt ${relDay(l.date)}: ${(l.sets||[]).map(s=>setPlain(s)).join(", ")}`:"Noch nicht trainiert"}</div></div>${ICON.plusItem}</button>`;}).join("")}</div></div>`;
+    return `<div class="item plan-open" data-sort-id="${esc(id)}"><button class="pl-main" data-act="openLog" data-ex="${esc(id)}" data-date="${date}"><div class="grow"><div class="name">${esc(e.name)}</div>${tg?`<div class="sub num" style="color:var(--ink)">Ziel: ${esc(tg)}</div>`:""}<div class="sub num">${l?`Zuletzt ${relDay(l.date)}: ${(l.sets||[]).map(s=>setPlain(s)).join(", ")}`:"Noch nicht trainiert"}</div></div>${ICON.plusItem}</button><button class="icon-btn trash" data-act="planRmOpen" data-date="${date}" data-ex="${esc(id)}" aria-label="${esc(e.name)} aus dem Plan entfernen">${ICON.trash}</button></div>`;}).join("")}</div>
+    <p class="hint">Der Papierkorb nimmt eine Übung nur aus dem Plan für diesen Tag, z. B. wenn du sie heute nicht schaffst. Die Übung selbst und deine gespeicherten Einheiten bleiben unverändert. Beim Beenden des Trainings werden noch offene Übungen automatisch ausgeblendet.</p></div>`;
 }
 function nextPlanned(){
   const today=todayStr(); let best=null;
@@ -1865,6 +1870,9 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "planRmOpen": { const d=b.dataset.date, id=b.dataset.ex, e=ex(id);
+      askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ aus dem Plan für ${d===todayStr()?"heute":fmtShortY.format(toDate(d))} entfernt werden?`,text:"Die Übung selbst und deine gespeicherten Einheiten bleiben unverändert.",ok:"Entfernen",
+        onOk:()=>{ savePlan(d,planItems(d).filter(x=>x.id!==id)); render(); toast(`„${e?e.name:"Übung"}“ aus dem Plan entfernt`); }}); break; }
     case "tplFromDays": { const L=unitSuggestions(); for(const x of L){ put(rid("tp"),{kind:"tpl",name:x.name,types:[...x.types],items:itemsFromDay(x.date),createdAt:Date.now(),updatedAt:Date.now()}); }
       render(); toast(L.length===1?`Einheit „${L[0].name}“ angelegt`:`${L.length} Einheiten angelegt`); break; }
     case "undoApply": { const U=S.undoApply; if(!U) return; S.undoApply=null; savePlan(U.date,U.plan.map(x=>typeof x==="string"?{id:x}:x)); saveDay(U.date,{types:U.types}); render(); toast(`„${U.name}“ wieder entfernt`); break; }
