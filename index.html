@@ -77,7 +77,7 @@ main .wrap{display:flex;flex-direction:column;gap:20px;padding-block:8px 24px}
 
 /* Tab bar */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs .wrap{display:grid;grid-template-columns:repeat(5,1fr)}
 .tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 10px;font-size:.78rem;font-weight:600;color:var(--muted)}
 .tab svg{width:24px;height:24px}
 .tab[aria-current="page"]{color:var(--accent)}
@@ -630,6 +630,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
   <div class="wrap">
     <button class="tab" data-act="tab" data-tab="today" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>Training</button>
     <button class="tab" data-act="tab" data-tab="exercises"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>Übungen</button>
+    <button class="tab" data-act="tab" data-tab="units"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="5" rx="1.5"/><rect x="4" y="10" width="16" height="5" rx="1.5"/><rect x="4" y="16.5" width="16" height="4" rx="1.5"/></svg>Einheiten</button>
     <button class="tab" data-act="tab" data-tab="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Verlauf</button>
     <button class="tab" data-act="tab" data-tab="more"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/></svg>Mehr</button>
   </div>
@@ -711,7 +712,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.24";
+const APP_VERSION = "3.25";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -722,7 +723,7 @@ function allTypes(){ return [...DAY_TYPES,...customTypes().map(t=>({k:t.k,n:t.n,
 const typeOf = k => k?allTypes().find(t=>t.k===k)||null:null;
 function abbr(n){ const w=n.trim().split(/[\s&+\/,-]+/).filter(Boolean); if(w.length>1) return (w[0][0]+w[1][0]).toUpperCase(); const x=w[0]||"?"; return x.length<=2?x:x[0].toUpperCase()+x[1].toLowerCase(); }
 const RANGES = [["4w","4 Wochen","Letzte 4 Wochen"],["3m","3 Monate","Letzte 3 Monate"],["6m","6 Monate","Letzte 6 Monate"],["12m","12 Monate","Letzte 12 Monate"],["all","Alles","Gesamter Zeitraum"]];
-const TAB_TITLES = {today:"Training", exercises:"Übungen", history:"Verlauf", more:"Mehr"};
+const TAB_TITLES = {today:"Training", exercises:"Übungen", units:"Meine Einheiten", history:"Verlauf", more:"Mehr"};
 
 const ICON = {
   flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.3 1.2-3.7 2.3-4.8.3 1.5 1 2.4 2 2.8-.6-2.8.2-5.6.7-8z"/></svg>',
@@ -1076,7 +1077,7 @@ function render(){
     else if(t.type==="act"){ title="Aktivität"; html=viewAct(t.date); }
     else if(t.type==="day"){ title=dayDiff(t.date)<2?relDay(t.date):fmtShortY.format(toDate(t.date)); html=viewDay(t.date); }
   } else {
-    html={today:viewToday,exercises:viewExercises,history:viewHistory,more:viewMore}[S.tab]();
+    html={today:viewToday,exercises:viewExercises,units:viewUnits,history:viewHistory,more:viewMore}[S.tab]();
   }
   $("#ttl").textContent=title;
   const upd=waitingWorker&&!(t&&(t.type==="log"||t.type==="editEx"))?`<div class="update-bar"><span>Neue Version verfügbar</span><button class="btn primary" data-act="update">Aktualisieren</button></div>`:"";
@@ -1124,7 +1125,7 @@ function viewToday(){
     <div class="btn-row"><button class="btn" data-act="pick">${ICON.plus}Noch etwas eintragen</button><button class="btn" data-act="unfinish" data-date="${date}">Training fortsetzen</button></div>`;
   } else {
     h+=`<button class="btn primary big" data-act="pick">${ICON.plus}Übung eintragen</button>`;
-    if(!today.length) h+=`<button class="btn" data-act="applyOpen" data-date="${date}">${ICON.copy}Ganze Einheit übernehmen</button>`;
+    h+=`<button class="btn" data-act="applyOpen" data-date="${date}">${ICON.copy}Ganze Einheit übernehmen</button>`;
     if(today.length) h+=`<button class="btn success big" data-act="finish" data-date="${date}">${ICON.check}Training beenden</button>`;
   }
   const np=nextPlanned();
@@ -1169,8 +1170,7 @@ function viewExercises(){
   const okIds=new Set(cfg().vagueOk||[]), VG=["Arme","Rücken","Schultern"];
   const vague=exs.filter(e=>!okIds.has(e.id)&&exGroups(e).some(g=>VG.includes(g)));
   const tip=vague.length?`<div class="card panel"><b>Muskeln genauer einordnen</b><p class="muted" style="margin:0">Bei ${vague.length===1?"dieser Übung":"diesen Übungen"} steht nur grob „Arme“, „Rücken“ oder „Schultern“. Tipp drauf und wähl die genauen Muskeln, z. B. Latissimus oder hintere Schulter. Dann zeigt die Körperansicht genau, was du trainiert hast.</p><div class="chips">${vague.map(e=>`<button class="chip" data-act="editEx" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join("")}</div><button class="btn ghost" data-act="vagueOk" style="align-self:flex-start;min-height:34px;padding:0 4px">Passt so, ausblenden</button></div>`:"";
-  if(S.exView==="units") return exSwitch()+viewUnits();
-  return `${exSwitch()}${tip}${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
+  return `${tip}${searchBox()}<button class="btn" data-act="newEx">${ICON.plus}Neue Übung</button><div id="exlist" class="stack">${exerciseList(exs,"openEx")}</div>`;
 }
 function exSwitch(){ const u=S.exView==="units"; return `<div class="seg wide" role="tablist"><button data-act="exView" data-v="list" aria-pressed="${!u}">Übungen</button><button data-act="exView" data-v="units" aria-pressed="${u}">Einheiten${templates().length?` · ${templates().length}`:""}</button></div>`; }
 function viewUnits(){
