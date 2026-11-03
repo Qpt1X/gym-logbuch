@@ -707,7 +707,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.22";
+const APP_VERSION = "3.23";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -932,7 +932,7 @@ function enter(screen){
   if(screen.type==="log") openDraft(screen.exId,screen.date);
   if(screen.type==="editEx"){ openExDraft(screen.exId); if(screen.egym) S.exDraft.egym=true; }
   if(screen.type==="pick"||screen.type==="planPick"||screen.type==="tplPick") S.query="";
-  if(screen.type==="tplEdit"&&(!S.tplDraft||S.tplDraft.id!==screen.id)){ const t=S.docs.get(screen.id); S.tplDraft=t?{id:screen.id,name:t.name||"",items:(t.items||[]).filter(it=>ex(it.id)).map(it=>JSON.parse(JSON.stringify(it)))}:screen.isNew?{id:screen.id,name:"",items:[],isNew:true}:null; S.armedTpl=null; }
+  if(screen.type==="tplEdit"&&(!S.tplDraft||S.tplDraft.id!==screen.id)){ const t=S.docs.get(screen.id); S.tplDraft=t?{id:screen.id,name:t.name||"",types:[...(t.types||[])],items:(t.items||[]).filter(it=>ex(it.id)).map(it=>JSON.parse(JSON.stringify(it)))}:screen.isNew?{id:screen.id,name:"",types:[],items:[],isNew:true}:null; S.armedTpl=null; }
   if(screen.type==="day") S.typeForm=null;
   if(screen.type==="exercise") S.prog.sel=null;
   if(screen.type==="report") S.rep={range:"3m",exIds:screen.exId?new Set([screen.exId]):null,chart:true,table:true,result:null,busy:false};
@@ -1587,6 +1587,8 @@ function viewTplEdit(){
       <button class="icon-btn" data-act="tplMove" data-i="${i}" data-d="1" aria-label="Nach unten"${i===D.items.length-1?" disabled":""}>${ICON.down}</button>
       <button class="icon-btn trash" data-act="tplRm" data-i="${i}" aria-label="${esc(e.name)} entfernen">${ICON.trash}</button></div>`; }).join("");
   return `<label class="field"><span>Name der Einheit</span><input class="input" id="tpled-name" data-field="tplEdName" maxlength="30" value="${esc(D.name)}" autocomplete="off"></label>
+  <div class="field"><span>Trainingsart</span><div class="type-row">${allTypes().map(x=>`<button class="tchip ty-${x.c}" data-act="tplType" data-k="${esc(x.k)}" aria-pressed="${(D.types||[]).includes(x.k)}"><i></i>${esc(x.n)}</button>`).join("")}</div>
+    <p class="hint">Die Trainingsart wird beim Übernehmen für den Tag gesetzt und bestimmt, wann die Einheit „zuletzt“ trainiert wurde.</p></div>
   <div class="field"><span>Übungen · ${D.items.length}</span>${D.items.length?`<div class="list">${rows}</div><p class="hint">Der Papierkorb nimmt die Übung nur aus dieser Einheit heraus. Die Übung selbst und alle deine bisherigen Einträge bleiben erhalten. Wirksam wird das erst, wenn du unten auf „Speichern“ tippst. Tippst du auf eine Übung, kannst du sie gegen eine andere austauschen; sie bleibt an derselben Stelle.</p>`:`<p class="hint">Noch keine Übungen in dieser Einheit.</p>`}</div>
   <button class="btn" data-act="tplAddEx">${ICON.plus}Übung hinzufügen</button>
   ${D.items.length?`<button class="btn success big" data-act="tplToday">${ICON.check}Heute trainieren</button>`:""}
@@ -1603,9 +1605,17 @@ function viewTplPick(){
 function saveTplDraft(){
   const D=S.tplDraft; if(!D) return false; const name=D.name.trim();
   if(!name){ toast("Gib der Einheit einen Namen"); const i=$("#tpled-name"); i&&i.focus(); return false; }
-  if(templates().some(t=>t.id!==D.id&&t.name.toLowerCase()===name.toLowerCase())){ toast(`„${name}“ gibt es schon – bitte anderen Namen wählen`); return false; }
+  const other=templates().find(t=>t.id!==D.id&&t.name.toLowerCase()===name.toLowerCase());
   const cur=S.docs.get(D.id)||{kind:"tpl",createdAt:Date.now()};
-  put(D.id,{...cur,kind:"tpl",name,items:D.items,updatedAt:Date.now()}); S.lastTplId=D.id; S.tplDraft=null; return true;
+  if(other){
+    // Name schon vergeben: anbieten, die Namen der beiden Einheiten zu tauschen (z. B. Push ↔ Pull vertauscht)
+    if(!cur.name){ toast(`„${name}“ gibt es schon – bitte anderen Namen wählen`); return false; }
+    askConfirm({title:`„${other.name}“ gibt es schon. Sollen die beiden Einheiten ihre Namen tauschen?`,text:`Diese Einheit heißt danach „${name}“, die andere „${cur.name}“.`,ok:"Namen tauschen",
+      onOk:()=>{ const o=S.docs.get(other.id), same=(a,b)=>[...(a||[])].sort().join()===[...(b||[])].sort().join(); put(other.id,{...o,name:cur.name,...(same(o.types,D.types)&&!same(cur.types,D.types)?{types:[...(cur.types||[])]}:{}),updatedAt:Date.now()}); put(D.id,{...cur,kind:"tpl",name,types:[...(D.types||[])],items:D.items,updatedAt:Date.now()}); S.lastTplId=D.id; S.tplDraft=null;
+        if(top()&&top().type==="tplEdit") pop(); else render(); toast(`Namen getauscht: „${name}“ ↔ „${cur.name}“`); }});
+    return false;
+  }
+  put(D.id,{...cur,kind:"tpl",name,types:[...(D.types||[])],items:D.items,updatedAt:Date.now()}); S.lastTplId=D.id; S.tplDraft=null; return true;
 }
 function viewTplCard(){
   const T=templates(); if(!T.length) return "";
@@ -1870,6 +1880,7 @@ document.addEventListener("click",ev=>{
     case "addSetting": S.exDraft.settings.push({k:b.dataset.k,v:""}); render(); setTimeout(()=>{const i=S.exDraft.settings.length-1; const el=$((b.dataset.k?"#sv-":"#sk-")+i); el&&el.focus();},30); break;
     case "rmSetting": S.exDraft.settings.splice(+b.dataset.i,1); render(); break;
     case "noop": break;
+    case "tplType": { const D=S.tplDraft; if(!D) return; const k=b.dataset.k, T=D.types||(D.types=[]), i=T.indexOf(k); if(i>=0) T.splice(i,1); else T.push(k); render(); break; }
     case "planRmOpen": { const d=b.dataset.date, id=b.dataset.ex, e=ex(id);
       askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ aus dem Plan für ${d===todayStr()?"heute":fmtShortY.format(toDate(d))} entfernt werden?`,text:"Die Übung selbst und deine gespeicherten Einheiten bleiben unverändert.",ok:"Entfernen",
         onOk:()=>{ savePlan(d,planItems(d).filter(x=>x.id!==id)); render(); toast(`„${e?e.name:"Übung"}“ aus dem Plan entfernt`); }}); break; }
