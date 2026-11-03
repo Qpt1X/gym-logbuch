@@ -612,6 +612,8 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .unit-wrap .unit-card{border-bottom-left-radius:0;border-bottom-right-radius:0}
 .unit-edit{display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:1px solid var(--line);border-top:0;border-radius:0 0 var(--radius) var(--radius);background:var(--sunk);color:var(--ink);font:inherit;font-size:.9rem;font-weight:600;cursor:pointer}
 .unit-edit svg{width:16px;height:16px}
+.dlt.mix{background:var(--sunk);color:var(--muted);display:inline-flex;gap:6px}
+.dlt.mix .u{color:var(--ok)}.dlt.mix .d{color:var(--pr)}
 </style>
 </head>
 <body>
@@ -712,7 +714,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.25";
+const APP_VERSION = "3.26";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -960,15 +962,23 @@ function openDraft(exId,date){
 function cmpCfg(){ const c=cfg().cmp||{}; return {on:!!c.on,style:c.style==="table"?"table":"rows"}; }
 // Wert zum Vergleichen: bei Gegengewicht zählt das echte Trainingsgewicht (weniger Gegengewicht = mehr)
 function cmpW(w,a){ if(w==null) return null; if(!asA(a)) return w; const e=effW(w,a); return e!=null?e:-w; }
+// Vergleich pro Satz: Gewicht UND Wiederholungen. Grün nur, wenn nichts schlechter wurde;
+// rot nur, wenn nichts besser wurde; sonst (mehr Gewicht, weniger Wdh. o. ä.) neutral mit beiden Änderungen.
 function cmpDelta(cur,old,a){
   if(!cur||!old) return null;
-  const cw=cmpW(cur.w,a), ow=cmpW(old.w,a);
-  if(cw!=null&&ow!=null&&Math.abs(cw-ow)>=0.01){ const d=Math.round((cw-ow)*100)/100; return {dir:d>0?1:-1,txt:`${fmtNum(Math.abs(d))} kg`}; }
-  if(cur.r!=null&&old.r!=null&&cur.r!==old.r){ const d=cur.r-old.r; return {dir:d>0?1:-1,txt:`${Math.abs(d)} Wdh.`}; }
-  if((cw!=null||cur.r!=null)&&(cw==null||ow!=null)&&(cur.r==null||old.r!=null)) return {dir:0,txt:"gleich"};
-  return null;
+  const cw=cmpW(cur.w,a), ow=cmpW(old.w,a), parts=[];
+  if(cw!=null&&ow!=null&&Math.abs(cw-ow)>=0.01){ const d=Math.round((cw-ow)*100)/100; parts.push({d:d>0?1:-1,txt:`${fmtNum(Math.abs(d))} kg`}); }
+  if(cur.r!=null&&old.r!=null&&cur.r!==old.r){ const d=cur.r-old.r; parts.push({d:d>0?1:-1,txt:`${Math.abs(d)} Wdh.`}); }
+  if(!parts.length) return (cw!=null||cur.r!=null)&&(cw==null||ow!=null)&&(cur.r==null||old.r!=null)?{dir:0,parts:[]}:null;
+  const up=parts.some(x=>x.d>0), dn=parts.some(x=>x.d<0);
+  return {dir:up&&dn?"mix":up?1:-1,parts};
 }
-function dltChip(d){ if(!d) return ""; return `<span class="dlt${d.dir>0?" up":d.dir<0?" dn":""}">${d.dir>0?"▲ ":d.dir<0?"▼ ":"= "}${esc(d.txt)}</span>`; }
+function dltChip(d){
+  if(!d) return "";
+  if(!d.parts.length) return `<span class="dlt">= gleich</span>`;
+  if(d.dir==="mix") return `<span class="dlt mix">${d.parts.map(x=>`<b class="${x.d>0?"u":"d"}">${x.d>0?"▲":"▼"} ${esc(x.txt)}</b>`).join(" ")}</span>`;
+  return `<span class="dlt ${d.dir>0?"up":"dn"}">${d.dir>0?"▲ ":"▼ "}${esc(d.parts.map(x=>x.txt).join(" · "))}</span>`;
+}
 function draftOwn(){ return S.draft.sets.map(s=>{ const w=parseNum(s.w), r=parseNum(s.r); return w==null&&r==null?null:{w,r:r==null?null:Math.round(r)}; }); }
 function oldTxt(s,a){ return s?setPlain(s,a):"–"; }
 function cmpRowHtml(i,last,a){
@@ -3173,7 +3183,7 @@ function cmpCard(){
   return `<div class="card panel"><h3>Vergleich beim Eintragen</h3>
     <div class="switch-row"><span>Letzte Trainingseinheit zum Vergleich einblenden</span><button class="switch" role="switch" data-act="cmpToggle" aria-checked="${C.on}" aria-label="Vergleich mit letzter Einheit"></button></div>
     ${C.on?`<div class="field"><span>Darstellung</span><div class="chips"><button class="chip" data-act="cmpStyle" data-v="rows" aria-pressed="${C.style==="rows"}">Zeile unter jedem Satz</button><button class="chip" data-act="cmpStyle" data-v="table" aria-pressed="${C.style==="table"}">Vergleichstabelle</button></div></div>
-    <p class="hint">${C.style==="rows"?"Unter jedem Satz steht, was du letztes Mal geschafft hast, mit grünem Pfeil nach oben bei mehr Gewicht oder Wiederholungen und rotem Pfeil nach unten bei weniger.":"Über den Eingabefeldern steht eine Tabelle: letztes Mal und heute Satz für Satz nebeneinander, mit Pfeilen und einem Balken für dein Gesamtvolumen."} Verglichen wird immer Satz 1 mit Satz 1 usw.; zuerst das Gewicht, bei gleichem Gewicht die Wiederholungen.</p>`
+    <p class="hint">${C.style==="rows"?"Unter jedem Satz steht, was du letztes Mal geschafft hast, mit grünem Pfeil nach oben bei mehr Gewicht oder Wiederholungen und rotem Pfeil nach unten bei weniger.":"Über den Eingabefeldern steht eine Tabelle: letztes Mal und heute Satz für Satz nebeneinander, mit Pfeilen und einem Balken für dein Gesamtvolumen."} Verglichen wird immer Satz 1 mit Satz 1 usw., und zwar Gewicht und Wiederholungen. Grün heißt: nichts schlechter, mindestens eins besser. Rot heißt: nichts besser, mindestens eins schlechter. Hast du z. B. mehr Gewicht, aber weniger Wiederholungen gemacht, zeigt ein grauer Hinweis beide Änderungen, denn das ist weder klar Fortschritt noch Rückschritt.</p>`
     :`<p class="hint">Ausgeschaltet siehst du wie bisher eine Zeile „Letztes Mal“ und die alten Werte als graue Vorschläge.</p>`}
   </div>`;
 }
