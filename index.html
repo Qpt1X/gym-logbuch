@@ -614,6 +614,7 @@ body.has-rest main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 .unit-edit svg{width:16px;height:16px}
 .dlt.mix{background:var(--sunk);color:var(--muted);display:inline-flex;gap:6px}
 .dlt.mix .u{color:var(--ok)}.dlt.mix .d{color:var(--pr)}
+.gsym{font-size:1.1rem;line-height:1;margin-right:2px}
 </style>
 </head>
 <body>
@@ -714,7 +715,7 @@ function exGroups(e){ const g=Array.isArray(e.groups)&&e.groups.length?e.groups:
 function groupsText(e){ return exGroups(e).join(" · "); }
 const SETTING_SUGGEST = ["Sitzhöhe","Rückenlehne","Griff","Polster","Fußposition","Bank-Neigung","Kabelhöhe","Startposition"];
 const LS_KEY = "gym-logbuch.v1";
-const APP_VERSION = "3.26";
+const APP_VERSION = "3.27";
 const DAY_TYPES = [{k:"push",n:"Push",a:"Pu"},{k:"pull",n:"Pull",a:"Pl"},{k:"beine",n:"Beine",a:"B"},{k:"oben",n:"Oberkörper",a:"OK"},{k:"unten",n:"Unterkörper",a:"UK"},{k:"ganz",n:"Ganzkörper",a:"GK"},{k:"cardio",n:"Cardio",a:"C"},{k:"sonst",n:"Sonstiges",a:"S"}];
 DAY_TYPES.forEach(t=>t.c=t.k);
 const COLOR_NAMES={push:"Blau",pull:"Orange",beine:"Türkis",oben:"Gelb",unten:"Rosa",ganz:"Grün",cardio:"Lila",sonst:"Rot"};
@@ -1918,6 +1919,7 @@ document.addEventListener("click",ev=>{
     case "logDel": { const l=S.docs.get(b.dataset.id), e=l&&ex(l.exId); if(!l) return; const n=(l.sets||[]).length;
       askConfirm({title:`Soll „${e?e.name:"diese Übung"}“ wirklich aus diesem Training gelöscht werden?`,text:`Die ${n} eingetragenen ${n===1?"Satz":"Sätze"} vom ${fmtShortY.format(toDate(l.date))} gehen dabei verloren. Die Übung selbst bleibt erhalten.`,ok:"Löschen",
         onOk:()=>{ put(b.dataset.id,null); render(); toast(`„${e?e.name:"Übung"}“ gelöscht`); }}); break; }
+    case "iconSet": saveCfg({icon:{...iconCfg(),set:b.dataset.v}}); if(iconCfg().random) applyIcon(); render(); break;
     case "iconPick": saveCfg({icon:{...iconCfg(),pick:b.dataset.v,random:false}}); applyIcon(); render(); toast("App-Symbol gewählt"); break;
     case "iconRandom": saveCfg({icon:{...iconCfg(),random:!iconCfg().random}}); applyIcon(); render(); break;
     case "iconPeriod": saveCfg({icon:{...iconCfg(),period:b.dataset.v}}); applyIcon(); render(); break;
@@ -3416,9 +3418,11 @@ $("#importFile").addEventListener("change",ev=>{
 /* ---------- App-Symbol ---------- */
 // Das gewählte Symbol landet im Cache "gym-logbuch-prefs". Der Service Worker baut daraus das Manifest,
 // sodass Chrome auf Android das Symbol auf dem Startbildschirm bei der nächsten Aktualisierung übernimmt.
-const APP_ICONS=[["std","Standard"],["bear-1","Bär mit Stirnband"],["bear-2","Super-Bär"],["bear-3","Sprint-Bär"],["bear-4","Liegestütz-Bär"],["bear-5","Kreuzheben-Bär"],["bear-6","Kniebeugen-Bär"],["bear-7","Musik-Bär"]];
+// dritter Wert: m = männliche, f = weibliche Motive; das Standard-Symbol gibt es in beiden Gruppen
+const APP_ICONS=[["std","Standard",""],["bear-1","Bär mit Stirnband","m"],["bear-2","Super-Bär","m"],["bear-3","Sprint-Bär","m"],["bear-4","Liegestütz-Bär","m"],["bear-5","Kreuzheben-Bär","m"],["bear-6","Kniebeugen-Bär","m"],["bear-7","Musik-Bär","m"],["bear-f1","Bühnen-Bärin","f"],["bear-f2","Posing-Bärin","f"],["bear-f3","Wettkampf-Bärin","f"],["bear-f4","Bizeps-Bärin","f"],["bear-f5","Sprint-Bärin","f"],["bear-f6","Stretching-Bärin","f"],["bear-f7","Kettlebell-Bärin","f"],["bear-f8","Kurzhantel-Bärin","f"],["bear-f9","Hantel-Bärin","f"],["bear-f10","Yoga-Bärin","f"],["bear-f11","Lauf-Bärin","f"],["bear-f12","Power-Bärin","f"]];
+const iconsOf=set=>APP_ICONS.filter(x=>!x[2]||x[2]===set);
 const ICON_PERIODS=[["day","Täglich"],["week","Wöchentlich"],["month","Monatlich"],["year","Jährlich"]];
-function iconCfg(){ const c=cfg().icon||{}; return {pick:APP_ICONS.some(x=>x[0]===c.pick)?c.pick:"std", random:!!c.random, period:ICON_PERIODS.some(x=>x[0]===c.period)?c.period:"week"}; }
+function iconCfg(){ const c=cfg().icon||{}, pick=APP_ICONS.some(x=>x[0]===c.pick)?c.pick:"std", g=(APP_ICONS.find(x=>x[0]===pick)||[])[2]; return {pick, random:!!c.random, period:ICON_PERIODS.some(x=>x[0]===c.period)?c.period:"week", set:c.set==="f"||c.set==="m"?c.set:(g||(profile().sex==="w"?"f":"m"))}; }
 function iconThumb(id){ return id==="std"?"icons/icon-192.png":`icons/${id}-thumb.webp`; }
 function periodKey(period,date){
   const d=toDate(date||todayStr());
@@ -3430,13 +3434,13 @@ function periodKey(period,date){
 }
 function hashStr(t){ let h=2166136261; for(const ch of t){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; }
 function randomIconFor(period,date){
-  const n=APP_ICONS.length, key=periodKey(period,date), i=hashStr("gl:"+key)%n;
+  const set=iconCfg().set, L=iconsOf(set), n=L.length, key=periodKey(period,date), i=hashStr("gl:"+set+key)%n;
   // nicht zweimal hintereinander dasselbe Symbol
   const prevDate=period==="day"?addDays(date||todayStr(),-1):period==="week"?addDays(date||todayStr(),-7):null;
   let prev=null;
-  if(prevDate) prev=hashStr("gl:"+periodKey(period,prevDate))%n;
-  else { const d=toDate(date||todayStr()); const pk=period==="month"?(d.getMonth()===0?(d.getFullYear()-1)+"-12":d.getFullYear()+"-"+pad(d.getMonth())):String(d.getFullYear()-1); prev=hashStr("gl:"+pk)%n; }
-  return APP_ICONS[i===prev?(i+1)%n:i][0];
+  if(prevDate) prev=hashStr("gl:"+set+periodKey(period,prevDate))%n;
+  else { const d=toDate(date||todayStr()); const pk=period==="month"?(d.getMonth()===0?(d.getFullYear()-1)+"-12":d.getFullYear()+"-"+pad(d.getMonth())):String(d.getFullYear()-1); prev=hashStr("gl:"+set+pk)%n; }
+  return L[i===prev?(i+1)%n:i][0];
 }
 function currentIcon(){ const c=iconCfg(); return c.random?randomIconFor(c.period):c.pick; }
 async function applyIcon(){
@@ -3452,7 +3456,8 @@ async function applyIcon(){
 function viewIconCard(){
   const c=iconCfg(), cur=currentIcon(), isIOS=/iPhone|iPad/.test(navigator.userAgent);
   return `<div class="card panel"><h3>App-Symbol</h3><p class="muted">Welches Symbol soll auf deinem Startbildschirm zu sehen sein?</p>
-    <div class="icon-grid">${APP_ICONS.map(([id,n])=>`<button class="icon-pick" data-act="iconPick" data-v="${id}" aria-pressed="${!c.random&&c.pick===id}" aria-label="${esc(n)}"${c.random?" disabled":""}><img src="${iconThumb(id)}" alt="" loading="lazy">${c.random&&cur===id?`<em>gerade</em>`:""}</button>`).join("")}</div>
+    <div class="seg wide" role="group" aria-label="Motive"><button data-act="iconSet" data-v="m" aria-pressed="${c.set==="m"}"><span class="gsym">♂</span> Männlich</button><button data-act="iconSet" data-v="f" aria-pressed="${c.set==="f"}"><span class="gsym">♀</span> Weiblich</button></div>
+    <div class="icon-grid">${iconsOf(c.set).map(([id,n])=>`<button class="icon-pick" data-act="iconPick" data-v="${id}" aria-pressed="${!c.random&&c.pick===id}" aria-label="${esc(n)}"${c.random?" disabled":""}><img src="${iconThumb(id)}" alt="" loading="lazy">${c.random&&cur===id?`<em>gerade</em>`:""}</button>`).join("")}</div>
     <div class="switch-row"><span>Zufällig wechseln</span><button class="switch" role="switch" data-act="iconRandom" aria-checked="${c.random}" aria-label="Symbol zufällig wechseln"></button></div>
     ${c.random?`<div class="chips">${ICON_PERIODS.map(([k,l])=>`<button class="chip" data-act="iconPeriod" data-v="${k}" aria-pressed="${c.period===k}">${l}</button>`).join("")}</div><p class="meta">Aktuell: ${esc(APP_ICONS.find(x=>x[0]===cur)[1])}</p>`:""}
     <p class="hint">${isIOS?"Auf dem iPhone übernimmt Safari das Symbol nur beim Hinzufügen zum Home-Bildschirm. Wähle es also vorher aus. Zum späteren Wechseln müsstest du die App entfernen und neu hinzufügen. Achtung: Beim Entfernen löscht das iPhone deine Daten, mach vorher unbedingt ein Backup (unten).":"So übernimmt Android das neue Symbol: App ganz schließen (aus der Liste der offenen Apps wegwischen) und wieder öffnen. Chrome prüft das höchstens einmal am Tag und fragt dann meist „App-Symbol aktualisieren?“ – manchmal erst am nächsten Tag. Klappt es nicht, oder hast du die App mit Samsung Internet statt Chrome hinzugefügt: unten ein Backup machen, die App vom Startbildschirm entfernen und in Chrome über Menü ⋮ → „App installieren“ neu hinzufügen. Dann ist das gewählte Symbol sofort da."}</p></div>`;

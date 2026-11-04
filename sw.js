@@ -1,6 +1,6 @@
 // Gym-Logbuch Service Worker: macht die App offline nutzbar.
 // Bei jeder neuen App-Version die Versionsnummer hochzählen.
-const VERSION = "gym-logbuch-3.26";
+const VERSION = "gym-logbuch-3.27";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -16,10 +16,12 @@ const APP_FILES = [
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
   "./icons/bear-1-thumb.webp","./icons/bear-2-thumb.webp","./icons/bear-3-thumb.webp","./icons/bear-4-thumb.webp",
-  "./icons/bear-5-thumb.webp","./icons/bear-6-thumb.webp","./icons/bear-7-thumb.webp"
+  "./icons/bear-5-thumb.webp","./icons/bear-6-thumb.webp","./icons/bear-7-thumb.webp",
+  "./icons/bear-f1-thumb.webp","./icons/bear-f2-thumb.webp","./icons/bear-f3-thumb.webp","./icons/bear-f4-thumb.webp","./icons/bear-f5-thumb.webp","./icons/bear-f6-thumb.webp","./icons/bear-f7-thumb.webp","./icons/bear-f8-thumb.webp","./icons/bear-f9-thumb.webp","./icons/bear-f10-thumb.webp","./icons/bear-f11-thumb.webp","./icons/bear-f12-thumb.webp",
+  "./manifest-bear-f1.webmanifest","./manifest-bear-f2.webmanifest","./manifest-bear-f3.webmanifest","./manifest-bear-f4.webmanifest","./manifest-bear-f5.webmanifest","./manifest-bear-f6.webmanifest","./manifest-bear-f7.webmanifest","./manifest-bear-f8.webmanifest","./manifest-bear-f9.webmanifest","./manifest-bear-f10.webmanifest","./manifest-bear-f11.webmanifest","./manifest-bear-f12.webmanifest"
 ];
 const PREFS = "gym-logbuch-prefs";
-const ICON_IDS = ["bear-1","bear-2","bear-3","bear-4","bear-5","bear-6","bear-7"];
+const ICON_IDS = ["bear-1","bear-2","bear-3","bear-4","bear-5","bear-6","bear-7","bear-f1","bear-f2","bear-f3","bear-f4","bear-f5","bear-f6","bear-f7","bear-f8","bear-f9","bear-f10","bear-f11","bear-f12"];
 
 // Manifest mit dem App-Symbol, das in der App gewählt wurde
 async function manifestResponse(req){
